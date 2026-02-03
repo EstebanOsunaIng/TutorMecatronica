@@ -1,5 +1,4 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage } from '../types';
 import { getTutorResponse } from '../services/geminiService';
 
@@ -10,46 +9,87 @@ interface ChatbotProps {
 
 const Chatbot: React.FC<ChatbotProps> = ({ externalPrompt, onPromptConsumed }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: '1', role: 'model', text: '¡Hola! Soy TuVir, tu asistente de mecatrónica. ¿En qué concepto técnico te gustaría profundizar hoy?', timestamp: new Date() }
+    {
+      id: '1',
+      role: 'model',
+      text: '¡Hola! Soy TuVir, tu asistente de mecatrónica. ¿En qué concepto técnico te gustaría profundizar hoy?',
+      timestamp: new Date()
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
-  // Handle external prompts (e.g., from the "Dudas" button)
-  useEffect(() => {
-    if (externalPrompt) {
-      handleSend(externalPrompt);
-      if (onPromptConsumed) onPromptConsumed();
-    }
-  }, [externalPrompt]);
-
-  const handleSend = async (textToSend?: string) => {
-    const text = textToSend || input;
-    if (!text.trim() || isLoading) return;
-
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: text, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setIsLoading(true);
-
-    const history = messages.map(m => ({
+  const buildHistory = (msgs: ChatMessage[]) =>
+    msgs.map(m => ({
       role: m.role,
       parts: [{ text: m.text }]
     }));
 
-    const response = await getTutorResponse(text, history);
-    
-    const botMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: response || '', timestamp: new Date() };
-    setMessages(prev => [...prev, botMsg]);
-    setIsLoading(false);
-  };
+  const handleSend = useCallback(async (textToSend?: string) => {
+    const text = (textToSend ?? input).trim();
+    if (!text || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      text,
+      timestamp: new Date()
+    };
+
+    // Creamos el "nextMessages" de forma segura (incluyendo el msg nuevo)
+    let nextMessages: ChatMessage[] = [];
+    setMessages(prev => {
+      nextMessages = [...prev, userMsg];
+      return nextMessages;
+    });
+
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      // OJO: aquí usamos nextMessages (ya incluye el userMsg)
+      const history = buildHistory(nextMessages);
+      const response = await getTutorResponse(text, history);
+
+      const botMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: response || 'No pude generar respuesta. Intenta de nuevo.',
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, botMsg]);
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          role: 'model',
+          text: 'Ups, ocurrió un error consultando el modelo. Revisa conexión o el servicio e intenta de nuevo.',
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [input, isLoading]);
+
+  // Handle external prompts (e.g., from "Dudas")
+  useEffect(() => {
+    if (!externalPrompt?.trim()) return;
+    if (isLoading) return;
+
+    handleSend(externalPrompt);
+    onPromptConsumed?.();
+  }, [externalPrompt, handleSend, isLoading, onPromptConsumed]);
 
   return (
     <div className="flex flex-col h-full bg-[#111c22] rounded-2xl border border-[#233c48] overflow-hidden shadow-2xl">
@@ -69,9 +109,9 @@ const Chatbot: React.FC<ChatbotProps> = ({ externalPrompt, onPromptConsumed }) =
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
-              msg.role === 'user' 
-              ? 'bg-primary-500 text-white rounded-tr-none' 
-              : 'bg-[#1b2a33] text-slate-200 border border-[#233c48] rounded-tl-none'
+              msg.role === 'user'
+                ? 'bg-primary-500 text-white rounded-tr-none'
+                : 'bg-[#1b2a33] text-slate-200 border border-[#233c48] rounded-tl-none'
             }`}>
               <p>{msg.text}</p>
               <span className={`text-[9px] mt-1 block ${msg.role === 'user' ? 'text-primary-100' : 'text-slate-500'}`}>
@@ -80,6 +120,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ externalPrompt, onPromptConsumed }) =
             </div>
           </div>
         ))}
+
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-[#1b2a33] p-3 rounded-2xl rounded-tl-none border border-[#233c48] flex gap-1 items-center">
@@ -101,7 +142,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ externalPrompt, onPromptConsumed }) =
             placeholder="Pregunta sobre servomotores, Arduino..."
             className="w-full bg-[#1b2a33] text-white placeholder-slate-500 border border-[#233c48] rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all shadow-inner text-sm"
           />
-          <button 
+          <button
             onClick={() => handleSend()}
             disabled={isLoading}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-500 hover:bg-primary-400 rounded-lg text-white transition-colors disabled:opacity-50"
