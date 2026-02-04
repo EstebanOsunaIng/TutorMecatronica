@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatMessage } from '../types';
-import { getTutorResponse } from '../services/geminiService';
+import { getTutorResponse } from '../services/tutorService';
 
 interface ChatbotProps {
   externalPrompt?: string;

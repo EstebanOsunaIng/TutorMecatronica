@@ -1,9 +1,9 @@
-export type GeminiHistoryItem = {
+export type TutorHistoryItem = {
   role: 'user' | 'model';
   parts: { text: string }[];
 };
 
-export async function getTutorResponse(prompt: string, history: GeminiHistoryItem[] = []) {
+export async function getTutorResponse(prompt: string, history: TutorHistoryItem[] = []) {
   try {
     const res = await fetch('/api/tutor', {
       method: 'POST',

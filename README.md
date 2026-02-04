@@ -7,7 +7,7 @@
 Este repo quedo separado en:
 
 - `frontend/`: app React (Vite)
-- `backend/`: API Node (Express) que encapsula Gemini (la API key ya no vive en el navegador)
+- `backend/`: API Node (Express) (modo sin IA por ahora)
 
 ## Requisitos
 
@@ -25,7 +25,7 @@ Opcion rapida (un solo comando desde la raiz):
 
 - `cd backend`
 - `npm install`
-- Copia `backend/.env.example` a `backend/.env` y define `OPENAI_API_KEY`
+- (Opcional) Copia `backend/.env.example` a `backend/.env` si quieres cambiar el puerto
 - `npm run dev`
 
 2) Frontend (en otra terminal)

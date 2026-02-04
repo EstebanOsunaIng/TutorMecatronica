@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import OpenAI from 'openai';
 
 const PORT = Number(process.env.PORT || 3001);
 
@@ -15,11 +14,6 @@ app.get('/health', (_req, res) => {
 
 app.post('/api/tutor', async (req, res) => {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'Missing OPENAI_API_KEY in backend environment' });
-    }
-
     const { prompt, history = [] } = req.body || {};
     if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'prompt must be a non-empty string' });
@@ -28,27 +22,14 @@ app.post('/api/tutor', async (req, res) => {
       return res.status(400).json({ error: 'history must be an array' });
     }
 
-    const client = new OpenAI({ apiKey });
+    // Modo sin IA: dejamos una respuesta simple para mantener el flujo del frontend.
+    const text =
+      "Modo sin IA: aun no hay modelo conectado.\n\n" +
+      `Tu pregunta: ${prompt.trim()}\n\n` +
 
-    const system =
-      "Eres 'TuVir', un tutor experto en Mecatrónica de la Universitaria de Colombia. Tu objetivo es ayudar a los estudiantes con conceptos de robótica, electrónica, programación (C++, Python), y diseño mecánico. Eres amable, técnico pero claro, y fomentas el pensamiento crítico. Si el estudiante te hace una pregunta fuera de mecatrónica, redirígelo gentilmente a temas de ingeniería.";
+      'Sugerencia: indica tema, nivel (basico/intermedio/avanzado) y si quieres ejemplo (Arduino/Python/C++).';
 
-    const input = [
-      { role: 'system', content: system },
-      ...history.map((h) => ({
-        role: h?.role === 'model' ? 'assistant' : 'user',
-        content: String(h?.parts?.[0]?.text ?? '')
-      })),
-      { role: 'user', content: prompt }
-    ];
-
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      input,
-      temperature: 0.7
-    });
-
-    res.json({ text: response.output_text || '' });
+    res.json({ text });
   } catch (err) {
     console.error('POST /api/tutor error:', err);
     res.status(500).json({ error: 'Tutor service failed' });
