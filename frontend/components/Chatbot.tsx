@@ -55,8 +55,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ externalPrompt, onPromptConsumed }) =
     setIsLoading(true);
 
     try {
-      // OJO: aquí usamos nextMessages (ya incluye el userMsg)
-      const history = buildHistory(nextMessages);
+      // Pasamos el historial SIN el prompt actual; el backend lo anade
+      const history = buildHistory(nextMessages.slice(0, -1));
       const response = await getTutorResponse(text, history);
 
       const botMsg: ChatMessage = {
