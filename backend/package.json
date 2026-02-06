@@ -17,6 +17,8 @@
     "mongoose": "^8.12.1",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
+    "pdf-parse": "^1.1.1",
+    "rss-parser": "^3.13.0",
     "tutormecatronica": "file:.."
   }
 }

@@ -22,7 +22,7 @@ Arquitectura fullstack con React (frontend) y Node/Express + MongoDB (backend).
 
 - `cd backend`
 - `npm install`
-- Copia `backend/.env.example` a `backend/.env` y configura `MONGO_URI` y `JWT_SECRET`
+- Copia `backend/.env.example` a `backend/.env` y configura `MONGO_URI` y `JWT_SECRET` (y opcionalmente `OPENAI_API_KEY`)
 - `npm run dev`
 
 ## Seed de superadmin (opcion B)

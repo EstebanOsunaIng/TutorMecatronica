@@ -10,6 +10,9 @@ export async function listNews(req, res) {
 }
 
 export async function refreshNews(_req, res) {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  await News.deleteMany({ date: { $gte: start } });
   await ensureDailyNews();
   res.json({ ok: true });
 }

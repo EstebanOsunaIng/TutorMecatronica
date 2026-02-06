@@ -4,10 +4,39 @@ import { modulesApi } from '../../api/modules.api.js';
 
 export default function AdminModules() {
   const [modules, setModules] = useState([]);
+  const [busyId, setBusyId] = useState('');
+
+  const load = async () => {
+    const res = await modulesApi.list();
+    setModules(res.data.modules || []);
+  };
 
   useEffect(() => {
-    modulesApi.list().then((res) => setModules(res.data.modules || []));
+    load();
   }, []);
+
+  const togglePublish = async (m) => {
+    if (!m?._id) return;
+    setBusyId(m._id);
+    try {
+      await modulesApi.update(m._id, { isPublished: !m.isPublished });
+      await load();
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const remove = async (m) => {
+    if (!m?._id) return;
+    if (!confirm('Eliminar este modulo? Esta accion no se puede deshacer.')) return;
+    setBusyId(m._id);
+    try {
+      await modulesApi.remove(m._id);
+      await load();
+    } finally {
+      setBusyId('');
+    }
+  };
 
   return (
     <Card>
@@ -17,9 +46,24 @@ export default function AdminModules() {
           <div key={m._id} className="flex items-center justify-between">
             <div>
               <div className="font-semibold">{m.title}</div>
-              <div className="text-xs text-slate-400">{m.level}</div>
+              <div className="text-xs text-slate-400">{m.level} · {m.isPublished ? 'Publicado' : 'No publicado'}</div>
             </div>
-            <div className="text-xs text-slate-400">Editar / Eliminar</div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => togglePublish(m)}
+                disabled={busyId === m._id}
+                className="rounded-lg bg-brand-500/20 px-3 py-2 text-xs text-brand-200 disabled:opacity-50"
+              >
+                {m.isPublished ? 'Ocultar' : 'Publicar'}
+              </button>
+              <button
+                onClick={() => remove(m)}
+                disabled={busyId === m._id}
+                className="rounded-lg bg-red-500/20 px-3 py-2 text-xs text-red-200 disabled:opacity-50"
+              >
+                Eliminar
+              </button>
+            </div>
           </div>
         ))}
       </div>

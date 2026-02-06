@@ -26,8 +26,6 @@ export async function register(req, res) {
     const code = await TeacherCode.findOne({ code: teacherCode, isUsed: false });
     if (!code) return res.status(400).json({ error: 'Invalid teacher code' });
     if (code.expiresAt < new Date()) return res.status(400).json({ error: 'Teacher code expired' });
-    code.isUsed = true;
-    await code.save();
   }
 
   const passwordHash = await hashPassword(password);
@@ -40,6 +38,14 @@ export async function register(req, res) {
     phone,
     passwordHash
   });
+
+  if (role === 'TEACHER' && teacherCode) {
+    await TeacherCode.findOneAndUpdate(
+      { code: teacherCode },
+      { $set: { isUsed: true, usedByUserId: user._id } },
+      { new: true }
+    );
+  }
 
   return res.status(201).json({ user: sanitizeUser(user) });
 }

@@ -5,6 +5,13 @@ export const modulesApi = {
   listPublished: () => axiosClient.get('/modules/published'),
   get: (id) => axiosClient.get(`/modules/${id}`),
   create: (payload) => axiosClient.post('/modules', payload),
+  importPdf: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return axiosClient.post('/modules/import/pdf', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   update: (id, payload) => axiosClient.put(`/modules/${id}`, payload),
   remove: (id) => axiosClient.delete(`/modules/${id}`),
   addLevel: (moduleId, payload) => axiosClient.post(`/modules/${moduleId}/levels`, payload),
