@@ -8,8 +8,10 @@ export const env = {
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   },
   mail: {
+    service: process.env.MAIL_SERVICE || '',
     host: process.env.MAIL_HOST || '',
     port: Number(process.env.MAIL_PORT || 0),
+    secure: process.env.MAIL_SECURE === undefined ? null : String(process.env.MAIL_SECURE).toLowerCase() === 'true',
     user: process.env.MAIL_USER || '',
     pass: process.env.MAIL_PASS || '',
     from: process.env.MAIL_FROM || 'no-reply@tutormecatronica.com'
