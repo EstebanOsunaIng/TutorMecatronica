@@ -18,7 +18,7 @@ export default function NewsCard({ item }) {
       ) : null}
       <div className="mb-2 text-xs uppercase tracking-widest text-brand-300">{item.category}</div>
       <h4 className="text-lg font-bold text-white">{item.title}</h4>
-      <p className="mt-2 text-sm text-slate-300">{item.summary}</p>
+      <p className="mt-2 text-sm text-slate-300 line-clamp-4">{item.summary}</p>
       <div className="mt-3 text-xs text-slate-500">
         {new Date(item.date).toLocaleDateString()} {item.url ? '• Abrir noticia' : ''}
       </div>

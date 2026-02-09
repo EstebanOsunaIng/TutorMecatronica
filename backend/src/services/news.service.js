@@ -100,6 +100,8 @@ async function translateToSpanish(text) {
 export async function ensureDailyNews() {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const cutoff = new Date(start.getTime() - 3 * 24 * 60 * 60 * 1000);
+  await News.deleteMany({ date: { $lt: cutoff } });
   const count = await News.countDocuments();
   if (count > 0) return;
 
