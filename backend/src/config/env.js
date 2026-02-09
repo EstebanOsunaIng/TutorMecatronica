@@ -9,7 +9,9 @@ export const env = {
   },
   news: {
     gnewsApiKey: process.env.GNEWS_API_KEY || '',
-    gnewsLang: process.env.GNEWS_LANG || 'es'
+    gnewsLang: process.env.GNEWS_LANG || 'all',
+    translateUrl: process.env.NEWS_TRANSLATE_URL || 'https://libretranslate.de/translate',
+    translateApiKey: process.env.NEWS_TRANSLATE_API_KEY || ''
   },
   mail: {
     service: process.env.MAIL_SERVICE || '',

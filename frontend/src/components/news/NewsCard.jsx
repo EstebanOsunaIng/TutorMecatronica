@@ -14,6 +14,7 @@ export default function NewsCard({ item }) {
           src={item.imageUrl}
           alt={item.title}
           className="mb-3 h-40 w-full rounded-lg object-cover"
+          loading="lazy"
         />
       ) : null}
       <div className="mb-2 text-xs uppercase tracking-widest text-brand-300">{item.category}</div>

@@ -13,12 +13,35 @@ const categoryKeywords = {
 };
 
 const categoryQueries = {
-  'Mecatrónica': ['mecatronica', 'mechatronics', 'mechatronic systems'],
-  'Robótica': ['robotica', 'robotics', 'robot arm', 'autonomous robot'],
-  'Humanoides': ['humanoid robot', 'humanoide', 'bipedal robot'],
-  'Ingeniería': ['ingenieria', 'engineering', 'automation control'],
-  'Unitree': ['unitree', 'unitree robot', 'unitree robotics']
+  'Mecatrónica': {
+    en: ['mechatronics', 'mechatronic systems', 'automation control', 'robotics', 'control systems'],
+    es: ['mecatronica', 'mecatrónica', 'automatizacion', 'control automatico', 'robotica']
+  },
+  'Robótica': {
+    en: ['robotics', 'robot arm', 'autonomous robot', 'mobile robot'],
+    es: ['robotica', 'robótica', 'robot autonomo', 'robot movil']
+  },
+  'Humanoides': {
+    en: ['humanoid robot', 'bipedal robot', 'humanoid robotics'],
+    es: ['humanoide', 'robot humanoide', 'robot bipedo']
+  },
+  'Ingeniería': {
+    en: ['engineering', 'mechanical engineering', 'electrical engineering', 'mechatronics'],
+    es: ['ingenieria', 'ingeniería', 'ingenieria mecanica', 'ingenieria electrica']
+  },
+  'Unitree': {
+    en: ['unitree', 'unitree robot', 'unitree robotics'],
+    es: ['unitree']
+  }
 };
+
+function buildQueries(category) {
+  const def = categoryQueries[category];
+  if (!def) return [];
+  const enQuery = def.en?.join(' OR ') || '';
+  const esQuery = def.es?.join(' OR ') || '';
+  return [enQuery, esQuery].filter(Boolean);
+}
 
 function matchesCategory(item, category) {
   const keywords = categoryKeywords[category] || [];
@@ -33,7 +56,10 @@ async function fetchGnews(query) {
   const url = new URL('https://gnews.io/api/v4/search');
   url.searchParams.set('q', query);
   url.searchParams.set('token', apiKey);
-  url.searchParams.set('lang', env.news.gnewsLang || 'es');
+  const lang = String(env.news.gnewsLang || '').trim().toLowerCase();
+  if (lang && lang !== 'all') {
+    url.searchParams.set('lang', lang);
+  }
   url.searchParams.set('max', '10');
   url.searchParams.set('topic', 'technology');
 
@@ -56,15 +82,28 @@ async function fetchGnews(query) {
 }
 
 async function pickLatest(category) {
-  const query = (categoryQueries[category] || []).join(' OR ');
-  const items = await fetchGnews(query);
-  const filtered = items.filter((x) => x.title).filter((x) => matchesCategory(x, category));
-  filtered.sort((a, b) => {
-    const da = a.pubDate ? a.pubDate.getTime() : 0;
-    const db = b.pubDate ? b.pubDate.getTime() : 0;
-    return db - da;
-  });
-  return filtered[0] || null;
+  const queries = buildQueries(category);
+  const collected = [];
+
+  for (const q of queries) {
+    const items = await fetchGnews(q);
+    collected.push(...items);
+    if (items.length > 0) break; // si ya hay resultados en ese idioma, no seguimos
+  }
+
+  const filtered = collected
+    .filter((x) => x.title && x.url)
+    .filter((x) => matchesCategory(x, category));
+
+  const sorted = (filtered.length > 0 ? filtered : collected)
+    .filter((x) => x.title && x.url)
+    .sort((a, b) => {
+      const da = a.pubDate ? a.pubDate.getTime() : 0;
+      const db = b.pubDate ? b.pubDate.getTime() : 0;
+      return db - da;
+    });
+
+  return sorted;
 }
 
 async function translateToSpanish(text) {
@@ -90,11 +129,45 @@ async function translateToSpanish(text) {
     })
   });
 
-  if (!res.ok) {
+  if (res.ok) {
+    const data = await res.json();
+    const translated = data?.choices?.[0]?.message?.content?.trim();
+    if (translated) return translated;
+  }
+
+  return text;
+}
+
+async function translateWithLibre(text) {
+  const url = env.news.translateUrl;
+  if (!url || !text) return text;
+
+  const payload = {
+    q: text,
+    source: 'auto',
+    target: 'es',
+    format: 'text'
+  };
+  if (env.news.translateApiKey) payload.api_key = env.news.translateApiKey;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) return text;
+    const data = await res.json();
+    return data?.translatedText || text;
+  } catch (err) {
     return text;
   }
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content?.trim() || text;
+}
+
+async function translateToSpanishSafe(text) {
+  const first = await translateToSpanish(text);
+  if (first && first !== text) return first;
+  return translateWithLibre(text);
 }
 
 export async function ensureDailyNews() {
@@ -106,10 +179,12 @@ export async function ensureDailyNews() {
   if (count > 0) return;
 
   const batch = [];
+  const usedUrls = new Set();
   for (const category of categories) {
     let picked = null;
     try {
-      picked = await pickLatest(category);
+      const candidates = await pickLatest(category);
+      picked = candidates.find((item) => !usedUrls.has(item.url)) || null;
     } catch (err) {
       console.error('[news] gnews failed', category, err?.message || err);
     }
@@ -128,12 +203,11 @@ export async function ensureDailyNews() {
       continue;
     }
 
-    const translatedTitle = await translateToSpanish(picked.title);
-    const translatedSummary = await translateToSpanish(picked.summary || 'Sin resumen.');
+    usedUrls.add(picked.url);
 
     batch.push({
-      title: translatedTitle,
-      summary: translatedSummary || 'Sin resumen.',
+      title: picked.title,
+      summary: picked.summary || 'Sin resumen.',
       category,
       source: picked.source || 'GNews',
       url: picked.url || '',

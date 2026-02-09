@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { aiApi } from '../../api/ai.api.js';
 import ChatMessages from './ChatMessages.jsx';
 
@@ -9,19 +9,35 @@ export default function ChatDock() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const send = async () => {
-    if (!input.trim() || loading) return;
-    const text = input.trim();
-    setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+  const sendMessage = async (text, context = '') => {
+    if (!text.trim() || loading) return;
+    const content = text.trim();
+    setMessages((prev) => [...prev, { role: 'user', text: content }]);
     setLoading(true);
     try {
-      const { data } = await aiApi.chat({ message: text, context: '' });
+      const { data } = await aiApi.chat({ message: content, context });
       setMessages((prev) => [...prev, { role: 'assistant', text: data.text }]);
     } finally {
       setLoading(false);
     }
   };
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const text = input.trim();
+    setInput('');
+    await sendMessage(text, '');
+  };
+
+  useEffect(() => {
+    const handler = (event) => {
+      const detail = event?.detail || {};
+      if (!detail.message) return;
+      sendMessage(detail.message, detail.context || '');
+    };
+    window.addEventListener('tuvir:chat:send', handler);
+    return () => window.removeEventListener('tuvir:chat:send', handler);
+  }, [loading]);
 
   return (
     <div className="flex h-full flex-col bg-slate-950">

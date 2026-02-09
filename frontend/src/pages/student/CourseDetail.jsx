@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Card from '../../components/common/Card.jsx';
-import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 import { progressApi } from '../../api/progress.api.js';
-import { aiApi } from '../../api/ai.api.js';
 
 export default function CourseDetail() {
   const { id } = useParams();
   const [moduleItem, setModuleItem] = useState(null);
   const [levels, setLevels] = useState([]);
-  const [help, setHelp] = useState('');
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     modulesApi.get(id).then((res) => {
@@ -24,12 +20,10 @@ export default function CourseDetail() {
     await progressApi.completeLevel({ moduleId: id, levelOrder: level.order });
   };
 
-  const askHelp = async (level) => {
+  const askHelp = (level) => {
     const context = `Modulo: ${moduleItem?.title}\nNivel: ${level.title}\nContexto: ${level.contextForAI}`;
     const message = `Estoy en el nivel ${level.title}. Explicame paso a paso y guiame sin darme la respuesta.`;
-    const { data } = await aiApi.chat({ message, context });
-    setHelp(data.text);
-    setOpen(true);
+    window.dispatchEvent(new CustomEvent('tuvir:chat:send', { detail: { message, context } }));
   };
 
   return (
@@ -62,10 +56,6 @@ export default function CourseDetail() {
           </Card>
         ))}
       </div>
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <h3 className="mb-3 text-lg font-bold">Ayuda del tutor</h3>
-        <p className="text-sm text-slate-300 whitespace-pre-wrap">{help}</p>
-      </Modal>
     </div>
   );
 }

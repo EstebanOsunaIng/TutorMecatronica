@@ -9,10 +9,15 @@ export async function listNews(req, res) {
   res.json({ news });
 }
 
-export async function refreshNews(_req, res) {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  await News.deleteMany({ date: { $gte: start } });
+export async function refreshNews(req, res) {
+  const force = String(req.query?.force || '') === '1';
+  if (force) {
+    await News.deleteMany({});
+  } else {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    await News.deleteMany({ date: { $gte: start } });
+  }
   await ensureDailyNews();
   res.json({ ok: true });
 }
