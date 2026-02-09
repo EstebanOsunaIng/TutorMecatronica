@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
 export default function TeacherDashboard() {
   const [modules, setModules] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     modulesApi.list().then((res) => setModules(res.data.modules || []));
@@ -32,7 +34,20 @@ export default function TeacherDashboard() {
                 <div className="font-semibold">{m.title}</div>
                 <div className="text-xs text-slate-400">{m.level}</div>
               </div>
-              <div className="text-xs text-slate-400">Editar / Eliminar</div>
+              <div className="flex gap-2 text-xs">
+                <button
+                  onClick={() => navigate(`/teacher/modules?moduleId=${m._id}`)}
+                  className="rounded-md bg-brand-500/20 px-2 py-1 text-brand-200"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => navigate(`/teacher/modules?moduleId=${m._id}`)}
+                  className="rounded-md bg-red-500/20 px-2 py-1 text-red-200"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/common/Card.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
 export default function ModuleEditor() {
+  const [searchParams] = useSearchParams();
   const [modules, setModules] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', level: 'Básico' });
   const [selectedId, setSelectedId] = useState('');
@@ -34,6 +36,14 @@ export default function ModuleEditor() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const moduleId = searchParams.get('moduleId');
+    if (moduleId) {
+      setSelectedId(moduleId);
+      loadSelected(moduleId);
+    }
+  }, [searchParams]);
 
   const submit = async (e) => {
     e.preventDefault();
