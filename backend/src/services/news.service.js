@@ -5,10 +5,6 @@ const require = createRequire(import.meta.url);
 const Parser = require('rss-parser');
 
 const categories = {
-  'Innovación': [
-    { name: 'MIT Tech Review', url: 'https://www.technologyreview.com/feed/' },
-    { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' }
-  ],
   'Mecatrónica': [
     { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/fulltext' },
     { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
@@ -20,7 +16,24 @@ const categories = {
   'Humanoides': [
     { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/robotics/fulltext' },
     { name: 'Robohub', url: 'https://robohub.org/feed/' }
+  ],
+  'Ingeniería': [
+    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/fulltext' },
+    { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
+  ],
+  'Unitree': [
+    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/robotics/fulltext' },
+    { name: 'Robohub', url: 'https://robohub.org/feed/' },
+    { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
   ]
+};
+
+const categoryKeywords = {
+  'Mecatrónica': ['mecatronica', 'mecatrónica', 'mechatronics', 'mechatronic'],
+  'Robótica': ['robotica', 'robótica', 'robotics', 'robot'],
+  'Humanoides': ['humanoid', 'humanoide', 'humanoides'],
+  'Ingeniería': ['ingenieria', 'ingeniería', 'engineering', 'automation', 'control'],
+  'Unitree': ['unitree']
 };
 
 function stripHtml(s = '') {
@@ -43,7 +56,13 @@ async function fetchRssItems(feedUrl) {
   }));
 }
 
-async function pickLatestFromFeeds(feeds) {
+function matchesCategory(item, category) {
+  const keywords = categoryKeywords[category] || [];
+  const text = `${item.title || ''} ${item.summary || ''}`.toLowerCase();
+  return keywords.some((k) => text.includes(k));
+}
+
+async function pickLatestFromFeeds(feeds, category) {
   const results = await Promise.all(
     feeds.map(async (f) => {
       try {
@@ -56,7 +75,10 @@ async function pickLatestFromFeeds(feeds) {
     })
   );
 
-  const merged = results.flat().filter((x) => x.title);
+  const merged = results
+    .flat()
+    .filter((x) => x.title)
+    .filter((x) => matchesCategory(x, category));
   merged.sort((a, b) => {
     const da = a.pubDate ? a.pubDate.getTime() : 0;
     const db = b.pubDate ? b.pubDate.getTime() : 0;
@@ -73,11 +95,11 @@ export async function ensureDailyNews() {
 
   const batch = [];
   for (const [category, feeds] of Object.entries(categories)) {
-    const picked = await pickLatestFromFeeds(feeds);
+    const picked = await pickLatestFromFeeds(feeds, category);
     if (!picked) {
       batch.push({
         title: `${category}: sin fuente disponible`,
-        summary: 'No se pudo consultar una fuente RSS hoy. Intenta refrescar mas tarde.',
+        summary: 'No se encontraron noticias filtradas por tema hoy. Intenta refrescar mas tarde.',
         category,
         source: 'RSS',
         url: '',
