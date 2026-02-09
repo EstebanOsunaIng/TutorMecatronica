@@ -49,6 +49,7 @@ async function fetchGnews(query) {
     title: a.title || '',
     summary: a.description || '',
     url: a.url || '',
+    imageUrl: a.image || '',
     pubDate: a.publishedAt ? new Date(a.publishedAt) : null,
     source: a.source?.name || 'GNews'
   }));
@@ -66,10 +67,40 @@ async function pickLatest(category) {
   return filtered[0] || null;
 }
 
+async function translateToSpanish(text) {
+  const apiKey = env.ai.openaiApiKey;
+  if (!apiKey || !text) return text;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: env.ai.openaiModel,
+      messages: [
+        {
+          role: 'system',
+          content: 'Traduce al español neutro. Mantén nombres propios y marcas. No agregues información.'
+        },
+        { role: 'user', content: text }
+      ],
+      temperature: 0.2
+    })
+  });
+
+  if (!res.ok) {
+    return text;
+  }
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim() || text;
+}
+
 export async function ensureDailyNews() {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const count = await News.countDocuments({ date: { $gte: start } });
+  const count = await News.countDocuments();
   if (count > 0) return;
 
   const batch = [];
@@ -87,6 +118,7 @@ export async function ensureDailyNews() {
         category,
         source: 'GNews',
         url: '',
+        imageUrl: '',
         date: start,
         createdByAI: false,
         createdAt: new Date()
@@ -94,12 +126,16 @@ export async function ensureDailyNews() {
       continue;
     }
 
+    const translatedTitle = await translateToSpanish(picked.title);
+    const translatedSummary = await translateToSpanish(picked.summary || 'Sin resumen.');
+
     batch.push({
-      title: picked.title,
-      summary: picked.summary || 'Sin resumen.',
+      title: translatedTitle,
+      summary: translatedSummary || 'Sin resumen.',
       category,
-      source: picked.source || 'RSS',
+      source: picked.source || 'GNews',
       url: picked.url || '',
+      imageUrl: picked.imageUrl || '',
       date: start,
       createdByAI: false,
       createdAt: new Date()

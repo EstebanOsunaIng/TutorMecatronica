@@ -7,6 +7,7 @@ const newsSchema = new mongoose.Schema(
     category: { type: String, required: true },
     source: { type: String, default: '' },
     url: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
     date: { type: Date, required: true },
     createdByAI: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
