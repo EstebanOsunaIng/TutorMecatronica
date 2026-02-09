@@ -22,7 +22,12 @@ Arquitectura fullstack con React (frontend) y Node/Express + MongoDB (backend).
 
 - `cd backend`
 - `npm install`
-- Copia `backend/.env.example` a `backend/.env` y configura `MONGO_URI` y `JWT_SECRET`
+- Copia `backend/.env.example` a `backend/.env` y configura `MONGO_URI` y `JWT_SECRET` (y opcionalmente `OPENAI_API_KEY`)
+- Si quieres envio real de correos para recuperacion de contraseña, configura SMTP:
+  - `MAIL_SERVICE` (opcional: `gmail`, `outlook`, etc.)
+  - `MAIL_HOST` + `MAIL_PORT` (si no usas `MAIL_SERVICE`)
+  - `MAIL_SECURE` (`true` para 465, `false` para 587)
+  - `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM`
 - `npm run dev`
 
 ## Seed de superadmin (opcion B)

@@ -6,6 +6,7 @@ const newsSchema = new mongoose.Schema(
     summary: { type: String, required: true },
     category: { type: String, required: true },
     source: { type: String, default: '' },
+    url: { type: String, default: '' },
     date: { type: Date, required: true },
     createdByAI: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }

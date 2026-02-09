@@ -67,6 +67,7 @@ export default function AppRouter() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot" element={<ForgotPassword />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route
         path="/student/*"

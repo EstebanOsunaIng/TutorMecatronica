@@ -1,6 +1,10 @@
 import { Module } from '../models/Module.model.js';
 import { LessonLevel } from '../models/LessonLevel.model.js';
 import { Badge } from '../models/Badge.model.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { parsePdfToModule } from '../services/pdfToModule.service.js';
 
 export async function listModules(req, res) {
   const modules = await Module.find().sort({ createdAt: -1 });
@@ -39,8 +43,17 @@ export async function createModule(req, res) {
 }
 
 export async function updateModule(req, res) {
+  const prev = await Module.findById(req.params.id);
   const moduleItem = await Module.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!moduleItem) return res.status(404).json({ error: 'Module not found' });
+
+  if (prev && prev.title !== moduleItem.title) {
+    await Badge.findOneAndUpdate(
+      { moduleId: moduleItem._id },
+      { $set: { name: `Insignia: ${moduleItem.title}`, description: `Completaste el modulo ${moduleItem.title}` } },
+      { new: true }
+    );
+  }
   res.json({ module: moduleItem });
 }
 
@@ -48,7 +61,54 @@ export async function deleteModule(req, res) {
   const moduleItem = await Module.findByIdAndDelete(req.params.id);
   if (!moduleItem) return res.status(404).json({ error: 'Module not found' });
   await LessonLevel.deleteMany({ moduleId: moduleItem._id });
+  await Badge.deleteMany({ moduleId: moduleItem._id });
   res.json({ ok: true });
+}
+
+export async function importModuleFromPdf(req, res) {
+  if (!req.file) return res.status(400).json({ error: 'Missing file' });
+
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tutormecatronica-'));
+  const filePath = path.join(tmpDir, req.file.originalname || 'module.pdf');
+  await fs.writeFile(filePath, req.file.buffer);
+
+  try {
+    const parsed = await parsePdfToModule(filePath);
+    const moduleItem = await Module.create({
+      title: parsed.title,
+      description: parsed.description,
+      level: parsed.level,
+      isPublished: false,
+      createdByTeacherId: req.user.id
+    });
+
+    await Badge.create({
+      moduleId: moduleItem._id,
+      name: `Insignia: ${moduleItem.title}`,
+      description: `Completaste el modulo ${moduleItem.title}`
+    });
+
+    const lessons = Array.isArray(parsed.lessons) ? parsed.lessons : [];
+    const created = [];
+    for (const l of lessons) {
+      created.push(
+        await LessonLevel.create({
+          moduleId: moduleItem._id,
+          order: l.order,
+          title: l.title,
+          contentText: l.contentText || '',
+          videoUrl: l.videoUrl || '',
+          resources: l.resources || [],
+          activity: l.activity || {},
+          contextForAI: l.contextForAI || ''
+        })
+      );
+    }
+
+    res.status(201).json({ module: moduleItem, levels: created });
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 }
 
 export async function addLessonLevel(req, res) {
