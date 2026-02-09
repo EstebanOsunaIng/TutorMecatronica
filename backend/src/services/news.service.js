@@ -1,32 +1,8 @@
 import { createRequire } from 'module';
 import { News } from '../models/News.model.js';
+import { env } from '../config/env.js';
 
-const require = createRequire(import.meta.url);
-const Parser = require('rss-parser');
-
-const categories = {
-  'Mecatrónica': [
-    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/fulltext' },
-    { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
-  ],
-  'Robótica': [
-    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/robotics/fulltext' },
-    { name: 'Robohub', url: 'https://robohub.org/feed/' }
-  ],
-  'Humanoides': [
-    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/robotics/fulltext' },
-    { name: 'Robohub', url: 'https://robohub.org/feed/' }
-  ],
-  'Ingeniería': [
-    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/fulltext' },
-    { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
-  ],
-  'Unitree': [
-    { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/rss/robotics/fulltext' },
-    { name: 'Robohub', url: 'https://robohub.org/feed/' },
-    { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/' }
-  ]
-};
+const categories = ['Mecatrónica', 'Robótica', 'Humanoides', 'Ingeniería', 'Unitree'];
 
 const categoryKeywords = {
   'Mecatrónica': ['mecatronica', 'mecatrónica', 'mechatronics', 'mechatronic'],
@@ -36,25 +12,13 @@ const categoryKeywords = {
   'Unitree': ['unitree']
 };
 
-function stripHtml(s = '') {
-  return String(s)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-async function fetchRssItems(feedUrl) {
-  const parser = new Parser({ timeout: 12000 });
-  const feed = await parser.parseURL(feedUrl);
-  const items = Array.isArray(feed?.items) ? feed.items : [];
-  return items.map((it) => ({
-    title: stripHtml(it.title || ''),
-    summary: stripHtml(it.contentSnippet || it.content || it.summary || ''),
-    url: it.link || '',
-    pubDate: it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null,
-    source: feed?.title || ''
-  }));
-}
+const categoryQueries = {
+  'Mecatrónica': ['mecatronica', 'mechatronics', 'mechatronic systems'],
+  'Robótica': ['robotica', 'robotics', 'robot arm', 'autonomous robot'],
+  'Humanoides': ['humanoid robot', 'humanoide', 'bipedal robot'],
+  'Ingeniería': ['ingenieria', 'engineering', 'automation control'],
+  'Unitree': ['unitree', 'unitree robot', 'unitree robotics']
+};
 
 function matchesCategory(item, category) {
   const keywords = categoryKeywords[category] || [];
@@ -62,29 +26,44 @@ function matchesCategory(item, category) {
   return keywords.some((k) => text.includes(k));
 }
 
-async function pickLatestFromFeeds(feeds, category) {
-  const results = await Promise.all(
-    feeds.map(async (f) => {
-      try {
-        const items = await fetchRssItems(f.url);
-        return items.map((it) => ({ ...it, source: f.name || it.source || '' }));
-      } catch (err) {
-        console.error('[news] rss failed', f.url, err?.message || err);
-        return [];
-      }
-    })
-  );
+async function fetchGnews(query) {
+  const apiKey = env.news.gnewsApiKey;
+  if (!apiKey) return [];
 
-  const merged = results
-    .flat()
-    .filter((x) => x.title)
-    .filter((x) => matchesCategory(x, category));
-  merged.sort((a, b) => {
+  const url = new URL('https://gnews.io/api/v4/search');
+  url.searchParams.set('q', query);
+  url.searchParams.set('token', apiKey);
+  url.searchParams.set('lang', env.news.gnewsLang || 'es');
+  url.searchParams.set('max', '10');
+  url.searchParams.set('topic', 'technology');
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw Object.assign(new Error('GNews error'), { status: 502, details: body });
+  }
+
+  const data = await res.json();
+  const articles = Array.isArray(data?.articles) ? data.articles : [];
+  return articles.map((a) => ({
+    title: a.title || '',
+    summary: a.description || '',
+    url: a.url || '',
+    pubDate: a.publishedAt ? new Date(a.publishedAt) : null,
+    source: a.source?.name || 'GNews'
+  }));
+}
+
+async function pickLatest(category) {
+  const query = (categoryQueries[category] || []).join(' OR ');
+  const items = await fetchGnews(query);
+  const filtered = items.filter((x) => x.title).filter((x) => matchesCategory(x, category));
+  filtered.sort((a, b) => {
     const da = a.pubDate ? a.pubDate.getTime() : 0;
     const db = b.pubDate ? b.pubDate.getTime() : 0;
     return db - da;
   });
-  return merged[0] || null;
+  return filtered[0] || null;
 }
 
 export async function ensureDailyNews() {
@@ -94,14 +73,19 @@ export async function ensureDailyNews() {
   if (count > 0) return;
 
   const batch = [];
-  for (const [category, feeds] of Object.entries(categories)) {
-    const picked = await pickLatestFromFeeds(feeds, category);
+  for (const category of categories) {
+    let picked = null;
+    try {
+      picked = await pickLatest(category);
+    } catch (err) {
+      console.error('[news] gnews failed', category, err?.message || err);
+    }
     if (!picked) {
       batch.push({
         title: `${category}: sin fuente disponible`,
         summary: 'No se encontraron noticias filtradas por tema hoy. Intenta refrescar mas tarde.',
         category,
-        source: 'RSS',
+        source: 'GNews',
         url: '',
         date: start,
         createdByAI: false,

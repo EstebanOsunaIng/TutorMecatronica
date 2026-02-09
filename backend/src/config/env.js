@@ -7,6 +7,10 @@ export const env = {
     openaiApiKey: process.env.OPENAI_API_KEY || '',
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   },
+  news: {
+    gnewsApiKey: process.env.GNEWS_API_KEY || '',
+    gnewsLang: process.env.GNEWS_LANG || 'es'
+  },
   mail: {
     service: process.env.MAIL_SERVICE || '',
     host: process.env.MAIL_HOST || '',
