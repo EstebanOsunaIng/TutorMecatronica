@@ -1,20 +1,57 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import ChatDock from '../chatbot/ChatDock.jsx';
 
-export default function RoleLayout({ sidebarItems }) {
+const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
+
+export default function RoleLayout() {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
+  });
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const handleToggleSidebar = () => setIsCollapsed((prev) => !prev);
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
+  }, [isCollapsed]);
+
+  const sidebarHandlers = useMemo(
+    () => ({
+      isCollapsed,
+      isMobileOpen,
+      onOpenMobile: () => setIsMobileOpen(true),
+      onCloseMobile: () => setIsMobileOpen(false)
+    }),
+    [isCollapsed, isMobileOpen]
+  );
+
+  const { onOpenMobile } = sidebarHandlers;
+
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <Sidebar items={sidebarItems} />
+      <div className="fixed left-0 top-0 z-50 hidden md:flex md:h-[72px] md:w-20 md:items-center md:justify-center">
+        <button
+          onClick={handleToggleSidebar}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-slate-100 transition hover:bg-slate-800"
+          aria-label="Colapsar o expandir menu"
+          type="button"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+      <Sidebar {...sidebarHandlers} />
       <div className="flex flex-1 flex-col">
-        <Navbar />
-        <div className="flex flex-1">
-          <main className="flex-1 p-6">
+        <Navbar onOpenSidebar={onOpenMobile} />
+        <div className="flex flex-1 items-start">
+          <main className="min-w-0 flex-1 p-6">
             <Outlet />
           </main>
-          <div className="hidden w-[360px] border-l border-slate-800 lg:block">
+          <div className="hidden w-[360px] border-l border-slate-800 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0">
             <ChatDock />
           </div>
         </div>

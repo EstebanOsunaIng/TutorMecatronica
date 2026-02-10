@@ -31,29 +31,6 @@ import AdminSettings from '../pages/admin/Settings.jsx';
 export default function AppRouter() {
   const { user } = useAuth();
 
-  const studentMenu = [
-    { to: '/student/dashboard', label: 'Inicio' },
-    { to: '/student/courses', label: 'Cursos' },
-    { to: '/student/news', label: 'Noticias' },
-    { to: '/student/settings', label: 'Configuraciones' }
-  ];
-
-  const teacherMenu = [
-    { to: '/teacher/dashboard', label: 'Inicio' },
-    { to: '/teacher/students', label: 'Estudiantes' },
-    { to: '/teacher/news', label: 'Noticias' },
-    { to: '/teacher/modules', label: 'Edicion de modulos' },
-    { to: '/teacher/settings', label: 'Configuraciones' }
-  ];
-
-  const adminMenu = [
-    { to: '/admin/dashboard', label: 'Inicio' },
-    { to: '/admin/users', label: 'Registro de usuarios' },
-    { to: '/admin/modules', label: 'Gestion de modulos' },
-    { to: '/admin/stats', label: 'Estadisticas' },
-    { to: '/admin/settings', label: 'Configuraciones' }
-  ];
-
   const defaultRoute = () => {
     if (!user) return <Navigate to="/login" replace />;
     if (user.role === 'STUDENT') return <Navigate to="/student/dashboard" replace />;
@@ -74,7 +51,7 @@ export default function AppRouter() {
         element={
           <PrivateRoute>
             <RoleRoute roles={['STUDENT']}>
-              <RoleLayout sidebarItems={studentMenu} />
+              <RoleLayout />
             </RoleRoute>
           </PrivateRoute>
         }
@@ -91,7 +68,7 @@ export default function AppRouter() {
         element={
           <PrivateRoute>
             <RoleRoute roles={['TEACHER']}>
-              <RoleLayout sidebarItems={teacherMenu} />
+              <RoleLayout />
             </RoleRoute>
           </PrivateRoute>
         }
@@ -108,7 +85,7 @@ export default function AppRouter() {
         element={
           <PrivateRoute>
             <RoleRoute roles={['ADMIN']}>
-              <RoleLayout sidebarItems={adminMenu} />
+              <RoleLayout />
             </RoleRoute>
           </PrivateRoute>
         }
