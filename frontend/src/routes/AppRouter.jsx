@@ -93,6 +93,7 @@ export default function AppRouter() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="modules" element={<AdminModules />} />
+        <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="stats" element={<AdminStats />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
