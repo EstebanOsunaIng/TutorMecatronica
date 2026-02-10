@@ -33,43 +33,43 @@ export default function StudentSettings() {
       <h2 className="text-2xl font-bold">Configuraciones</h2>
       <form onSubmit={save} className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs text-slate-400">Nombre</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.name || ''} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Nombre</label>
+          <input disabled className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={user?.name || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Email</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.email || ''} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Email</label>
+          <input disabled className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={user?.email || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Documento</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.document || ''} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Documento</label>
+          <input disabled className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={user?.document || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Telefono</label>
-          <input className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Telefono</label>
+          <input className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={phone} onChange={(e) => setPhone(e.target.value)} spellCheck autoCorrect="on" autoCapitalize="sentences" />
         </div>
         <div className="md:col-span-2">
-          <label className="text-xs text-slate-400">Foto de perfil (URL)</label>
-          <input className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={photo} onChange={(e) => setPhoto(e.target.value)} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Foto de perfil (URL)</label>
+          <input className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={photo} onChange={(e) => setPhoto(e.target.value)} spellCheck autoCorrect="on" autoCapitalize="sentences" />
         </div>
         <div className="md:col-span-2 flex gap-3">
-          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold">Guardar cambios</button>
-          <button type="button" onClick={() => navigate(-1)} className="rounded-lg bg-slate-800 px-4 py-2 text-sm">Regresar</button>
-          <button type="button" onClick={logout} className="rounded-lg bg-red-500/20 px-4 py-2 text-sm text-red-200">Salir</button>
+          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">Guardar cambios</button>
+          <button type="button" onClick={() => navigate(-1)} className="rounded-lg bg-slate-200 px-4 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-100">Regresar</button>
+          <button type="button" onClick={logout} className="rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700 dark:bg-red-500/20 dark:text-red-200">Salir</button>
         </div>
       </form>
 
       <form onSubmit={changePassword} className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs text-slate-400">Contraseña actual</label>
-          <input type="password" className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Contraseña actual</label>
+          <input type="password" className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Nueva contraseña</label>
-          <input type="password" className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <label className="text-xs text-slate-600 dark:text-slate-400">Nueva contraseña</label>
+          <input type="password" className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
         </div>
         <div>
-          <button className="rounded-lg bg-emerald-500/20 px-4 py-2 text-sm text-emerald-200">Cambiar contraseña</button>
+          <button className="rounded-lg bg-emerald-100 px-4 py-2 text-sm text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">Cambiar contraseña</button>
         </div>
       </form>
     </div>

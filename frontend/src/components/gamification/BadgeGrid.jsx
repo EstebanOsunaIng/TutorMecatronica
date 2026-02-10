@@ -5,7 +5,7 @@ export default function BadgeGrid({ badges, unlocked }) {
   const unlockedSet = new Set((unlocked || []).map((id) => String(id)));
   return (
     <Card>
-      <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-brand-300">Insignias</h3>
+      <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Insignias</h3>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {badges.map((badge) => {
           const active = unlockedSet.has(String(badge._id));
@@ -14,8 +14,8 @@ export default function BadgeGrid({ badges, unlocked }) {
               key={badge._id}
               className={`rounded-xl border p-3 text-center text-xs ${
                 active
-                  ? 'border-brand-400 bg-brand-500/10 text-brand-100'
-                  : 'border-slate-800 bg-slate-900/40 text-slate-500'
+                  ? 'border-brand-400 bg-brand-500/10 text-[#173f74] dark:text-brand-100'
+                  : 'border-slate-300 bg-slate-200/80 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-500'
               }`}
             >
               <div className="mb-2 text-lg">🏅</div>

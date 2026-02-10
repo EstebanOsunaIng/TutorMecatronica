@@ -17,7 +17,7 @@ export default function Courses() {
         {modules.map((m) => (
           <Card key={m._id}>
             <h3 className="text-lg font-bold">{m.title}</h3>
-            <p className="mt-2 text-sm text-slate-400">{m.description}</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{m.description}</p>
             <Link to={`/student/courses/${m._id}`} className="mt-3 inline-block text-sm text-brand-300">
               Ver modulo
             </Link>

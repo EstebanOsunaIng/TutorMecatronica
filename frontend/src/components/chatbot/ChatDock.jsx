@@ -40,19 +40,22 @@ export default function ChatDock() {
   }, [loading]);
 
   return (
-    <div className="flex h-full flex-col bg-slate-950">
-      <div className="border-b border-slate-800 p-4">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-brand-300">Chat TuVir</h3>
+    <div className="flex h-full flex-col bg-white/90 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-brand-400 dark:text-brand-300">Chat TuVir</h3>
       </div>
       <ChatMessages messages={messages} loading={loading} />
-      <div className="border-t border-slate-800 p-4">
+      <div className="border-t border-slate-200 p-4 dark:border-slate-800">
         <div className="flex gap-2">
           <input
-            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             placeholder="Pregunta sobre robotica, humanoides, etc..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => (e.key === 'Enter' ? send() : null)}
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
           />
           <button
             onClick={send}

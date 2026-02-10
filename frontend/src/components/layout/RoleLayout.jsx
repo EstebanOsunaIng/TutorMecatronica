@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu } from 'lucide-react';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import ChatDock from '../chatbot/ChatDock.jsx';
@@ -34,15 +33,15 @@ export default function RoleLayout() {
 
   return (
 
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-[#eef3f8] text-[#0f1d2b] dark:bg-slate-950 dark:text-slate-100">
       <div className="fixed left-0 top-0 z-50 hidden md:flex md:h-[72px] md:w-20 md:items-center md:justify-center">
         <button
           onClick={handleToggleSidebar}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-slate-100 transition hover:bg-slate-800"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
           aria-label="Colapsar o expandir menu"
           type="button"
         >
-          <Menu className="h-5 w-5" />
+          <span className="text-xs font-semibold uppercase">Menu</span>
         </button>
       </div>
       <Sidebar {...sidebarHandlers} />
@@ -52,7 +51,7 @@ export default function RoleLayout() {
           <main className="min-w-0 flex-1 p-6">
             <Outlet />
           </main>
-          <div className="hidden w-[360px] border-l border-slate-800 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0">
+          <div className="hidden w-[360px] border-l border-slate-200 dark:border-slate-800 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0">
             <ChatDock />
           </div>
         </div>

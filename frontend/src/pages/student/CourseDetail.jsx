@@ -29,14 +29,14 @@ export default function CourseDetail() {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">{moduleItem?.title}</h2>
-      <p className="text-sm text-slate-400">{moduleItem?.description}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400">{moduleItem?.description}</p>
       <div className="grid gap-4">
         {levels.map((level) => (
           <Card key={level._id}>
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">{level.order}. {level.title}</h3>
-                <p className="text-sm text-slate-400">{level.contentText?.slice(0, 120)}...</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{level.contentText?.slice(0, 120)}...</p>
               </div>
               <div className="flex gap-2">
                 <button

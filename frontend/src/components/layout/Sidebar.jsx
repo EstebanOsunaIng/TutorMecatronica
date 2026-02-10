@@ -53,14 +53,14 @@ export default function Sidebar({
   return (
     <>
       <div
-        className={`fixed inset-0 z-30 bg-black/60 transition-opacity md:hidden ${
+        className={`fixed inset-0 z-30 bg-black/40 transition-opacity md:hidden ${
           isMobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onCloseMobile}
         aria-hidden={!isMobileOpen}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-800 bg-slate-950/95 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-200 bg-white/95 py-6 text-slate-700 transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-200 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
           isCollapsed ? 'md:w-20 md:px-3' : 'md:w-64 md:px-6'
@@ -69,7 +69,7 @@ export default function Sidebar({
         <div className="mb-8 flex items-center justify-start">
           <button
             onClick={onCloseMobile}
-            className="ml-1 flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900/70 p-2 text-slate-200 transition hover:bg-slate-800 md:hidden"
+            className="ml-1 flex items-center justify-center rounded-lg border border-slate-200 bg-white/90 p-2 text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"
             aria-label="Cerrar menu"
             type="button"
           >
@@ -91,12 +91,12 @@ export default function Sidebar({
                     showLabels ? 'justify-start' : 'justify-center'
                   } ${
                     isActive
-                      ? 'bg-brand-500/20 text-brand-100 border-brand-500/30'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-brand-500/15 text-brand-700 border-brand-400/40 dark:bg-brand-500/20 dark:text-brand-100 dark:border-brand-500/30'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
                   }`
                 }
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 shrink-0" size={20} strokeWidth={2.2} />
                 <span
                   className={`transition-all ${
                     showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
@@ -115,13 +115,13 @@ export default function Sidebar({
               onCloseMobile();
               logout();
             }}
-            className={`flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 ${
+            className={`flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/20 ${
               showLabels ? 'justify-start' : 'justify-center'
             }`}
             title={showLabels ? undefined : 'Cerrar sesion'}
             type="button"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-5 w-5 shrink-0" size={20} strokeWidth={2.2} />
             <span
               className={`transition-all ${
                 showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'

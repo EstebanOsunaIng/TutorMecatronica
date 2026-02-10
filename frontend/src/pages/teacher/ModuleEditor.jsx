@@ -162,16 +162,19 @@ export default function ModuleEditor() {
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="text-xl font-bold">Crear modulo</h2>
+        <h2 className="text-xl font-bold text-[#173f74] dark:text-slate-100">Crear modulo</h2>
         <form onSubmit={submit} className="mt-4 grid gap-4 md:grid-cols-2">
           <input
-            className="rounded-lg bg-slate-900 px-3 py-2"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             placeholder="Titulo"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
           />
           <select
-            className="rounded-lg bg-slate-900 px-3 py-2"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             value={form.level}
             onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
           >
@@ -180,22 +183,25 @@ export default function ModuleEditor() {
             <option>Avanzado</option>
           </select>
           <textarea
-            className="md:col-span-2 rounded-lg bg-slate-900 px-3 py-2"
+            className="md:col-span-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
             placeholder="Descripcion"
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            spellCheck
+            autoCorrect="on"
+            autoCapitalize="sentences"
           />
-          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold">Crear</button>
-        </form>
-      </Card>
+          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">Crear</button>
+      </form>
+    </Card>
 
       <Card>
-        <h2 className="text-xl font-bold">Importar modulo desde PDF</h2>
+        <h2 className="text-xl font-bold text-[#173f74] dark:text-slate-100">Importar modulo desde PDF</h2>
         <form onSubmit={importPdf} className="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
           <input
             type="file"
             accept="application/pdf"
-            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
             onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
           />
           <button
@@ -205,14 +211,14 @@ export default function ModuleEditor() {
             {busy ? 'Importando...' : 'Importar'}
           </button>
         </form>
-        <p className="mt-2 text-xs text-slate-400">El modulo se crea como NO publicado para que lo revises.</p>
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">El modulo se crea como NO publicado para que lo revises.</p>
       </Card>
 
       <Card>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-brand-300">Modulos existentes</h3>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Modulos existentes</h3>
           <select
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
             value={selectedId}
             onChange={async (e) => {
               const id = e.target.value;
@@ -233,12 +239,15 @@ export default function ModuleEditor() {
           <div className="mt-4 space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <input
-                className="rounded-lg bg-slate-900 px-3 py-2"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                 value={selected.title}
                 onChange={(e) => setSelected((s) => ({ ...s, title: e.target.value }))}
+                spellCheck
+                autoCorrect="on"
+                autoCapitalize="sentences"
               />
               <select
-                className="rounded-lg bg-slate-900 px-3 py-2"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                 value={selected.level}
                 onChange={(e) => setSelected((s) => ({ ...s, level: e.target.value }))}
               >
@@ -247,11 +256,14 @@ export default function ModuleEditor() {
                 <option>Avanzado</option>
               </select>
               <textarea
-                className="md:col-span-2 rounded-lg bg-slate-900 px-3 py-2"
+                className="md:col-span-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                 value={selected.description}
                 onChange={(e) => setSelected((s) => ({ ...s, description: e.target.value }))}
+                spellCheck
+                autoCorrect="on"
+                autoCapitalize="sentences"
               />
-              <label className="flex items-center gap-2 text-sm text-slate-200">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                 <input
                   type="checkbox"
                   checked={!!selected.isPublished}
@@ -263,24 +275,24 @@ export default function ModuleEditor() {
                 <button
                   onClick={saveModule}
                   disabled={busy}
-                  className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
+                  className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                 >
                   Guardar
                 </button>
                 <button
                   onClick={() => removeModule(selected._id)}
                   disabled={busy}
-                  className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-50"
+                  className="rounded-lg bg-red-100 px-4 py-2 text-sm font-bold text-red-700 disabled:opacity-50 dark:bg-red-500/20 dark:text-red-200"
                 >
                   Eliminar
                 </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
+            <div className="rounded-xl border border-slate-200 bg-white/70 p-4 text-slate-800 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-100">
               <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-brand-300">Niveles</h4>
-                <div className="text-xs text-slate-400">Total: {levels.length}</div>
+                <h4 className="text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Niveles</h4>
+                <div className="text-xs text-slate-600 dark:text-slate-400">Total: {levels.length}</div>
               </div>
 
               <div className="space-y-3">
@@ -288,18 +300,18 @@ export default function ModuleEditor() {
                   <div key={lvl._id} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="truncate font-semibold">{lvl.order}. {lvl.title}</div>
-                      <div className="truncate text-xs text-slate-400">{(lvl.contentText || '').slice(0, 80)}</div>
+                      <div className="truncate text-xs text-slate-600 dark:text-slate-400">{(lvl.contentText || '').slice(0, 80)}</div>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => startEditLevel(lvl)}
-                        className="rounded-lg bg-brand-500/20 px-3 py-2 text-xs text-brand-200"
+                        className="rounded-lg bg-brand-500/20 px-3 py-2 text-xs text-[#173f74] dark:text-brand-200"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => removeLevel(lvl._id)}
-                        className="rounded-lg bg-red-500/20 px-3 py-2 text-xs text-red-200"
+                        className="rounded-lg bg-red-100 px-3 py-2 text-xs text-red-700 dark:bg-red-500/20 dark:text-red-200"
                       >
                         Eliminar
                       </button>
@@ -309,32 +321,41 @@ export default function ModuleEditor() {
               </div>
 
               <div className="mt-4 grid gap-3">
-                <h5 className="text-sm font-bold">{editingLevelId ? 'Editar nivel' : 'Agregar nivel'}</h5>
+                <h5 className="text-sm font-bold text-[#173f74] dark:text-slate-100">{editingLevelId ? 'Editar nivel' : 'Agregar nivel'}</h5>
                 <input
-                  className="rounded-lg bg-slate-900 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                   placeholder="Titulo del nivel"
                   value={levelForm.title}
                   onChange={(e) => setLevelForm((f) => ({ ...f, title: e.target.value }))}
+                  spellCheck
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
                 />
                 <input
-                  className="rounded-lg bg-slate-900 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                   placeholder="Video URL (opcional)"
                   value={levelForm.videoUrl}
                   onChange={(e) => setLevelForm((f) => ({ ...f, videoUrl: e.target.value }))}
                 />
                 <textarea
-                  className="rounded-lg bg-slate-900 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                   placeholder="Contenido"
                   rows={6}
                   value={levelForm.contentText}
                   onChange={(e) => setLevelForm((f) => ({ ...f, contentText: e.target.value }))}
+                  spellCheck
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
                 />
                 <textarea
-                  className="rounded-lg bg-slate-900 px-3 py-2"
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
                   placeholder="Contexto para IA (opcional)"
                   rows={3}
                   value={levelForm.contextForAI}
                   onChange={(e) => setLevelForm((f) => ({ ...f, contextForAI: e.target.value }))}
+                  spellCheck
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
                 />
                 <div className="flex gap-2">
                   {editingLevelId ? (
@@ -342,7 +363,7 @@ export default function ModuleEditor() {
                       <button
                         onClick={saveLevel}
                         disabled={busy}
-                        className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
+                        className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                       >
                         Guardar nivel
                       </button>
@@ -351,7 +372,7 @@ export default function ModuleEditor() {
                           setEditingLevelId('');
                           setLevelForm({ title: '', contentText: '', videoUrl: '', contextForAI: '' });
                         }}
-                        className="rounded-lg bg-slate-800 px-4 py-2 text-sm"
+                        className="rounded-lg bg-slate-200 px-4 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       >
                         Cancelar
                       </button>
@@ -360,7 +381,7 @@ export default function ModuleEditor() {
                     <button
                       onClick={addLevel}
                       disabled={busy}
-                      className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
+                      className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                     >
                       Agregar nivel
                     </button>

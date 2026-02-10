@@ -56,4 +56,5 @@ Puedes sobrescribir con variables de entorno:
 - `npm install`
 - `npm run dev`
 
-Frontend en `http://localhost:3000` (proxy `/api` hacia `http://localhost:3001`)..
+Frontend en `http://localhost:3000` (proxy `/api` hacia `http://localhost:3001`).
+

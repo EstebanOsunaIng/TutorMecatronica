@@ -9,6 +9,7 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
 
@@ -43,11 +44,37 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className={`min-h-screen w-full ${isDark ? 'bg-[#020b1c] text-white' : 'bg-[#d4dee8] text-[#10253c]'}`} style={{ fontFamily: 'Roboto, sans-serif' }}>
+    <div
+      className={`min-h-screen w-full ${isDark ? 'bg-[#020b1c] text-white' : 'text-[#10253c]'}`}
+      style={{
+        fontFamily: 'Roboto, sans-serif',
+        backgroundImage: isDark
+          ? undefined
+          : 'linear-gradient(90deg, #E4EAF2 0%, #E4EAF2 50%, #CFE6F2 68%, #9FCADD 82%, #6BB3C9 92%, #3C7FA3 100%)'
+      }}
+    >
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
         <section className="relative hidden md:block">
-          <img src={isDark ? '/assets/campus-placeholder.svg' : '/assets/fondoClaroLogin.png'} alt="Laboratorio de ingeniería mecatrónica" className="absolute inset-0 h-full w-full object-cover" />
-          <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]' : 'bg-gradient-to-r from-[#dbe3ec]/60 via-[#cad4e0]/45 to-[#8ea0b8]/28'}`} />
+          <img
+            src={isDark ? '/assets/g11.jpg' : '/assets/fondoClaroLogin.png'}
+            
+            className="absolute inset-0 h-full w-full translate-x-[0px] object-cover"
+          />
+          <div
+            className={`absolute inset-0 ${
+              isDark
+                ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]'
+                : ''
+            }`}
+            style={
+              isDark
+                ? undefined
+                : {
+                    backgroundImage:
+                      'linear-gradient(90deg, rgba(228,234,242,0.92) 0%, rgba(228,234,242,0.8) 50%, rgba(207,230,242,0.55) 70%, rgba(107,179,201,0.0) 100%)'
+                  }
+            }
+          />
           <div className="absolute inset-0 flex items-end p-10 lg:p-14">
             <div className={`max-w-lg ${isDark ? 'text-white' : 'text-[#0d2746]'}`}>
               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${isDark ? 'bg-sky-500/20 text-sky-100' : 'bg-[#eef4fb] text-[#2d5477]'}`}>
@@ -84,14 +111,14 @@ export default function ForgotPassword() {
               </button>
             </div>
 
-            <div className="mb-5 pt-2 text-center">
-              <div className="mx-auto flex h-14 w-[250px] items-center justify-center md:h-16 md:w-[280px]">
-                <img
-                  src={isDark ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png'}
-                  alt="Logo Universitaria de Colombia"
-                  className="max-h-full w-auto max-w-full object-contain"
-                />
-              </div>
+             <div className="mb-5 pt-2 text-center">
+               <div className="mx-auto flex h-11 w-[200px] items-center justify-center md:h-12 md:w-[220px]">
+                 <img
+                   src={isDark ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png'}
+                   alt="Logo Universitaria de Colombia"
+                   className="max-h-full w-auto max-w-full object-contain"
+                 />
+               </div>
               <h2 className={`mt-3 text-[2.1rem] font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-[#092748]'}`}>Recuperar contraseña</h2>
               <p className={`mt-1.5 text-[0.95rem] ${isDark ? 'text-sky-100/85' : 'text-[#5f7184]'}`}>
                 {step === 1 && 'Ingresa tu correo institucional para recibir el código.'}
@@ -144,17 +171,37 @@ export default function ForgotPassword() {
                 </div>
                 <div>
                   <label htmlFor="newPassword" className={labelClass}>Nueva contraseña</label>
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 relative">
                     <input
                       id="newPassword"
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       placeholder="••••••••"
-                      className={inputClass}
+                      className={`${inputClass} pr-16`}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 transition ${isDark ? 'text-sky-200/80 hover:text-white' : 'text-[#2f82bb] hover:text-[#1f5f92]'}`}
+                      aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showNewPassword ? (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94 6.06 6.06" />
+                          <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58" />
+                          <path d="M9.88 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 10.7 7.5a11.05 11.05 0 0 1-4.18 5.36" />
+                          <path d="M6.15 6.15A10.94 10.94 0 0 0 1.3 11.5 11.05 11.05 0 0 0 6 17.78" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1.3 11.5C2.73 7.11 7 4 12 4s9.27 3.11 10.7 7.5C21.27 15.89 17 19 12 19s-9.27-3.11-10.7-7.5Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
                 <button

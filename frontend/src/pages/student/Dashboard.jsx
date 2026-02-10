@@ -210,10 +210,10 @@ export default function StudentDashboard() {
         </div>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <BadgeGrid badges={badges} unlocked={unlocked} />
-        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <BadgeGrid badges={badges} unlocked={unlocked} />
+          </div>
         <div className="space-y-4">
           <RankingCard top={top} />
           <MyRankCard position={rank.position} total={rank.total} badgesCount={user?.badgesCount} />
@@ -221,7 +221,7 @@ export default function StudentDashboard() {
       </div>
 
       <Card>
-        <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-brand-300">Noticias del dia</h3>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Noticias del dia</h3>
         <NewsFeed items={news} />
       </Card>
     </div>

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Bell, ChevronDown, LogOut, Menu, Moon, Settings, Sun } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useNotifications } from '../../context/NotificationContext.jsx';
@@ -83,7 +82,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 h-[72px] border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
+    <header className="sticky top-0 z-40 h-[72px] border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
       <div className="grid h-full grid-cols-[auto_1fr_auto] items-center gap-4">
         <button
           onClick={onOpenSidebar}
@@ -91,13 +90,17 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
           aria-label="Abrir o cerrar menu"
           type="button"
         >
-          <Menu className="h-5 w-5" />
+          <span className="text-[10px] font-semibold uppercase">Menu</span>
         </button>
 
         <div className="hidden h-10 w-10 md:block" aria-hidden="true" />
 
         <div className="flex justify-center">
-          <img src={logoSrc} alt="Logo UD" className="h-11 w-auto object-contain" />
+          <img
+            src={logoSrc}
+            alt="Logo UD"
+            className={`h-10 w-auto object-contain ${theme === 'dark' ? 'scale-[1.25]' : 'scale-100'}`}
+          />
         </div>
 
         <div className="flex items-center justify-end gap-2 sm:gap-3">
@@ -107,7 +110,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
               className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 transition hover:bg-amber-100 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/20"
               aria-label="Insignias"
             >
-              <Award className="h-5 w-5" />
+              <span className="text-[11px] font-bold">INS</span>
               <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full border border-amber-300/50 bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-100 dark:bg-slate-800">
                 {user?.badgesCount || 0}
               </span>
@@ -119,7 +122,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
             className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
             aria-label="Notificaciones"
           >
-            <Bell className="h-5 w-5" />
+            <span className="text-[11px] font-bold">N</span>
             <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
               {notificationsCount}
             </span>
@@ -131,7 +134,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             type="button"
           >
-            {theme === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            {theme === 'dark' ? <span>🌙</span> : <span>☀️</span>}
           </button>
 
           <div className="hidden max-w-[180px] flex-col text-right sm:flex">
@@ -158,7 +161,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
                   {userInitials}
                 </div>
               )}
-              <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-300" />
+              <span className="text-[10px] text-slate-500 dark:text-slate-300">▼</span>
             </button>
 
             {isProfileMenuOpen && (
@@ -168,7 +171,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
                   onClick={handleGoToSettings}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
                 >
-                  <Settings className="h-4 w-4" />
+                  <span className="text-[10px]">⚙</span>
                   Ajustes
                 </button>
                 <button
@@ -176,7 +179,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/20"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <span className="text-[10px]">⎋</span>
                   Cerrar sesion
                 </button>
               </div>

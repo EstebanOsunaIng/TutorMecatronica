@@ -31,21 +31,21 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <div className="text-xs uppercase tracking-widest text-brand-300">Total estudiantes</div>
+          <div className="text-xs uppercase tracking-widest text-[#173f74] dark:text-brand-300">Total estudiantes</div>
           <div className="mt-2 text-3xl font-bold">{students}</div>
         </Card>
         <Card>
-          <div className="text-xs uppercase tracking-widest text-brand-300">Promedio tiempo por modulo</div>
+          <div className="text-xs uppercase tracking-widest text-[#173f74] dark:text-brand-300">Promedio tiempo por modulo</div>
           <div className="mt-2 text-3xl font-bold">35 min</div>
         </Card>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-brand-300">Participacion semanal</h3>
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Participacion semanal</h3>
           <WeeklyParticipationChart data={weekly} />
         </Card>
         <Card>
-          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-brand-300">Progreso por modulo</h3>
+          <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-[#173f74] dark:text-brand-300">Progreso por modulo</h3>
           <ProgressChart data={progress} />
         </Card>
       </div>

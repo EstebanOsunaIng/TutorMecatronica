@@ -12,7 +12,7 @@ const data = [
 export default function AdminStats() {
   return (
     <Card>
-      <h2 className="text-xl font-bold">Estadisticas</h2>
+      <h2 className="text-xl font-bold text-[#173f74] dark:text-slate-100">Estadisticas</h2>
       <div className="mt-4">
         <ProgressChart data={data} />
       </div>
