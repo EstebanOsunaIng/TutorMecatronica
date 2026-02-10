@@ -28,48 +28,66 @@ export default function StudentSettings() {
     alert('Contraseña actualizada.');
   };
 
+  const labelClass = 'text-xs text-slate-500 dark:text-slate-400';
+  const inputClass = 'mt-1 w-full rounded-lg border border-cyan-100 bg-white/90 px-3 py-2 text-slate-800 outline-none transition focus:border-brand-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
+  const inputDisabledClass = `${inputClass} opacity-80`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-3xl border border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-5 text-slate-900 shadow-inner dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100 md:p-6">
       <h2 className="text-2xl font-bold">Configuraciones</h2>
       <form onSubmit={save} className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs text-slate-400">Nombre</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.name || ''} />
+          <label className={labelClass}>Nombre</label>
+          <input disabled className={inputDisabledClass} value={user?.name || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Email</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.email || ''} />
+          <label className={labelClass}>Email</label>
+          <input disabled className={inputDisabledClass} value={user?.email || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Documento</label>
-          <input disabled className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={user?.document || ''} />
+          <label className={labelClass}>Documento</label>
+          <input disabled className={inputDisabledClass} value={user?.document || ''} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Telefono</label>
-          <input className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <label className={labelClass}>Telefono</label>
+          <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
         <div className="md:col-span-2">
-          <label className="text-xs text-slate-400">Foto de perfil (URL)</label>
-          <input className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={photo} onChange={(e) => setPhoto(e.target.value)} />
+          <label className={labelClass}>Foto de perfil (URL)</label>
+          <input className={inputClass} value={photo} onChange={(e) => setPhoto(e.target.value)} />
         </div>
         <div className="md:col-span-2 flex gap-3">
-          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold">Guardar cambios</button>
-          <button type="button" onClick={() => navigate(-1)} className="rounded-lg bg-slate-800 px-4 py-2 text-sm">Regresar</button>
-          <button type="button" onClick={logout} className="rounded-lg bg-red-500/20 px-4 py-2 text-sm text-red-200">Salir</button>
+          <button className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold text-white">Guardar cambios</button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="rounded-lg border border-cyan-100 bg-white/90 px-4 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            Regresar
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-200"
+          >
+            Salir
+          </button>
         </div>
       </form>
 
       <form onSubmit={changePassword} className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="text-xs text-slate-400">Contraseña actual</label>
-          <input type="password" className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+          <label className={labelClass}>Contraseña actual</label>
+          <input type="password" className={inputClass} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-slate-400">Nueva contraseña</label>
-          <input type="password" className="mt-1 w-full rounded-lg bg-slate-900 px-3 py-2" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <label className={labelClass}>Nueva contraseña</label>
+          <input type="password" className={inputClass} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
         </div>
         <div>
-          <button className="rounded-lg bg-emerald-500/20 px-4 py-2 text-sm text-emerald-200">Cambiar contraseña</button>
+          <button className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-200">
+            Cambiar contraseña
+          </button>
         </div>
       </form>
     </div>

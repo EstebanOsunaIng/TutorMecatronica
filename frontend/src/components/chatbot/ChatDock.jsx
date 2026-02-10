@@ -40,15 +40,15 @@ export default function ChatDock() {
   }, [loading]);
 
   return (
-    <div className="flex h-full flex-col bg-slate-950">
-      <div className="border-b border-slate-800 p-4">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-brand-300">Chat TuVir</h3>
+    <div className="flex h-full flex-col bg-gradient-to-b from-sky-50/90 to-cyan-50/70 dark:bg-slate-950 dark:bg-none">
+      <div className="border-b border-cyan-100/80 p-4 dark:border-slate-800">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">Chat TuVir</h3>
       </div>
       <ChatMessages messages={messages} loading={loading} />
-      <div className="border-t border-slate-800 p-4">
+      <div className="border-t border-cyan-100/80 p-4 dark:border-slate-800">
         <div className="flex gap-2">
           <input
-            className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+            className="flex-1 rounded-lg border border-cyan-100 bg-white/90 px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             placeholder="Pregunta sobre robotica, humanoides, etc..."
             value={input}
             onChange={(e) => setInput(e.target.value)}

@@ -60,7 +60,7 @@ export default function Sidebar({
         aria-hidden={!isMobileOpen}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-800 bg-slate-950/95 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-cyan-100 bg-gradient-to-b from-sky-50/95 via-cyan-50/70 to-slate-50 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] dark:border-slate-800 dark:bg-slate-950/95 dark:bg-none ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
           isCollapsed ? 'md:w-20 md:px-3' : 'md:w-64 md:px-6'
@@ -69,7 +69,7 @@ export default function Sidebar({
         <div className="mb-8 flex items-center justify-start">
           <button
             onClick={onCloseMobile}
-            className="ml-1 flex items-center justify-center rounded-lg border border-slate-800 bg-slate-900/70 p-2 text-slate-200 transition hover:bg-slate-800 md:hidden"
+            className="ml-1 flex items-center justify-center rounded-lg border border-cyan-100 bg-white/85 p-2 text-slate-700 shadow-sm transition hover:bg-cyan-50 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"
             aria-label="Cerrar menu"
             type="button"
           >
@@ -91,8 +91,8 @@ export default function Sidebar({
                     showLabels ? 'justify-start' : 'justify-center'
                   } ${
                     isActive
-                      ? 'bg-brand-500/20 text-brand-100 border-brand-500/30'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      ? 'border-brand-200 bg-brand-100/70 text-brand-800 dark:border-brand-500/30 dark:bg-brand-500/20 dark:text-brand-100'
+                      : 'text-slate-700 hover:bg-cyan-50/90 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
                   }`
                 }
               >
@@ -115,7 +115,7 @@ export default function Sidebar({
               onCloseMobile();
               logout();
             }}
-            className={`flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/20 ${
+            className={`flex w-full items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 ${
               showLabels ? 'justify-start' : 'justify-center'
             }`}
             title={showLabels ? undefined : 'Cerrar sesion'}
