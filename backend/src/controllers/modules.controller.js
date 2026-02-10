@@ -24,10 +24,12 @@ export async function getModule(req, res) {
 }
 
 export async function createModule(req, res) {
-  const { title, description, level, isPublished } = req.body;
+  const { title, description, category, imageUrl, level, isPublished } = req.body;
   const moduleItem = await Module.create({
     title,
     description,
+    category: category || 'General',
+    imageUrl: imageUrl || '',
     level,
     isPublished: isPublished !== undefined ? isPublished : true,
     createdByTeacherId: req.user.id
@@ -77,6 +79,8 @@ export async function importModuleFromPdf(req, res) {
     const moduleItem = await Module.create({
       title: parsed.title,
       description: parsed.description,
+      category: 'General',
+      imageUrl: '',
       level: parsed.level,
       isPublished: false,
       createdByTeacherId: req.user.id
