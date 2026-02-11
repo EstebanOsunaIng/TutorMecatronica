@@ -28,7 +28,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
 
   const isStudent = user?.role === 'STUDENT';
   const logoSrc = theme === 'dark' ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png';
-  const avatarSrc = user?.avatarUrl || user?.photoUrl || '';
+  const avatarSrc = user?.profilePhotoUrl || user?.avatarUrl || user?.photoUrl || '';
   const userName = user?.name || 'Usuario';
   const userNameDisplay = userName.toUpperCase();
   const userRole = roleLabels[user?.role] || 'Usuario';

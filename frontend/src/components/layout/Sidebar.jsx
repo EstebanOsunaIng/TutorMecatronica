@@ -88,7 +88,7 @@ export default function Sidebar({
                 title={showLabels ? undefined : item.label}
                 className={({ isActive }) =>
                   `group flex items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-sm font-semibold transition ${
-                    showLabels ? 'justify-start' : 'justify-center'
+                    showLabels ? 'h-12 justify-start' : 'mx-auto h-12 w-12 justify-center px-0'
                   } ${
                     isActive
                       ? 'border-brand-200 bg-brand-100/70 text-brand-800 dark:border-brand-500/30 dark:bg-brand-500/20 dark:text-brand-100'
@@ -96,14 +96,8 @@ export default function Sidebar({
                   }`
                 }
               >
-                <Icon className="h-5 w-5" />
-                <span
-                  className={`transition-all ${
-                    showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                  }`}
-                >
-                  {item.label}
-                </span>
+                <Icon className="h-5 w-5 shrink-0" />
+                {showLabels ? <span className="truncate">{item.label}</span> : null}
               </NavLink>
             );
           })}
@@ -116,19 +110,13 @@ export default function Sidebar({
               logout();
             }}
             className={`flex w-full items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/20 ${
-              showLabels ? 'justify-start' : 'justify-center'
+              showLabels ? 'h-12 justify-start' : 'mx-auto h-12 w-12 justify-center px-0'
             }`}
             title={showLabels ? undefined : 'Cerrar sesion'}
             type="button"
           >
-            <LogOut className="h-5 w-5" />
-            <span
-              className={`transition-all ${
-                showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-              }`}
-            >
-              Cerrar sesion
-            </span>
+            <LogOut className="h-5 w-5 shrink-0" />
+            {showLabels ? <span className="truncate">Cerrar sesion</span> : null}
           </button>
         </div>
       </aside>
