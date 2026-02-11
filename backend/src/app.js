@@ -9,6 +9,7 @@ import gamificationRoutes from './routes/gamification.routes.js';
 import newsRoutes from './routes/news.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import teacherRoutes from './routes/teacher.routes.js';
 
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -27,6 +28,7 @@ app.use('/api/gamification', gamificationRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/teacher', teacherRoutes);
 
 app.use(errorHandler);
 
