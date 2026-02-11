@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Code2, FlaskConical, Globe2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { BookOpen, Code2, FlaskConical, Globe2, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
+import ModuleStudentPreview from '../../components/modules/ModuleStudentPreview.jsx';
 
 const DEFAULT_MODULE_IMAGE = '/assets/campus-placeholder.svg';
 
@@ -13,6 +14,7 @@ export default function AdminModules() {
   const [busyId, setBusyId] = useState('');
   const [search, setSearch] = useState('');
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [previewState, setPreviewState] = useState({ open: false, moduleItem: null, levels: [], loading: false });
 
   const load = async () => {
     const res = await modulesApi.list();
@@ -91,6 +93,22 @@ export default function AdminModules() {
     return { icon: BookOpen, label: category || 'General' };
   };
 
+  const openPreview = async (moduleItem) => {
+    if (!moduleItem?._id) return;
+    setPreviewState({ open: true, moduleItem, levels: [], loading: true });
+    try {
+      const res = await modulesApi.get(moduleItem._id);
+      setPreviewState({
+        open: true,
+        moduleItem: res.data?.module || moduleItem,
+        levels: Array.isArray(res.data?.levels) ? res.data.levels : [],
+        loading: false
+      });
+    } catch {
+      setPreviewState({ open: true, moduleItem, levels: [], loading: false });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -127,6 +145,7 @@ export default function AdminModules() {
           return (
           <Card
             key={m._id}
+            onClick={() => openPreview(m)}
             className="group overflow-hidden border border-white/15 bg-white/[0.08] p-0 shadow-[0_18px_45px_-28px_rgba(8,47,73,0.95)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/[0.12]"
           >
             <div className="flex h-full flex-col">
@@ -173,7 +192,10 @@ export default function AdminModules() {
 
                 <div className="mt-auto flex flex-wrap gap-2 border-t border-white/10 pt-3">
                   <button
-                    onClick={() => navigate(`/admin/modules/editor?moduleId=${m._id}`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/modules/editor?moduleId=${m._id}`);
+                    }}
                     disabled={busyId === m._id}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500/15 px-2.5 py-1.5 text-[11px] font-semibold text-brand-100 ring-1 ring-brand-300/30 transition hover:bg-brand-500/25 disabled:opacity-50"
                   >
@@ -181,14 +203,20 @@ export default function AdminModules() {
                     Editar
                   </button>
                   <button
-                    onClick={() => togglePublish(m)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePublish(m);
+                    }}
                     disabled={busyId === m._id}
                     className="rounded-lg bg-slate-700/55 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 ring-1 ring-white/15 transition hover:bg-slate-700 disabled:opacity-50"
                   >
                     {m.isPublished ? 'Ocultar' : 'Publicar'}
                   </button>
                   <button
-                    onClick={() => setModuleToDelete(m)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModuleToDelete(m);
+                    }}
                     disabled={busyId === m._id}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 ring-1 ring-red-400/25 transition hover:bg-red-500/25 disabled:opacity-50"
                   >
@@ -233,6 +261,39 @@ export default function AdminModules() {
           </button>
         </div>
       </Modal>
+
+      {previewState.open && (
+        <div className="fixed inset-0 z-[65] bg-black/70 p-3 md:p-6">
+          <div className="mx-auto h-full w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+              <div>
+                <h3 className="text-lg font-bold text-white">Vista previa del estudiante</h3>
+                <p className="text-xs text-slate-400">{previewState.moduleItem?.title || 'Modulo'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewState({ open: false, moduleItem: null, levels: [], loading: false })}
+                className="rounded-full bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
+                title="Cerrar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="h-[calc(100%-65px)] overflow-auto p-4">
+              {previewState.loading ? (
+                <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-300">Cargando vista previa...</div>
+              ) : (
+                <ModuleStudentPreview
+                  levels={previewState.levels}
+                  moduleTitle={previewState.moduleItem?.title || ''}
+                  showActions={false}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

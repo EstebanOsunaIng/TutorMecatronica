@@ -1,0 +1,339 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, HelpCircle, X } from 'lucide-react';
+
+const getYouTubeId = (url) => {
+  if (!url) return '';
+  const input = url.trim();
+
+  const shortMatch = input.match(/youtu\.be\/([^?&/]+)/i);
+  if (shortMatch?.[1]) return shortMatch[1];
+
+  const watchMatch = input.match(/[?&]v=([^?&/]+)/i);
+  if (watchMatch?.[1]) return watchMatch[1];
+
+  const embedMatch = input.match(/youtube\.com\/(embed|shorts)\/([^?&/]+)/i);
+  if (embedMatch?.[2]) return embedMatch[2];
+
+  return '';
+};
+
+const buildEmbedUrl = (url) => {
+  const id = getYouTubeId(url);
+  if (id) return `https://www.youtube.com/embed/${id}`;
+  return url;
+};
+
+const normalizeLevels = (levels) => {
+  const grouped = new Map();
+
+  const ordered = [...(Array.isArray(levels) ? levels : [])].sort((a, b) => (a?.order || 0) - (b?.order || 0));
+
+  ordered.forEach((rawLevel, index) => {
+    const resources = Array.isArray(rawLevel?.resources) ? rawLevel.resources : [];
+    const parsedLevelNumber = Number(rawLevel?.levelNumber);
+    const parsedSublevelNumber = Number(rawLevel?.sublevelNumber);
+    const levelNumber = Number.isFinite(parsedLevelNumber) && parsedLevelNumber > 0 ? parsedLevelNumber : index + 1;
+    const sublevelNumber = Number.isFinite(parsedSublevelNumber) && parsedSublevelNumber > 0 ? parsedSublevelNumber : 1;
+    const levelTitle = (rawLevel?.levelTitle || '').trim() || `Nivel ${levelNumber}`;
+
+    const secondaryVideos = resources
+      .filter((item) => typeof item === 'string' && item.startsWith('video:'))
+      .map((item) => item.slice(6))
+      .filter(Boolean);
+
+    const videoUrls = [rawLevel?.videoUrl || '', ...secondaryVideos].filter((url, i, arr) => url && arr.indexOf(url) === i);
+    const pdfUrl = resources.find((item) => typeof item === 'string' && item.startsWith('pdf:'))?.slice(4) || '';
+
+    const legacyImages = resources
+      .filter((item) => typeof item === 'string' && !item.startsWith('video:') && !item.startsWith('pdf:'))
+      .map((url) => ({ url, context: '' }));
+
+    const imageItems = Array.isArray(rawLevel?.imageItems)
+      ? rawLevel.imageItems
+          .map((imageItem) => ({
+            url: (imageItem?.url || '').trim(),
+            context: (imageItem?.context || '').trim()
+          }))
+          .filter((imageItem) => imageItem.url)
+      : [];
+
+    const mergedImages = imageItems.length ? imageItems : legacyImages;
+
+    if (!grouped.has(levelNumber)) {
+      grouped.set(levelNumber, {
+        levelNumber,
+        title: levelTitle,
+        sublevels: []
+      });
+    }
+
+    grouped.get(levelNumber).sublevels.push({
+      id: rawLevel?._id || `level-${levelNumber}-${sublevelNumber}`,
+      sublevelNumber,
+      title: rawLevel?.title || `Subnivel ${levelNumber}.${sublevelNumber}`,
+      contentText: rawLevel?.contentText || '',
+      contextForAI: rawLevel?.contextForAI || '',
+      videoUrls,
+      pdfUrl,
+      images: mergedImages,
+      rawLevel
+    });
+  });
+
+  return [...grouped.values()]
+    .sort((a, b) => a.levelNumber - b.levelNumber)
+    .map((group) => ({
+      ...group,
+      sublevels: [...group.sublevels].sort((a, b) => a.sublevelNumber - b.sublevelNumber)
+    }));
+};
+
+export default function ModuleStudentPreview({
+  levels = [],
+  moduleTitle = '',
+  showActions = false,
+  onAskHelp,
+  onComplete
+}) {
+  const groupedLevels = useMemo(() => normalizeLevels(levels), [levels]);
+  const [expandedLevels, setExpandedLevels] = useState({});
+  const [activeLevelIndex, setActiveLevelIndex] = useState(0);
+  const [activeSublevelIndex, setActiveSublevelIndex] = useState(0);
+  const [lightboxState, setLightboxState] = useState({ open: false, index: 0, images: [] });
+
+  useEffect(() => {
+    const nextExpanded = {};
+    groupedLevels.forEach((_, idx) => {
+      nextExpanded[idx] = true;
+    });
+    setExpandedLevels(nextExpanded);
+    setActiveLevelIndex(0);
+    setActiveSublevelIndex(0);
+  }, [groupedLevels]);
+
+  const activeLevel = groupedLevels[activeLevelIndex] || null;
+  const activeSublevel = activeLevel?.sublevels?.[activeSublevelIndex] || null;
+
+  const openLightbox = (images, index) => {
+    setLightboxState({ open: true, images, index });
+  };
+
+  const changeLightboxImage = (delta) => {
+    setLightboxState((prev) => {
+      if (!prev.images.length) return prev;
+      const nextIndex = (prev.index + delta + prev.images.length) % prev.images.length;
+      return { ...prev, index: nextIndex };
+    });
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <aside className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Niveles</p>
+        <div className="mt-3 space-y-2">
+          {groupedLevels.map((levelItem, levelIdx) => {
+            const isExpanded = !!expandedLevels[levelIdx];
+            const isSelectedLevel = activeLevelIndex === levelIdx;
+
+            return (
+              <div key={`preview-level-${levelItem.levelNumber}`} className="rounded-lg border border-slate-700/80 bg-slate-900/45">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedLevels((prev) => ({ ...prev, [levelIdx]: !isExpanded }));
+                    setActiveLevelIndex(levelIdx);
+                    setActiveSublevelIndex(0);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left transition ${isSelectedLevel ? 'bg-brand-500/15 text-brand-100' : 'text-slate-200 hover:bg-slate-800/80'}`}
+                >
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    Nivel {levelItem.levelNumber}: {levelItem.title}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{levelItem.sublevels.length}</span>
+                    <ChevronDown className={`h-4 w-4 transition ${isExpanded ? '' : '-rotate-90'}`} />
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="space-y-1 border-t border-slate-700/70 px-2 py-2">
+                    {levelItem.sublevels.map((sublevel, subIdx) => {
+                      const isSelected = isSelectedLevel && activeSublevelIndex === subIdx;
+                      return (
+                        <button
+                          key={sublevel.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveLevelIndex(levelIdx);
+                            setActiveSublevelIndex(subIdx);
+                          }}
+                          className={`w-full rounded-md px-2.5 py-2 text-left text-xs transition ${isSelected ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
+                        >
+                          {levelItem.levelNumber}.{sublevel.sublevelNumber} {sublevel.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      <section className="rounded-xl border border-slate-700 bg-slate-900/35 p-4">
+        {!activeSublevel ? (
+          <div className="text-sm text-slate-400">Este modulo aun no tiene subniveles configurados.</div>
+        ) : (
+          <div className="space-y-5">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{moduleTitle || 'Modulo'}</p>
+              <h3 className="text-xl font-bold text-white">
+                {activeLevel?.levelNumber}.{activeSublevel.sublevelNumber} {activeSublevel.title}
+              </h3>
+              <p className="text-sm text-slate-300 whitespace-pre-line">{activeSublevel.contentText || 'Sin instrucciones.'}</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Album de imagenes</p>
+                <span className="text-xs text-slate-400">{activeSublevel.images.length} imagen(es)</span>
+              </div>
+              {activeSublevel.images.length ? (
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {activeSublevel.images.map((imageItem, imageIndex) => (
+                    <button
+                      key={`preview-image-${imageIndex + 1}`}
+                      type="button"
+                      onClick={() => openLightbox(activeSublevel.images, imageIndex)}
+                      className="group overflow-hidden rounded-lg border border-slate-700 bg-slate-900 text-left"
+                    >
+                      <img src={imageItem.url} alt={`Imagen ${imageIndex + 1}`} className="h-32 w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                      <p className="line-clamp-2 p-2 text-xs text-slate-300">{imageItem.context || 'Sin contexto.'}</p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-700 px-3 py-4 text-sm text-slate-400">No hay imagenes para este subnivel.</div>
+              )}
+            </div>
+
+            {activeSublevel.videoUrls.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Videos</p>
+                <div className="grid gap-3">
+                  {activeSublevel.videoUrls.map((videoUrl, idx) => {
+                    const embedUrl = buildEmbedUrl(videoUrl);
+                    const isYouTube = !!getYouTubeId(videoUrl);
+
+                    return (
+                      <div key={`preview-video-${idx + 1}`} className="overflow-hidden rounded-lg border border-slate-700 bg-black">
+                        {isYouTube ? (
+                          <iframe
+                            src={embedUrl}
+                            title={`Video ${idx + 1}`}
+                            className="aspect-video w-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video src={embedUrl} controls className="aspect-video w-full" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeSublevel.pdfUrl && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">PDF</p>
+                <a
+                  href={activeSublevel.pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 hover:bg-slate-700"
+                >
+                  Abrir PDF
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+            )}
+
+            {showActions && (
+              <div className="flex flex-wrap gap-2 border-t border-slate-700 pt-3">
+                {onAskHelp && (
+                  <button
+                    type="button"
+                    onClick={() => onAskHelp(activeSublevel.rawLevel)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500/20 px-3 py-2 text-xs font-semibold text-brand-100"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    Pedir ayuda
+                  </button>
+                )}
+                {onComplete && (
+                  <button
+                    type="button"
+                    onClick={() => onComplete(activeSublevel.rawLevel)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Completar subnivel
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {lightboxState.open && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-3">
+          <button
+            type="button"
+            onClick={() => setLightboxState({ open: false, index: 0, images: [] })}
+            className="absolute right-4 top-4 rounded-full bg-slate-800/80 p-2 text-slate-200 hover:bg-slate-700"
+            title="Minimizar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {lightboxState.images.length > 1 && (
+            <button
+              type="button"
+              onClick={() => changeLightboxImage(-1)}
+              className="absolute left-3 rounded-full bg-slate-800/80 p-2 text-slate-100 hover:bg-slate-700"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+          )}
+
+          <div className="mx-auto w-full max-w-4xl rounded-xl bg-slate-950 p-3">
+            <div className="overflow-hidden rounded-lg border border-slate-700 bg-black">
+              <img
+                src={lightboxState.images[lightboxState.index]?.url}
+                alt={`Imagen ${lightboxState.index + 1}`}
+                className="max-h-[68vh] w-full object-contain"
+              />
+            </div>
+            <div className="mt-2 rounded-lg bg-slate-900/80 p-3 text-sm text-slate-200">
+              {lightboxState.images[lightboxState.index]?.context || 'Sin contexto para esta imagen.'}
+            </div>
+          </div>
+
+          {lightboxState.images.length > 1 && (
+            <button
+              type="button"
+              onClick={() => changeLightboxImage(1)}
+              className="absolute right-3 rounded-full bg-slate-800/80 p-2 text-slate-100 hover:bg-slate-700"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

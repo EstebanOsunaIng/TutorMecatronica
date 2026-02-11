@@ -99,10 +99,14 @@ export async function importModuleFromPdf(req, res) {
         await LessonLevel.create({
           moduleId: moduleItem._id,
           order: l.order,
+          levelNumber: l.levelNumber || l.order,
+          sublevelNumber: l.sublevelNumber || 1,
+          levelTitle: l.levelTitle || `Nivel ${l.levelNumber || l.order}`,
           title: l.title,
           contentText: l.contentText || '',
           videoUrl: l.videoUrl || '',
           resources: l.resources || [],
+          imageItems: l.imageItems || [],
           activity: l.activity || {},
           contextForAI: l.contextForAI || ''
         })
@@ -120,10 +124,14 @@ export async function addLessonLevel(req, res) {
   const level = await LessonLevel.create({
     moduleId,
     order: req.body.order,
+    levelNumber: req.body.levelNumber || req.body.order,
+    sublevelNumber: req.body.sublevelNumber || 1,
+    levelTitle: req.body.levelTitle || `Nivel ${req.body.levelNumber || req.body.order || 1}`,
     title: req.body.title,
     contentText: req.body.contentText || '',
     videoUrl: req.body.videoUrl || '',
     resources: req.body.resources || [],
+    imageItems: req.body.imageItems || [],
     activity: req.body.activity || {},
     contextForAI: req.body.contextForAI || ''
   });
