@@ -15,10 +15,15 @@ export default function Courses() {
       <h2 className="text-2xl font-bold">Cursos</h2>
       <div className="grid gap-4 md:grid-cols-2">
         {modules.map((m) => (
-          <Card key={m._id}>
-            <h3 className="text-lg font-bold">{m.title}</h3>
-            <p className="mt-2 text-sm text-slate-400">{m.description}</p>
-            <Link to={`/student/courses/${m._id}`} className="mt-3 inline-block text-sm text-brand-300">
+          <Card key={m._id} className="flex h-[220px] flex-col">
+            <h3 className="line-clamp-2 text-lg font-bold">{m.title}</h3>
+            <p
+              className="mt-2 line-clamp-4 text-sm text-slate-400"
+              title={m.description || 'Sin descripcion.'}
+            >
+              {m.description || 'Sin descripcion.'}
+            </p>
+            <Link to={`/student/courses/${m._id}`} className="mt-auto inline-block pt-3 text-sm text-brand-300">
               Ver modulo
             </Link>
           </Card>

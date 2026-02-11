@@ -206,7 +206,9 @@ export default function ModuleEditor() {
     imageId: ''
   });
   const [levelNameModal, setLevelNameModal] = useState({ open: false, levelIndex: 0, value: '' });
+  const [instructionLinkModal, setInstructionLinkModal] = useState({ open: false, label: '', url: '' });
   const draftLevelsRef = useRef(draftLevels);
+  const instructionTextareaRef = useRef(null);
 
   const isEditingMode = editorMode === 'edit';
   const currentDraftSignature = serializeDraftState(coverForm, draftLevels);
@@ -333,6 +335,51 @@ export default function ModuleEditor() {
     if (!trimmedTitle) return;
     updateDraftLevel(levelNameModal.levelIndex, (prev) => ({ ...prev, title: trimmedTitle }));
     setLevelNameModal({ open: false, levelIndex: 0, value: '' });
+  };
+
+  const openInstructionLinkBuilder = () => {
+    const textarea = instructionTextareaRef.current;
+    const currentText = activeSublevel?.contentText || '';
+    let selected = '';
+
+    if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+      selected = currentText.slice(textarea.selectionStart, textarea.selectionEnd).trim();
+    }
+
+    setInstructionLinkModal({
+      open: true,
+      label: selected,
+      url: ''
+    });
+  };
+
+  const insertInstructionLink = () => {
+    const rawUrl = instructionLinkModal.url.trim();
+    if (!rawUrl) return;
+
+    const finalUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+    const finalLabel = instructionLinkModal.label.trim() || 'Abrir enlace';
+    const markdownLink = `[${finalLabel}](${finalUrl})`;
+
+    const textarea = instructionTextareaRef.current;
+    const currentText = activeSublevel?.contentText || '';
+    const start = textarea && typeof textarea.selectionStart === 'number' ? textarea.selectionStart : currentText.length;
+    const end = textarea && typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : currentText.length;
+    const nextText = `${currentText.slice(0, start)}${markdownLink}${currentText.slice(end)}`;
+
+    updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+      ...prev,
+      contentText: nextText
+    }));
+
+    setInstructionLinkModal({ open: false, label: '', url: '' });
+
+    requestAnimationFrame(() => {
+      if (!instructionTextareaRef.current) return;
+      const caretPosition = start + markdownLink.length;
+      instructionTextareaRef.current.focus();
+      instructionTextareaRef.current.setSelectionRange(caretPosition, caretPosition);
+    });
   };
 
   const updateDraftLevel = (levelIndex, updater) => {
@@ -604,59 +651,59 @@ export default function ModuleEditor() {
   return (
     <div className="space-y-6">
       <div className="px-1">
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-          <span className={createStep === 1 ? 'text-brand-200' : 'text-emerald-300'}>1. Portada</span>
-          <span className={createStep === 2 ? 'text-brand-200' : 'text-slate-400'}>2. Niveles y subniveles</span>
+        <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <span className={createStep === 1 ? 'text-brand-500 dark:text-brand-200' : 'text-emerald-600 dark:text-emerald-300'}>1. Portada</span>
+          <span className={createStep === 2 ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>2. Niveles y subniveles</span>
         </div>
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800">
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
           <div
             className={`h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-300 ${createStep === 1 ? 'w-1/2' : 'w-full'}`}
           />
         </div>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900/45">
+      <Card className="border-cyan-100 bg-white/95 dark:border-slate-800 dark:bg-slate-900/45">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
-              <p className="mt-1 text-sm text-slate-300">Completa la portada y luego configura niveles con sus subniveles.</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Completa la portada y luego configura niveles con sus subniveles.</p>
             </div>
           </div>
 
           {editorLoading ? (
-            <div className="rounded-xl border border-slate-700 bg-slate-900/35 p-6 text-sm text-slate-300">Cargando datos del modulo...</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-300">Cargando datos del modulo...</div>
           ) : createStep === 1 ? (
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Titulo
                   <input
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     placeholder="Ej: Introduccion a Sensores"
                     value={coverForm.title}
                     onChange={(e) => setCoverForm((f) => ({ ...f, title: e.target.value }))}
                   />
-                  <span className="text-[11px] text-slate-400">Nombre claro y corto.</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Nombre claro y corto.</span>
                   {coverTriedContinue && coverErrors.title && <span className="text-xs text-red-300">El titulo es obligatorio.</span>}
                 </label>
 
-                <label className="grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Categoria
                   <input
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     placeholder="Ej: General"
                     value={coverForm.category}
                     onChange={(e) => setCoverForm((f) => ({ ...f, category: e.target.value }))}
                   />
-                  <span className="text-[11px] text-slate-400">Ayuda a organizar modulos.</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Ayuda a organizar modulos.</span>
                   {coverTriedContinue && coverErrors.category && <span className="text-xs text-red-300">La categoria es obligatoria.</span>}
                 </label>
 
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Dificultad
                   <select
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.level ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.level ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     value={coverForm.level}
                     onChange={(e) => setCoverForm((f) => ({ ...f, level: e.target.value }))}
                   >
@@ -666,24 +713,24 @@ export default function ModuleEditor() {
                   </select>
                 </label>
 
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Descripcion
                   <textarea
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     rows={4}
                     placeholder="Explica que aprendera el estudiante"
                     value={coverForm.description}
                     onChange={(e) => setCoverForm((f) => ({ ...f, description: e.target.value }))}
                   />
-                  <span className="text-[11px] text-slate-400">Resumen breve del objetivo del modulo.</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Resumen breve del objetivo del modulo.</span>
                   {coverTriedContinue && coverErrors.description && <span className="text-xs text-red-300">La descripcion es obligatoria.</span>}
                 </label>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
-                <p className="text-sm font-semibold text-slate-100">Vista previa de portada</p>
-                <div className="mt-3 overflow-hidden rounded-xl border border-slate-700 bg-slate-900/70">
-                  <div className="h-36 w-full bg-slate-800">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/55">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">Vista previa de portada</p>
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="h-36 w-full bg-slate-200 dark:bg-slate-800">
                     <img
                       src={coverForm.imageUrl || '/assets/campus-placeholder.svg'}
                       alt="Vista previa portada"
@@ -695,18 +742,18 @@ export default function ModuleEditor() {
                   </div>
                   <div className="space-y-2 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="line-clamp-1 text-sm font-bold text-white">{coverForm.title || 'Titulo del modulo'}</h4>
-                      <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-200">{coverForm.level || 'Nivel'}</span>
+                      <h4 className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-white">{coverForm.title || 'Titulo del modulo'}</h4>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-700 dark:text-slate-200">{coverForm.level || 'Nivel'}</span>
                     </div>
-                    <p className="line-clamp-2 text-xs text-slate-300">{coverForm.description || 'La descripcion del modulo aparecera aqui.'}</p>
-                    <p className="text-[11px] text-slate-400">Categoria: {coverForm.category || 'General'}</p>
+                    <p className="line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{coverForm.description || 'La descripcion del modulo aparecera aqui.'}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Categoria: {coverForm.category || 'General'}</p>
                   </div>
                 </div>
 
-                <label className="mt-3 grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="mt-3 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Imagen de portada (URL)
                   <input
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30"
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     placeholder="https://..."
                     value={coverForm.imageUrl}
                     onChange={(e) => setCoverForm((f) => ({ ...f, imageUrl: e.target.value }))}
@@ -716,13 +763,13 @@ export default function ModuleEditor() {
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-[320px_1fr] pb-28">
-              <aside className="rounded-2xl bg-slate-900/85 p-3 shadow-lg ring-1 ring-slate-700/60">
+              <aside className="rounded-2xl bg-slate-50 p-3 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Estructura del modulo</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Estructura del modulo</p>
                   <button
                     type="button"
                     onClick={addDraftLevel}
-                    className="rounded-md bg-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-600"
+                    className="rounded-md bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                   >
                     + Nivel
                   </button>
@@ -735,12 +782,12 @@ export default function ModuleEditor() {
                     const isLevelValid = isDraftLevelValid(levelItem);
 
                     return (
-                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-lg bg-slate-900/40">
+                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-lg bg-white/80 dark:bg-slate-900/40">
                         <div className="flex items-center gap-1 rounded-lg px-1.5 py-1">
                           <button
                             type="button"
                             onClick={() => setExpandedLevels((prev) => ({ ...prev, [levelIndex]: !isExpanded }))}
-                            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                            className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                             title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
                           >
                             <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
@@ -752,7 +799,7 @@ export default function ModuleEditor() {
                               setActiveDraftLevelIndex(levelIndex);
                               setActiveDraftSublevelIndex(0);
                             }}
-                            className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${isActiveLevel ? 'bg-brand-500/20 text-brand-100' : 'text-slate-200 hover:bg-slate-800/80'}`}
+                            className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${isActiveLevel ? 'bg-brand-500/15 text-brand-600 dark:bg-brand-500/20 dark:text-brand-100' : 'text-slate-700 hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800/80'}`}
                           >
                             {isExpanded ? <FolderOpen className="h-4 w-4 text-amber-300" /> : <Folder className="h-4 w-4 text-amber-300" />}
                             <span className="truncate">Nivel {levelIndex + 1}: {levelItem.title || 'Sin titulo'}</span>
@@ -762,7 +809,7 @@ export default function ModuleEditor() {
                                 e.stopPropagation();
                                 openLevelNameModal(levelIndex);
                               }}
-                              className={`ml-auto rounded p-1 ${isLevelValid ? 'text-slate-300 hover:bg-slate-700' : 'text-amber-300 hover:bg-slate-700'}`}
+                              className={`ml-auto rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-amber-500 hover:bg-slate-200 dark:text-amber-300 dark:hover:bg-slate-700'}`}
                               title={`Editar nombre del nivel ${levelIndex + 1}`}
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -771,7 +818,7 @@ export default function ModuleEditor() {
                         </div>
 
                         {isExpanded && (
-                          <div className="ml-8 mt-1 space-y-1 border-l border-slate-700/80 pl-3">
+                          <div className="ml-8 mt-1 space-y-1 border-l border-slate-300 pl-3 dark:border-slate-700/80">
                             {levelItem.sublevels.map((sublevel, sublevelIndex) => {
                               const isActiveSublevel =
                                 activeDraftLevelIndex === levelIndex && activeDraftSublevelIndex === sublevelIndex;
@@ -784,7 +831,7 @@ export default function ModuleEditor() {
                                     setActiveDraftLevelIndex(levelIndex);
                                     setActiveDraftSublevelIndex(sublevelIndex);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition ${isActiveSublevel ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
+                                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition ${isActiveSublevel ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-100' : 'text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800/70'}`}
                                 >
                                   <FileText className="h-3.5 w-3.5" />
                                   <span className="truncate">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || 'Subnivel sin titulo'}</span>
@@ -798,7 +845,7 @@ export default function ModuleEditor() {
                                 addDraftSublevel(levelIndex);
                                 setExpandedLevels((prev) => ({ ...prev, [levelIndex]: true }));
                               }}
-                              className="w-full rounded-md bg-slate-700/85 px-2 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600"
+                              className="w-full rounded-md bg-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:bg-slate-600"
                             >
                               + Agregar subnivel a Nivel {levelIndex + 1}
                             </button>
@@ -811,9 +858,9 @@ export default function ModuleEditor() {
               </aside>
 
               {activeLevel && activeSublevel && (
-                <section className="rounded-2xl bg-slate-900/75 p-4 shadow-lg ring-1 ring-slate-700/50">
+                <section className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/75 dark:ring-slate-700/50">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold text-slate-100">Editando nivel {activeDraftLevelIndex + 1} / subnivel {activeDraftLevelIndex + 1}.{activeDraftSublevelIndex + 1}</h3>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Editando nivel {activeDraftLevelIndex + 1} / subnivel {activeDraftLevelIndex + 1}.{activeDraftSublevelIndex + 1}</h3>
                     <div className="flex flex-wrap items-center gap-2">
                       {draftLevels.length > 1 && activeDraftLevelIndex > 0 && (
                         <button
@@ -840,11 +887,11 @@ export default function ModuleEditor() {
                   <div className="grid gap-6">
 
                     <div className="space-y-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Contenido del subnivel</p>
-                      <label className="grid gap-1 text-sm font-medium text-slate-200">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Contenido del subnivel</p>
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                         Titulo del subnivel *
                         <input
-                          className={`rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.title.trim() ? 'border-red-400/70' : ''}`}
+                          className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${publishTried && !activeSublevel.title.trim() ? 'border-red-400/70' : ''}`}
                           placeholder={`Ej: Subnivel ${activeDraftLevelIndex + 1}.${activeDraftSublevelIndex + 1}`}
                           value={activeSublevel.title}
                           onChange={(e) =>
@@ -857,10 +904,22 @@ export default function ModuleEditor() {
                         {publishTried && !activeSublevel.title.trim() && <span className="text-xs text-red-300">El titulo del subnivel es obligatorio.</span>}
                       </label>
 
-                      <label className="grid gap-1 text-sm font-medium text-slate-200">
-                        Instrucciones *
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>Instrucciones *</span>
+                          <button
+                            type="button"
+                            onClick={openInstructionLinkBuilder}
+                            className="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                            title="Insertar enlace con texto legible"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                            Insertar enlace
+                          </button>
+                        </div>
                         <textarea
-                          className={`rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.contentText.trim() ? 'border-red-400/70' : ''}`}
+                          ref={instructionTextareaRef}
+                          className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${publishTried && !activeSublevel.contentText.trim() ? 'border-red-400/70' : ''}`}
                           rows={5}
                           placeholder="Escribe las instrucciones del subnivel"
                           value={activeSublevel.contentText}
@@ -871,27 +930,28 @@ export default function ModuleEditor() {
                             }))
                           }
                         />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">Tip: usa "Insertar enlace" para mostrar texto limpio en vez de pegar URLs largas.</span>
                         {publishTried && !activeSublevel.contentText.trim() && <span className="text-xs text-red-300">Las instrucciones son obligatorias.</span>}
                       </label>
                     </div>
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Album de imagenes</p>
-                        <span className="text-xs text-slate-400">Total: {activeSublevel.imageItems.length}</span>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Album de imagenes</p>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Total: {activeSublevel.imageItems.length}</span>
                       </div>
 
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => addImageUrlField(activeDraftLevelIndex, activeDraftSublevelIndex)}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                           title="Agregar imagen por URL"
                         >
                           <Link2 className="h-3.5 w-3.5" />
                           URL
                         </button>
-                        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600" title="Subir imagenes">
+                        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" title="Subir imagenes">
                           <Upload className="h-3.5 w-3.5" />
                           Subir
                           <input
@@ -925,9 +985,9 @@ export default function ModuleEditor() {
                                     imageId: imageItem.id
                                   })
                                 }
-                                className="group relative overflow-hidden rounded-lg bg-slate-900 text-left shadow-md ring-1 ring-slate-700/70 hover:ring-brand-400/40"
+                                className="group relative overflow-hidden rounded-lg bg-white text-left shadow-md ring-1 ring-slate-200 hover:ring-brand-400/40 dark:bg-slate-900 dark:ring-slate-700/70"
                               >
-                                <div className="h-24 w-full bg-slate-950">
+                                <div className="h-24 w-full bg-slate-200 dark:bg-slate-950">
                                   {imageSrc ? (
                                     <img
                                       src={imageSrc}
@@ -938,14 +998,14 @@ export default function ModuleEditor() {
                                       className="h-full w-full object-cover"
                                     />
                                   ) : (
-                                    <div className="flex h-full items-center justify-center text-[11px] text-slate-400">Sin URL</div>
+                                    <div className="flex h-full items-center justify-center text-[11px] text-slate-500 dark:text-slate-400">Sin URL</div>
                                   )}
                                 </div>
                                 <div className="p-2">
-                                  <p className="truncate text-[11px] text-slate-300">
+                                  <p className="truncate text-[11px] text-slate-600 dark:text-slate-300">
                                     Imagen {imageIndex + 1} ({imageItem.sourceType === 'file' ? 'archivo' : 'URL'})
                                   </p>
-                                  <p className="truncate text-[10px] text-slate-400">{hasContext ? imageItem.context : 'Click para agregar contexto'}</p>
+                                  <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">{hasContext ? imageItem.context : 'Click para agregar contexto'}</p>
                                 </div>
                                 <button
                                   type="button"
@@ -962,7 +1022,7 @@ export default function ModuleEditor() {
                           })}
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-dashed border-slate-700 px-3 py-4 text-sm text-slate-400">
+                        <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                           Este subnivel no tiene imagenes aun.
                         </div>
                       )}
@@ -970,7 +1030,7 @@ export default function ModuleEditor() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-200">Videos de YouTube (opcional)</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Videos de YouTube (opcional)</span>
                         <button
                           type="button"
                           onClick={() => addVideoField(activeDraftLevelIndex, activeDraftSublevelIndex)}
@@ -978,7 +1038,7 @@ export default function ModuleEditor() {
                             activeSublevel.videoUrls.length > 0 &&
                             !activeSublevel.videoUrls[activeSublevel.videoUrls.length - 1].trim()
                           }
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-700 dark:text-slate-100"
                           title="Agregar video"
                         >
                           <Plus className="h-3.5 w-3.5" />
@@ -990,7 +1050,7 @@ export default function ModuleEditor() {
                           <div key={`video-${activeDraftLevelIndex + 1}-${activeDraftSublevelIndex + 1}-${videoIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
                             <div className="flex gap-2">
                               <input
-                                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                                 placeholder="https://www.youtube.com/..."
                                 value={videoUrl}
                                 onChange={(e) =>
@@ -1009,18 +1069,18 @@ export default function ModuleEditor() {
                                       videoUrls: prev.videoUrls.filter((_, idx) => idx !== videoIndex)
                                     }))
                                   }
-                                  className="rounded-lg bg-slate-700 px-2.5 text-xs"
+                                  className="rounded-lg bg-slate-200 px-2.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-100"
                                 >
                                   Quitar
                                 </button>
                               )}
                             </div>
 
-                            <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+                            <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
                               {getYouTubeThumbnail(videoUrl) ? (
                                 <img src={getYouTubeThumbnail(videoUrl)} alt="Preview YouTube" className="h-14 w-full object-cover" />
                               ) : (
-                                <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-400">
+                                  <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                                   <Video className="h-3.5 w-3.5" />
                                   Sin preview
                                 </div>
@@ -1032,11 +1092,11 @@ export default function ModuleEditor() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recursos extra</p>
-                      <label className="grid gap-1 text-sm font-medium text-slate-200">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Recursos extra</p>
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                         PDF de apoyo (enlace)
                         <input
-                          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                           placeholder="https://..."
                           value={activeSublevel.pdfUrl}
                           onChange={(e) =>
@@ -1058,7 +1118,7 @@ export default function ModuleEditor() {
             </div>
           )}
 
-          <div className="sticky bottom-3 z-10 rounded-2xl bg-slate-950/95 p-3 shadow-xl ring-1 ring-slate-700/70 backdrop-blur-md">
+          <div className="sticky bottom-3 z-10 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-slate-200 backdrop-blur-md dark:bg-slate-950/95 dark:ring-slate-700/70">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {createStep === 1 ? (
                 <>
@@ -1066,11 +1126,11 @@ export default function ModuleEditor() {
                     <button
                       type="button"
                       onClick={cancelCreateFlow}
-                      className="rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/25"
+                      className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-500/20 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25"
                     >
                       Cancelar y salir
                     </button>
-                    <span className="text-xs text-slate-400">Completa la portada para pasar al paso 2.</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Completa la portada para pasar al paso 2.</span>
                   </div>
                   <button
                     type="button"
@@ -1093,11 +1153,11 @@ export default function ModuleEditor() {
                     <button
                       type="button"
                       onClick={cancelCreateFlow}
-                      className="rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/25"
+                      className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-500/20 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25"
                     >
                       Cancelar y salir
                     </button>
-                    <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800/40">
+                    <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800/40">
                       Volver a portada
                     </button>
                   </div>
@@ -1122,18 +1182,18 @@ export default function ModuleEditor() {
         open={imageEditorState.open && Boolean(editingImage)}
         onClose={() => setImageEditorState({ open: false, levelIndex: 0, sublevelIndex: 0, imageId: '' })}
       >
-        <h3 className="text-lg font-bold text-white">Editar imagen del album</h3>
-        <p className="mt-1 text-xs text-slate-400">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editar imagen del album</h3>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Subnivel {imageEditorState.levelIndex + 1}.{imageEditorState.sublevelIndex + 1}
         </p>
 
         {editingImage && (
           <div className="mt-4 space-y-3">
             {editingImage.sourceType === 'url' && (
-              <label className="grid gap-1 text-sm font-medium text-slate-200">
+              <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                 URL de la imagen
                 <input
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   placeholder="https://..."
                   value={editingImage.url}
                   onChange={(e) =>
@@ -1148,7 +1208,7 @@ export default function ModuleEditor() {
               </label>
             )}
 
-            <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+            <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-950">
               {(editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url) ? (
                 <img
                   src={editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url}
@@ -1156,14 +1216,14 @@ export default function ModuleEditor() {
                   className="h-52 w-full object-cover"
                 />
               ) : (
-                <div className="flex h-52 items-center justify-center text-sm text-slate-400">Sin preview disponible</div>
+                <div className="flex h-52 items-center justify-center text-sm text-slate-500 dark:text-slate-400">Sin preview disponible</div>
               )}
             </div>
 
-            <label className="grid gap-1 text-sm font-medium text-slate-200">
+            <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
               Contexto para el estudiante
               <textarea
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 rows={4}
                 placeholder="Describe la imagen y su importancia"
                 value={editingImage.context}
@@ -1195,13 +1255,13 @@ export default function ModuleEditor() {
         open={levelNameModal.open}
         onClose={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
       >
-        <h3 className="text-lg font-bold text-white">Nombre del nivel {levelNameModal.levelIndex + 1}</h3>
-        <p className="mt-1 text-sm text-slate-300">Define un nombre claro para organizar mejor los subniveles.</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Nombre del nivel {levelNameModal.levelIndex + 1}</h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Define un nombre claro para organizar mejor los subniveles.</p>
         <div className="mt-4 grid gap-1.5">
-          <label className="text-sm font-medium text-slate-200">Titulo del nivel *</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Titulo del nivel *</label>
           <input
             autoFocus
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             placeholder={`Ej: Fundamentos del nivel ${levelNameModal.levelIndex + 1}`}
             value={levelNameModal.value}
             onChange={(e) => setLevelNameModal((prev) => ({ ...prev, value: e.target.value }))}
@@ -1218,7 +1278,7 @@ export default function ModuleEditor() {
           <button
             type="button"
             onClick={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-100"
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
           >
             Cerrar
           </button>
@@ -1233,6 +1293,61 @@ export default function ModuleEditor() {
         </div>
       </Modal>
 
+      <Modal
+        open={instructionLinkModal.open}
+        onClose={() => setInstructionLinkModal({ open: false, label: '', url: '' })}
+      >
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Insertar enlace en instrucciones</h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Escribe un texto legible y pega la URL. Se insertara como enlace clickeable.</p>
+
+        <div className="mt-4 grid gap-3">
+          <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Texto visible
+            <input
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Ej: Enlace de descarga del Ubuntu 24.04"
+              value={instructionLinkModal.label}
+              onChange={(e) => setInstructionLinkModal((prev) => ({ ...prev, label: e.target.value }))}
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            URL
+            <input
+              autoFocus
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="https://..."
+              value={instructionLinkModal.url}
+              onChange={(e) => setInstructionLinkModal((prev) => ({ ...prev, url: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  insertInstructionLink();
+                }
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setInstructionLinkModal({ open: false, label: '', url: '' })}
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!instructionLinkModal.url.trim()}
+            onClick={insertInstructionLink}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Insertar
+          </button>
+        </div>
+      </Modal>
+
       <Modal open={showDiscardModal} onClose={() => setShowDiscardModal(false)}>
         <h3 className="text-lg font-bold">Descartar cambios</h3>
         <p className="mt-2 text-sm text-slate-300">
@@ -1241,7 +1356,7 @@ export default function ModuleEditor() {
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={() => setShowDiscardModal(false)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-100"
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
           >
             Seguir editando
           </button>
