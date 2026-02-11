@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, HelpCircle, X } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, FileText, Folder, FolderOpen, HelpCircle, X } from 'lucide-react';
 
 const getYouTubeId = (url) => {
   if (!url) return '';
@@ -128,35 +128,40 @@ export default function ModuleStudentPreview({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-      <aside className="rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Niveles</p>
+      <aside className="rounded-2xl bg-slate-900/85 p-3 shadow-lg ring-1 ring-slate-700/60">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Estructura del modulo</p>
         <div className="mt-3 space-y-2">
           {groupedLevels.map((levelItem, levelIdx) => {
             const isExpanded = !!expandedLevels[levelIdx];
             const isSelectedLevel = activeLevelIndex === levelIdx;
 
             return (
-              <div key={`preview-level-${levelItem.levelNumber}`} className="rounded-lg border border-slate-700/80 bg-slate-900/45">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExpandedLevels((prev) => ({ ...prev, [levelIdx]: !isExpanded }));
-                    setActiveLevelIndex(levelIdx);
-                    setActiveSublevelIndex(0);
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left transition ${isSelectedLevel ? 'bg-brand-500/15 text-brand-100' : 'text-slate-200 hover:bg-slate-800/80'}`}
-                >
-                  <span className="min-w-0 truncate text-sm font-semibold">
-                    Nivel {levelItem.levelNumber}: {levelItem.title}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-300">{levelItem.sublevels.length}</span>
-                    <ChevronDown className={`h-4 w-4 transition ${isExpanded ? '' : '-rotate-90'}`} />
-                  </div>
-                </button>
+              <div key={`preview-level-${levelItem.levelNumber}`} className="rounded-lg bg-slate-900/40">
+                <div className="flex items-center gap-1 rounded-lg px-1.5 py-1">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedLevels((prev) => ({ ...prev, [levelIdx]: !isExpanded }))}
+                    className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
+                  >
+                    <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveLevelIndex(levelIdx);
+                      setActiveSublevelIndex(0);
+                    }}
+                    className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${isSelectedLevel ? 'bg-brand-500/20 text-brand-100' : 'text-slate-200 hover:bg-slate-800/80'}`}
+                  >
+                    {isExpanded ? <FolderOpen className="h-4 w-4 text-amber-300" /> : <Folder className="h-4 w-4 text-amber-300" />}
+                    <span className="truncate">Nivel {levelItem.levelNumber}: {levelItem.title}</span>
+                  </button>
+                </div>
 
                 {isExpanded && (
-                  <div className="space-y-1 border-t border-slate-700/70 px-2 py-2">
+                  <div className="ml-8 mt-1 space-y-1 border-l border-slate-700/80 pl-3">
                     {levelItem.sublevels.map((sublevel, subIdx) => {
                       const isSelected = isSelectedLevel && activeSublevelIndex === subIdx;
                       return (
@@ -167,9 +172,10 @@ export default function ModuleStudentPreview({
                             setActiveLevelIndex(levelIdx);
                             setActiveSublevelIndex(subIdx);
                           }}
-                          className={`w-full rounded-md px-2.5 py-2 text-left text-xs transition ${isSelected ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
+                          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition ${isSelected ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
                         >
-                          {levelItem.levelNumber}.{sublevel.sublevelNumber} {sublevel.title}
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="truncate">{levelItem.levelNumber}.{sublevel.sublevelNumber} {sublevel.title}</span>
                         </button>
                       );
                     })}

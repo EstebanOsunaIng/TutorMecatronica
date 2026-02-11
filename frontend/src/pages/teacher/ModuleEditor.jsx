@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers3, Link2, Plus, Upload, Video } from 'lucide-react';
+import { ChevronRight, FileText, Folder, FolderOpen, Link2, Pencil, Plus, Upload, Video } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
@@ -198,6 +198,14 @@ export default function ModuleEditor() {
   const [publishTried, setPublishTried] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
+  const [expandedLevels, setExpandedLevels] = useState({ 0: true });
+  const [imageEditorState, setImageEditorState] = useState({
+    open: false,
+    levelIndex: 0,
+    sublevelIndex: 0,
+    imageId: ''
+  });
+  const [levelNameModal, setLevelNameModal] = useState({ open: false, levelIndex: 0, value: '' });
   const draftLevelsRef = useRef(draftLevels);
 
   const isEditingMode = editorMode === 'edit';
@@ -206,6 +214,16 @@ export default function ModuleEditor() {
 
   useEffect(() => {
     draftLevelsRef.current = draftLevels;
+  }, [draftLevels]);
+
+  useEffect(() => {
+    setExpandedLevels((prev) => {
+      const next = {};
+      draftLevels.forEach((_, idx) => {
+        next[idx] = prev[idx] ?? true;
+      });
+      return next;
+    });
   }, [draftLevels]);
 
   useEffect(
@@ -296,6 +314,26 @@ export default function ModuleEditor() {
 
   const activeLevel = draftLevels[activeDraftLevelIndex] || null;
   const activeSublevel = activeLevel?.sublevels?.[activeDraftSublevelIndex] || null;
+  const editingImage = draftLevels[imageEditorState.levelIndex]
+    ?.sublevels?.[imageEditorState.sublevelIndex]
+    ?.imageItems?.find((imageItem) => imageItem.id === imageEditorState.imageId);
+
+  const openLevelNameModal = (levelIndex) => {
+    const safeIndex = Number(levelIndex) || 0;
+    const currentTitle = draftLevels[safeIndex]?.title || '';
+    setLevelNameModal({
+      open: true,
+      levelIndex: safeIndex,
+      value: currentTitle
+    });
+  };
+
+  const saveLevelNameFromModal = () => {
+    const trimmedTitle = levelNameModal.value.trim();
+    if (!trimmedTitle) return;
+    updateDraftLevel(levelNameModal.levelIndex, (prev) => ({ ...prev, title: trimmedTitle }));
+    setLevelNameModal({ open: false, levelIndex: 0, value: '' });
+  };
 
   const updateDraftLevel = (levelIndex, updater) => {
     setDraftLevels((prev) => prev.map((levelItem, idx) => (idx === levelIndex ? updater(levelItem) : levelItem)));
@@ -311,8 +349,10 @@ export default function ModuleEditor() {
   const addDraftLevel = () => {
     setDraftLevels((prev) => {
       const next = [...prev, createInitialDraftLevel()];
-      setActiveDraftLevelIndex(next.length - 1);
+      const newLevelIndex = next.length - 1;
+      setActiveDraftLevelIndex(newLevelIndex);
       setActiveDraftSublevelIndex(0);
+      setLevelNameModal({ open: true, levelIndex: newLevelIndex, value: '' });
       return next;
     });
   };
@@ -582,13 +622,6 @@ export default function ModuleEditor() {
               <h2 className="text-2xl font-bold text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
               <p className="mt-1 text-sm text-slate-300">Completa la portada y luego configura niveles con sus subniveles.</p>
             </div>
-            <button
-              type="button"
-              onClick={cancelCreateFlow}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800/50"
-            >
-              Cancelar y salir
-            </button>
           </div>
 
           {editorLoading ? (
@@ -682,43 +715,63 @@ export default function ModuleEditor() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[300px_1fr] pb-24">
-              <aside className="rounded-xl border border-slate-800 bg-slate-900/25 p-3">
+            <div className="grid gap-4 lg:grid-cols-[320px_1fr] pb-28">
+              <aside className="rounded-2xl bg-slate-900/85 p-3 shadow-lg ring-1 ring-slate-700/60">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Niveles</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Estructura del modulo</p>
                   <button
                     type="button"
                     onClick={addDraftLevel}
-                    className="rounded-lg bg-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-100"
+                    className="rounded-md bg-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-100 hover:bg-slate-600"
                   >
                     + Nivel
                   </button>
                 </div>
 
-                <div className="mt-3 space-y-3">
+                <div className="mt-3 space-y-2">
                   {draftLevels.map((levelItem, levelIndex) => {
+                    const isExpanded = !!expandedLevels[levelIndex];
                     const isActiveLevel = activeDraftLevelIndex === levelIndex;
                     const isLevelValid = isDraftLevelValid(levelItem);
 
                     return (
-                      <div key={`editor-level-${levelIndex + 1}`} className={`rounded-lg border ${isActiveLevel ? 'border-brand-400/40 bg-brand-500/10' : 'border-slate-700/70 bg-slate-900/45'}`}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveDraftLevelIndex(levelIndex);
-                            setActiveDraftSublevelIndex(0);
-                          }}
-                          className="w-full px-3 py-2 text-left"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-semibold text-slate-100">Nivel {levelIndex + 1}</span>
-                            <span className={`inline-block h-2.5 w-2.5 rounded-full ${isLevelValid ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                          </div>
-                          <p className="mt-0.5 truncate text-xs text-slate-400">{levelItem.title || 'Sin titulo de nivel'}</p>
-                        </button>
+                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-lg bg-slate-900/40">
+                        <div className="flex items-center gap-1 rounded-lg px-1.5 py-1">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedLevels((prev) => ({ ...prev, [levelIndex]: !isExpanded }))}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                            title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
+                          >
+                            <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
+                          </button>
 
-                        <div className="border-t border-slate-700/70 px-2 py-2">
-                          <div className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveDraftLevelIndex(levelIndex);
+                              setActiveDraftSublevelIndex(0);
+                            }}
+                            className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${isActiveLevel ? 'bg-brand-500/20 text-brand-100' : 'text-slate-200 hover:bg-slate-800/80'}`}
+                          >
+                            {isExpanded ? <FolderOpen className="h-4 w-4 text-amber-300" /> : <Folder className="h-4 w-4 text-amber-300" />}
+                            <span className="truncate">Nivel {levelIndex + 1}: {levelItem.title || 'Sin titulo'}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openLevelNameModal(levelIndex);
+                              }}
+                              className={`ml-auto rounded p-1 ${isLevelValid ? 'text-slate-300 hover:bg-slate-700' : 'text-amber-300 hover:bg-slate-700'}`}
+                              title={`Editar nombre del nivel ${levelIndex + 1}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </button>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="ml-8 mt-1 space-y-1 border-l border-slate-700/80 pl-3">
                             {levelItem.sublevels.map((sublevel, sublevelIndex) => {
                               const isActiveSublevel =
                                 activeDraftLevelIndex === levelIndex && activeDraftSublevelIndex === sublevelIndex;
@@ -731,22 +784,26 @@ export default function ModuleEditor() {
                                     setActiveDraftLevelIndex(levelIndex);
                                     setActiveDraftSublevelIndex(sublevelIndex);
                                   }}
-                                  className={`w-full rounded-md px-2 py-1.5 text-left text-xs transition ${isActiveSublevel ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
+                                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition ${isActiveSublevel ? 'bg-cyan-500/20 text-cyan-100' : 'text-slate-300 hover:bg-slate-800/70'}`}
                                 >
-                                  {levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || 'Subnivel sin titulo'}
+                                  <FileText className="h-3.5 w-3.5" />
+                                  <span className="truncate">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || 'Subnivel sin titulo'}</span>
                                 </button>
                               );
                             })}
-                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => addDraftSublevel(levelIndex)}
-                            className="mt-2 w-full rounded-md bg-slate-700/80 px-2 py-1.5 text-xs font-semibold text-slate-100"
-                          >
-                            + Agregar subnivel
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                addDraftSublevel(levelIndex);
+                                setExpandedLevels((prev) => ({ ...prev, [levelIndex]: true }));
+                              }}
+                              className="w-full rounded-md bg-slate-700/85 px-2 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600"
+                            >
+                              + Agregar subnivel a Nivel {levelIndex + 1}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -754,7 +811,7 @@ export default function ModuleEditor() {
               </aside>
 
               {activeLevel && activeSublevel && (
-                <section className="rounded-xl border border-slate-800 bg-slate-900/25 p-4">
+                <section className="rounded-2xl bg-slate-900/75 p-4 shadow-lg ring-1 ring-slate-700/50">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-slate-100">Editando nivel {activeDraftLevelIndex + 1} / subnivel {activeDraftLevelIndex + 1}.{activeDraftSublevelIndex + 1}</h3>
                     <div className="flex flex-wrap items-center gap-2">
@@ -781,31 +838,13 @@ export default function ModuleEditor() {
                   </div>
 
                   <div className="grid gap-6">
-                    <div className="space-y-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Configuracion del nivel</p>
-                      <label className="grid gap-1 text-sm font-medium text-slate-200">
-                        Titulo del nivel *
-                        <input
-                          className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeLevel.title.trim() ? 'border-red-400/70' : 'border-slate-700'}`}
-                          placeholder={`Ej: Nivel ${activeDraftLevelIndex + 1}`}
-                          value={activeLevel.title}
-                          onChange={(e) =>
-                            updateDraftLevel(activeDraftLevelIndex, (prev) => ({
-                              ...prev,
-                              title: e.target.value
-                            }))
-                          }
-                        />
-                        {publishTried && !activeLevel.title.trim() && <span className="text-xs text-red-300">El titulo del nivel es obligatorio.</span>}
-                      </label>
-                    </div>
 
                     <div className="space-y-3">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Contenido del subnivel</p>
                       <label className="grid gap-1 text-sm font-medium text-slate-200">
                         Titulo del subnivel *
                         <input
-                          className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.title.trim() ? 'border-red-400/70' : 'border-slate-700'}`}
+                          className={`rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.title.trim() ? 'border-red-400/70' : ''}`}
                           placeholder={`Ej: Subnivel ${activeDraftLevelIndex + 1}.${activeDraftSublevelIndex + 1}`}
                           value={activeSublevel.title}
                           onChange={(e) =>
@@ -821,7 +860,7 @@ export default function ModuleEditor() {
                       <label className="grid gap-1 text-sm font-medium text-slate-200">
                         Instrucciones *
                         <textarea
-                          className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.contentText.trim() ? 'border-red-400/70' : 'border-slate-700'}`}
+                          className={`rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${publishTried && !activeSublevel.contentText.trim() ? 'border-red-400/70' : ''}`}
                           rows={5}
                           placeholder="Escribe las instrucciones del subnivel"
                           value={activeSublevel.contentText}
@@ -838,74 +877,57 @@ export default function ModuleEditor() {
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Imagenes y contexto</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Album de imagenes</p>
                         <span className="text-xs text-slate-400">Total: {activeSublevel.imageItems.length}</span>
                       </div>
 
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-200">Album de imagenes</span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => addImageUrlField(activeDraftLevelIndex, activeDraftSublevelIndex)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-slate-100"
-                            title="Agregar URL de imagen"
-                          >
-                            <Link2 className="h-3.5 w-3.5" />
-                          </button>
-                          <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-700 text-slate-100" title="Subir imagen">
-                            <Upload className="h-3.5 w-3.5" />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              className="hidden"
-                              onChange={(e) => {
-                                addImageFiles(activeDraftLevelIndex, activeDraftSublevelIndex, Array.from(e.target.files || []));
-                                e.currentTarget.value = '';
-                              }}
-                            />
-                          </label>
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => addImageUrlField(activeDraftLevelIndex, activeDraftSublevelIndex)}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600"
+                          title="Agregar imagen por URL"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                          URL
+                        </button>
+                        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-600" title="Subir imagenes">
+                          <Upload className="h-3.5 w-3.5" />
+                          Subir
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              addImageFiles(activeDraftLevelIndex, activeDraftSublevelIndex, Array.from(e.target.files || []));
+                              e.currentTarget.value = '';
+                            }}
+                          />
+                        </label>
                       </div>
 
                       {activeSublevel.imageItems.length ? (
-                        <div className="grid gap-2">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                           {activeSublevel.imageItems.map((imageItem, imageIndex) => {
                             const imageSrc = imageItem.sourceType === 'file' ? imageItem.previewUrl : imageItem.url;
+                            const hasContext = Boolean((imageItem.context || '').trim());
 
                             return (
-                              <div key={imageItem.id} className="rounded-lg border border-slate-700 bg-slate-900/80 p-2">
-                                <div className="mb-2 flex items-center justify-between">
-                                  <span className="text-xs text-slate-300">
-                                    Imagen {imageIndex + 1} ({imageItem.sourceType === 'file' ? 'archivo' : 'URL'})
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImageItem(activeDraftLevelIndex, activeDraftSublevelIndex, imageItem.id)}
-                                    className="rounded bg-slate-700 px-2 py-1 text-[11px] text-slate-200"
-                                  >
-                                    Quitar
-                                  </button>
-                                </div>
-
-                                {imageItem.sourceType === 'url' && (
-                                  <input
-                                    className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
-                                    placeholder="https://..."
-                                    value={imageItem.url}
-                                    onChange={(e) =>
-                                      updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
-                                        ...prev,
-                                        imageItems: prev.imageItems.map((candidate) =>
-                                          candidate.id === imageItem.id ? { ...candidate, url: e.target.value } : candidate
-                                        )
-                                      }))
-                                    }
-                                  />
-                                )}
-
-                                <div className="mb-2 overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+                              <button
+                                key={imageItem.id}
+                                type="button"
+                                onClick={() =>
+                                  setImageEditorState({
+                                    open: true,
+                                    levelIndex: activeDraftLevelIndex,
+                                    sublevelIndex: activeDraftSublevelIndex,
+                                    imageId: imageItem.id
+                                  })
+                                }
+                                className="group relative overflow-hidden rounded-lg bg-slate-900 text-left shadow-md ring-1 ring-slate-700/70 hover:ring-brand-400/40"
+                              >
+                                <div className="h-24 w-full bg-slate-950">
                                   {imageSrc ? (
                                     <img
                                       src={imageSrc}
@@ -913,28 +935,29 @@ export default function ModuleEditor() {
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none';
                                       }}
-                                      className="h-28 w-full object-cover"
+                                      className="h-full w-full object-cover"
                                     />
                                   ) : (
-                                    <div className="flex h-28 items-center justify-center text-xs text-slate-400">Sin preview</div>
+                                    <div className="flex h-full items-center justify-center text-[11px] text-slate-400">Sin URL</div>
                                   )}
                                 </div>
-
-                                <textarea
-                                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
-                                  rows={2}
-                                  placeholder="Contexto de la imagen para el estudiante"
-                                  value={imageItem.context}
-                                  onChange={(e) =>
-                                    updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
-                                      ...prev,
-                                      imageItems: prev.imageItems.map((candidate) =>
-                                        candidate.id === imageItem.id ? { ...candidate, context: e.target.value } : candidate
-                                      )
-                                    }))
-                                  }
-                                />
-                              </div>
+                                <div className="p-2">
+                                  <p className="truncate text-[11px] text-slate-300">
+                                    Imagen {imageIndex + 1} ({imageItem.sourceType === 'file' ? 'archivo' : 'URL'})
+                                  </p>
+                                  <p className="truncate text-[10px] text-slate-400">{hasContext ? imageItem.context : 'Click para agregar contexto'}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeImageItem(activeDraftLevelIndex, activeDraftSublevelIndex, imageItem.id);
+                                  }}
+                                  className="absolute right-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-black"
+                                >
+                                  Quitar
+                                </button>
+                              </button>
                             );
                           })}
                         </div>
@@ -1035,44 +1058,55 @@ export default function ModuleEditor() {
             </div>
           )}
 
-          <div className="sticky bottom-3 z-20 rounded-xl border border-slate-700 bg-slate-950/90 p-3 shadow-lg backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="sticky bottom-3 z-10 rounded-2xl bg-slate-950/95 p-3 shadow-xl ring-1 ring-slate-700/70 backdrop-blur-md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {createStep === 1 ? (
                 <>
-                  <span className="text-xs text-slate-400">Completa la portada para pasar al paso 2.</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={cancelCreateFlow}
+                      className="rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/25"
+                    >
+                      Cancelar y salir
+                    </button>
+                    <span className="text-xs text-slate-400">Completa la portada para pasar al paso 2.</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       setCoverTriedContinue(true);
                       if (!isCoverValid) return;
                       setCreateStep(2);
+                      if (!draftLevels[0]?.title?.trim()) {
+                        setLevelNameModal({ open: true, levelIndex: 0, value: draftLevels[0]?.title || '' });
+                      }
                     }}
-                    className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white shadow-md shadow-brand-500/25"
+                    className="w-full rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white shadow-md shadow-brand-500/25 sm:w-auto"
                   >
                     Continuar a niveles
                   </button>
                 </>
               ) : (
                 <>
-                  <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800/40">
-                    Volver a portada
-                  </button>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={addDraftLevel} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100">
-                      <span className="inline-flex items-center gap-1"><Layers3 className="h-4 w-4" />Agregar nivel</span>
-                    </button>
                     <button
                       type="button"
-                      onClick={() => addDraftSublevel(activeDraftLevelIndex)}
-                      className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100"
+                      onClick={cancelCreateFlow}
+                      className="rounded-lg bg-red-500/15 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/25"
                     >
-                      <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" />Agregar subnivel</span>
+                      Cancelar y salir
                     </button>
+                    <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800/40">
+                      Volver a portada
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={publishDraft}
                       disabled={publishingDraft}
-                      className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className="w-full rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                     >
                       {publishingDraft ? (isEditingMode ? 'Guardando...' : 'Publicando...') : (isEditingMode ? 'Guardar cambios' : 'Finalizar y publicar')}
                     </button>
@@ -1083,6 +1117,121 @@ export default function ModuleEditor() {
           </div>
         </div>
       </Card>
+
+      <Modal
+        open={imageEditorState.open && Boolean(editingImage)}
+        onClose={() => setImageEditorState({ open: false, levelIndex: 0, sublevelIndex: 0, imageId: '' })}
+      >
+        <h3 className="text-lg font-bold text-white">Editar imagen del album</h3>
+        <p className="mt-1 text-xs text-slate-400">
+          Subnivel {imageEditorState.levelIndex + 1}.{imageEditorState.sublevelIndex + 1}
+        </p>
+
+        {editingImage && (
+          <div className="mt-4 space-y-3">
+            {editingImage.sourceType === 'url' && (
+              <label className="grid gap-1 text-sm font-medium text-slate-200">
+                URL de la imagen
+                <input
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                  placeholder="https://..."
+                  value={editingImage.url}
+                  onChange={(e) =>
+                    updateDraftSublevel(imageEditorState.levelIndex, imageEditorState.sublevelIndex, (prev) => ({
+                      ...prev,
+                      imageItems: prev.imageItems.map((candidate) =>
+                        candidate.id === editingImage.id ? { ...candidate, url: e.target.value } : candidate
+                      )
+                    }))
+                  }
+                />
+              </label>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+              {(editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url) ? (
+                <img
+                  src={editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url}
+                  alt="Preview imagen"
+                  className="h-52 w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-52 items-center justify-center text-sm text-slate-400">Sin preview disponible</div>
+              )}
+            </div>
+
+            <label className="grid gap-1 text-sm font-medium text-slate-200">
+              Contexto para el estudiante
+              <textarea
+                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+                rows={4}
+                placeholder="Describe la imagen y su importancia"
+                value={editingImage.context}
+                onChange={(e) =>
+                  updateDraftSublevel(imageEditorState.levelIndex, imageEditorState.sublevelIndex, (prev) => ({
+                    ...prev,
+                    imageItems: prev.imageItems.map((candidate) =>
+                      candidate.id === editingImage.id ? { ...candidate, context: e.target.value } : candidate
+                    )
+                  }))
+                }
+              />
+            </label>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setImageEditorState({ open: false, levelIndex: 0, sublevelIndex: 0, imageId: '' })}
+                className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={levelNameModal.open}
+        onClose={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
+      >
+        <h3 className="text-lg font-bold text-white">Nombre del nivel {levelNameModal.levelIndex + 1}</h3>
+        <p className="mt-1 text-sm text-slate-300">Define un nombre claro para organizar mejor los subniveles.</p>
+        <div className="mt-4 grid gap-1.5">
+          <label className="text-sm font-medium text-slate-200">Titulo del nivel *</label>
+          <input
+            autoFocus
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
+            placeholder={`Ej: Fundamentos del nivel ${levelNameModal.levelIndex + 1}`}
+            value={levelNameModal.value}
+            onChange={(e) => setLevelNameModal((prev) => ({ ...prev, value: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                saveLevelNameFromModal();
+              }
+            }}
+          />
+          {!levelNameModal.value.trim() && <p className="text-xs text-amber-300">El nombre del nivel es obligatorio.</p>}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-100"
+          >
+            Cerrar
+          </button>
+          <button
+            type="button"
+            disabled={!levelNameModal.value.trim()}
+            onClick={saveLevelNameFromModal}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Guardar nombre
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={showDiscardModal} onClose={() => setShowDiscardModal(false)}>
         <h3 className="text-lg font-bold">Descartar cambios</h3>
