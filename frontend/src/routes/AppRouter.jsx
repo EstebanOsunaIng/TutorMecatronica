@@ -61,6 +61,7 @@ export default function AppRouter() {
         <Route path="courses/:id" element={<StudentCourseDetail />} />
         <Route path="news" element={<StudentNews />} />
         <Route path="settings" element={<StudentSettings />} />
+        <Route path="settings/security" element={<StudentSettings />} />
       </Route>
 
       <Route
@@ -78,6 +79,7 @@ export default function AppRouter() {
         <Route path="news" element={<TeacherNews />} />
         <Route path="modules" element={<TeacherModuleEditor />} />
         <Route path="settings" element={<TeacherSettings />} />
+        <Route path="settings/security" element={<TeacherSettings />} />
       </Route>
 
       <Route
@@ -93,8 +95,10 @@ export default function AppRouter() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="modules" element={<AdminModules />} />
+        <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="stats" element={<AdminStats />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="settings/security" element={<AdminSettings />} />
       </Route>
     </Routes>
   );

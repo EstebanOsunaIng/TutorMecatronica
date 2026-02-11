@@ -28,7 +28,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
 
   const isStudent = user?.role === 'STUDENT';
   const logoSrc = theme === 'dark' ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png';
-  const avatarSrc = user?.avatarUrl || user?.photoUrl || '';
+  const avatarSrc = user?.profilePhotoUrl || user?.avatarUrl || user?.photoUrl || '';
   const userName = user?.name || 'Usuario';
   const userNameDisplay = userName.toUpperCase();
   const userRole = roleLabels[user?.role] || 'Usuario';
@@ -83,7 +83,7 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 h-[72px] border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
+    <header className="sticky top-0 z-40 h-[72px] border-b border-cyan-100/80 bg-sky-50/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
       <div className="grid h-full grid-cols-[auto_1fr_auto] items-center gap-4">
         <button
           onClick={onOpenSidebar}
