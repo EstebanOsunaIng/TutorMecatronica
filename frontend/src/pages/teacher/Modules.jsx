@@ -8,7 +8,7 @@ import ModuleStudentPreview from '../../components/modules/ModuleStudentPreview.
 
 const DEFAULT_MODULE_IMAGE = '/assets/campus-placeholder.svg';
 
-export default function AdminModules() {
+export default function TeacherModules() {
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
   const [busyId, setBusyId] = useState('');
@@ -24,17 +24,6 @@ export default function AdminModules() {
   useEffect(() => {
     load();
   }, []);
-
-  const togglePublish = async (m) => {
-    if (!m?._id) return;
-    setBusyId(m._id);
-    try {
-      await modulesApi.update(m._id, { isPublished: !m.isPublished });
-      await load();
-    } finally {
-      setBusyId('');
-    }
-  };
 
   const remove = async (moduleId) => {
     if (!moduleId) return;
@@ -54,12 +43,7 @@ export default function AdminModules() {
   const filteredModules = useMemo(() => {
     const term = search.trim().toLowerCase();
     return orderedModules
-      .map((m, index) => {
-        return {
-          ...m,
-          moduleNumber: index + 1
-        };
-      })
+      .map((m, index) => ({ ...m, moduleNumber: index + 1 }))
       .filter((m) => !term || (m.title || '').toLowerCase().includes(term));
   }, [orderedModules, search]);
 
@@ -85,14 +69,14 @@ export default function AdminModules() {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
+      <Card>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-bold">Gestion de modulos</h2>
-            <p className="mt-1 text-sm text-slate-400">Administra, edita y publica los modulos del sistema.</p>
+            <p className="mt-1 text-sm text-slate-400">Edita tus modulos y revisa como los vera el estudiante.</p>
           </div>
           <button
-            onClick={() => navigate('/admin/modules/editor')}
+            onClick={() => navigate('/teacher/modules/editor')}
             className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-500/25 transition hover:brightness-110"
           >
             <Plus className="h-4 w-4" />
@@ -112,8 +96,7 @@ export default function AdminModules() {
       </Card>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filteredModules.map((m) => {
-          return (
+        {filteredModules.map((m) => (
           <Card
             key={m._id}
             onClick={() => openPreview(m)}
@@ -133,37 +116,21 @@ export default function AdminModules() {
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/10 to-transparent" />
 
-                <div className="absolute left-3 top-3 flex items-center gap-2">
-                  <span className="rounded-full bg-slate-900/75 px-2 py-1 text-[11px] font-bold text-slate-100 ring-1 ring-white/20">
-                    Modulo {m.moduleNumber}
-                  </span>
-                </div>
-
-                <span
-                  className={`absolute right-3 top-3 rounded-full px-2 py-1 text-[11px] font-semibold ${
-                    m.isPublished ? 'bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-300/35' : 'bg-slate-800/70 text-slate-200 ring-1 ring-slate-300/20'
-                  }`}
-                >
-                  {m.isPublished ? 'Publicado' : 'No publicado'}
+                <span className="absolute left-3 top-3 rounded-full bg-slate-900/75 px-2 py-1 text-[11px] font-bold text-slate-100 ring-1 ring-white/20">
+                  Modulo {m.moduleNumber}
                 </span>
 
-                <span className="absolute right-3 top-12 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
+                <span className="absolute right-3 top-3 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
                   {m.category || 'General'}
                 </span>
-
               </div>
 
               <div className="flex flex-1 flex-col gap-3 p-5">
                 <div className="space-y-2.5">
                   <h3 className="line-clamp-2 text-xl font-bold leading-tight text-white">{m.title || 'Modulo sin titulo'}</h3>
-
-                  <p
-                    className="line-clamp-2 text-[11px] leading-relaxed text-slate-300"
-                    title={m.description || 'Sin descripcion.'}
-                  >
+                  <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-300" title={m.description || 'Sin descripcion.'}>
                     {m.description || 'Sin descripcion.'}
                   </p>
-
                   <p className="text-[11px] text-cyan-100/80">
                     {m.moduleNumber > 1 ? (
                       <>
@@ -177,27 +144,17 @@ export default function AdminModules() {
                   </p>
                 </div>
 
-                <div className="mt-auto grid grid-cols-3 gap-2 border-t border-white/10 pt-3">
+                <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/admin/modules/editor?moduleId=${m._id}`);
+                      navigate(`/teacher/modules/editor?moduleId=${m._id}`);
                     }}
                     disabled={busyId === m._id}
                     className="inline-flex h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-brand-500/15 px-2 py-1.5 text-[10px] font-semibold text-brand-100 ring-1 ring-brand-300/30 transition hover:bg-brand-500/25 disabled:opacity-50"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Editar
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePublish(m);
-                    }}
-                    disabled={busyId === m._id}
-                    className="h-8 w-full whitespace-nowrap rounded-lg bg-slate-700/55 px-2 py-1.5 text-[10px] font-semibold text-slate-100 ring-1 ring-white/15 transition hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    {m.isPublished ? 'Ocultar' : 'Publicar'}
                   </button>
                   <button
                     onClick={(e) => {
@@ -214,11 +171,10 @@ export default function AdminModules() {
               </div>
             </div>
           </Card>
-          );
-        })}
+        ))}
 
         {!filteredModules.length && (
-          <Card className="bg-cyan-50/70 dark:bg-slate-900">
+          <Card>
             <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
           </Card>
         )}
@@ -226,9 +182,7 @@ export default function AdminModules() {
 
       <Modal open={Boolean(moduleToDelete)} onClose={() => setModuleToDelete(null)}>
         <h3 className="text-lg font-bold">Confirmar eliminacion</h3>
-        <p className="mt-2 text-sm text-slate-300">
-          ¿Estás seguro de que deseas eliminar este módulo? Esta acción no se puede deshacer.
-        </p>
+        <p className="mt-2 text-sm text-slate-300">¿Seguro que deseas eliminar este modulo? Esta accion no se puede deshacer.</p>
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={() => setModuleToDelete(null)}

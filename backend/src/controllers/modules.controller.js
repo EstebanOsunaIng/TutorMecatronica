@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { parsePdfToModule } from '../services/pdfToModule.service.js';
+import { createNotification, createNotificationsForStudents } from '../services/notifications.service.js';
 
 export async function listModules(req, res) {
   const modules = await Module.find().sort({ createdAt: -1 });
@@ -41,6 +42,22 @@ export async function createModule(req, res) {
     description: `Completaste el modulo ${moduleItem.title}`
   });
 
+  await createNotification({
+    userId: req.user.id,
+    title: 'Modulo creado',
+    message: `Has creado el modulo '${moduleItem.title}' correctamente.`,
+    type: 'MODULO_CREADO'
+  });
+
+  if (moduleItem.isPublished) {
+    const publishedBy = req.user?.role === 'ADMIN' ? 'El administrador' : 'El profesor';
+    await createNotificationsForStudents({
+      title: 'Nuevo modulo publicado',
+      message: `${publishedBy} ha publicado el modulo '${moduleItem.title}'.`,
+      type: 'MODULO_CREADO'
+    });
+  }
+
   res.status(201).json({ module: moduleItem });
 }
 
@@ -56,6 +73,30 @@ export async function updateModule(req, res) {
       { new: true }
     );
   }
+
+  await createNotification({
+    userId: req.user.id,
+    title: 'Modulo actualizado',
+    message: `El modulo '${moduleItem.title}' fue actualizado correctamente.`,
+    type: 'MODULO_EDITADO'
+  });
+
+  if (req.user?.role === 'ADMIN') {
+    await createNotificationsForStudents({
+      title: 'Modulo actualizado',
+      message: `El administrador actualizo el modulo '${moduleItem.title}'.`,
+      type: 'MODULO_EDITADO'
+    });
+  }
+
+  if (prev && !prev.isPublished && moduleItem.isPublished) {
+    const publishedBy = req.user?.role === 'ADMIN' ? 'El administrador' : 'El profesor';
+    await createNotificationsForStudents({
+      title: 'Nuevo modulo publicado',
+      message: `${publishedBy} ha publicado el modulo '${moduleItem.title}'.`,
+      type: 'MODULO_CREADO'
+    });
+  }
   res.json({ module: moduleItem });
 }
 
@@ -64,6 +105,12 @@ export async function deleteModule(req, res) {
   if (!moduleItem) return res.status(404).json({ error: 'Module not found' });
   await LessonLevel.deleteMany({ moduleId: moduleItem._id });
   await Badge.deleteMany({ moduleId: moduleItem._id });
+  await createNotification({
+    userId: req.user.id,
+    title: 'Modulo eliminado',
+    message: `El modulo '${moduleItem.title}' fue eliminado.`,
+    type: 'MODULO_ELIMINADO'
+  });
   res.json({ ok: true });
 }
 
@@ -92,6 +139,22 @@ export async function importModuleFromPdf(req, res) {
       description: `Completaste el modulo ${moduleItem.title}`
     });
 
+    await createNotification({
+      userId: req.user.id,
+      title: 'Modulo creado',
+      message: `Has creado el modulo '${moduleItem.title}' correctamente.`,
+      type: 'MODULO_CREADO'
+    });
+
+    if (moduleItem.isPublished) {
+      const publishedBy = req.user?.role === 'ADMIN' ? 'El administrador' : 'El profesor';
+      await createNotificationsForStudents({
+        title: 'Nuevo modulo publicado',
+        message: `${publishedBy} ha publicado el modulo '${moduleItem.title}'.`,
+        type: 'MODULO_CREADO'
+      });
+    }
+
     const lessons = Array.isArray(parsed.lessons) ? parsed.lessons : [];
     const created = [];
     for (const l of lessons) {
@@ -99,10 +162,14 @@ export async function importModuleFromPdf(req, res) {
         await LessonLevel.create({
           moduleId: moduleItem._id,
           order: l.order,
+          levelNumber: l.levelNumber || l.order,
+          sublevelNumber: l.sublevelNumber || 1,
+          levelTitle: l.levelTitle || `Nivel ${l.levelNumber || l.order}`,
           title: l.title,
           contentText: l.contentText || '',
           videoUrl: l.videoUrl || '',
           resources: l.resources || [],
+          imageItems: l.imageItems || [],
           activity: l.activity || {},
           contextForAI: l.contextForAI || ''
         })
@@ -120,10 +187,14 @@ export async function addLessonLevel(req, res) {
   const level = await LessonLevel.create({
     moduleId,
     order: req.body.order,
+    levelNumber: req.body.levelNumber || req.body.order,
+    sublevelNumber: req.body.sublevelNumber || 1,
+    levelTitle: req.body.levelTitle || `Nivel ${req.body.levelNumber || req.body.order || 1}`,
     title: req.body.title,
     contentText: req.body.contentText || '',
     videoUrl: req.body.videoUrl || '',
     resources: req.body.resources || [],
+    imageItems: req.body.imageItems || [],
     activity: req.body.activity || {},
     contextForAI: req.body.contextForAI || ''
   });

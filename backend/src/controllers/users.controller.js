@@ -25,6 +25,7 @@ export async function updateMe(req, res) {
   const updates = {};
   if (typeof req.body.phone === 'string') updates.phone = req.body.phone;
   if (typeof req.body.profilePhotoUrl === 'string') updates.profilePhotoUrl = req.body.profilePhotoUrl;
+  if (typeof req.body.notificationsMuted === 'boolean') updates.notificationsMuted = req.body.notificationsMuted;
   const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
   res.json({ user });
 }

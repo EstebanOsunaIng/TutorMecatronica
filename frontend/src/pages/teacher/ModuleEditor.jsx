@@ -1,20 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers3, Link2, Plus, Upload, Video } from 'lucide-react';
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, FileText, Link2, Loader2, Pencil, Plus, Upload, Video } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
 const INITIAL_COVER_FORM = { title: '', description: '', category: 'General', imageUrl: '', level: 'Básico' };
+const CATEGORY_OPTIONS = ['General', 'Robotica', 'Programacion', 'Electronica', 'Diseno 3D', 'Automatizacion', 'Inteligencia Artificial', 'Mecanica'];
 
-const createInitialDraftLevel = () => ({
+const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const createInitialDraftSublevel = () => ({
   existingId: '',
   title: '',
   contentText: '',
   videoUrls: [''],
   pdfUrl: '',
-  imageUrlInputs: [''],
-  imageFiles: []
+  imageItems: []
+});
+
+const createInitialDraftLevel = () => ({
+  title: '',
+  sublevels: [createInitialDraftSublevel()]
 });
 
 const fileToDataUrl = (file) =>
@@ -46,15 +53,38 @@ const getYouTubeThumbnail = (url) => {
   return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : '';
 };
 
-const toDraftLevel = (levelItem) => {
+const toDraftSublevel = (levelItem) => {
   const resources = Array.isArray(levelItem?.resources) ? levelItem.resources : [];
   const secondaryVideos = resources
     .filter((item) => typeof item === 'string' && item.startsWith('video:'))
-    .map((item) => item.slice(6));
+    .map((item) => item.slice(6))
+    .filter(Boolean);
+
   const pdfUrl = resources.find((item) => typeof item === 'string' && item.startsWith('pdf:'))?.slice(4) || '';
-  const imageUrlInputs = resources.filter(
-    (item) => typeof item === 'string' && !item.startsWith('video:') && !item.startsWith('pdf:')
-  );
+
+  const legacyImages = resources
+    .filter((item) => typeof item === 'string' && !item.startsWith('video:') && !item.startsWith('pdf:'))
+    .map((url) => ({
+      id: createId(),
+      sourceType: 'url',
+      url,
+      context: '',
+      file: null,
+      previewUrl: ''
+    }));
+
+  const persistedImages = Array.isArray(levelItem?.imageItems)
+    ? levelItem.imageItems
+        .map((imageItem) => ({
+          id: createId(),
+          sourceType: 'url',
+          url: (imageItem?.url || '').trim(),
+          context: (imageItem?.context || '').trim(),
+          file: null,
+          previewUrl: ''
+        }))
+        .filter((imageItem) => imageItem.url)
+    : [];
 
   return {
     existingId: levelItem?._id || '',
@@ -62,9 +92,52 @@ const toDraftLevel = (levelItem) => {
     contentText: levelItem?.contentText || '',
     videoUrls: [levelItem?.videoUrl || '', ...secondaryVideos],
     pdfUrl,
-    imageUrlInputs: imageUrlInputs.length ? imageUrlInputs : [''],
-    imageFiles: []
+    imageItems: persistedImages.length ? persistedImages : legacyImages
   };
+};
+
+const hydrateDraftLevels = (fetchedLevels) => {
+  const safeLevels = Array.isArray(fetchedLevels) ? fetchedLevels : [];
+  if (!safeLevels.length) return [createInitialDraftLevel()];
+
+  const hasSublevelMetadata = safeLevels.some((item) => Number(item?.levelNumber) > 0);
+
+  if (!hasSublevelMetadata) {
+    return safeLevels
+      .sort((a, b) => (a?.order || 0) - (b?.order || 0))
+      .map((levelItem, index) => ({
+        title: `Nivel ${index + 1}`,
+        sublevels: [toDraftSublevel(levelItem)]
+      }));
+  }
+
+  const grouped = new Map();
+
+  safeLevels.forEach((levelItem) => {
+    const parsedLevelNumber = Number(levelItem?.levelNumber);
+    const parsedSublevelNumber = Number(levelItem?.sublevelNumber);
+    const levelNumber = Number.isFinite(parsedLevelNumber) && parsedLevelNumber > 0 ? parsedLevelNumber : 1;
+    const sublevelNumber = Number.isFinite(parsedSublevelNumber) && parsedSublevelNumber > 0 ? parsedSublevelNumber : 1;
+
+    if (!grouped.has(levelNumber)) {
+      grouped.set(levelNumber, {
+        title: (levelItem?.levelTitle || '').trim() || `Nivel ${levelNumber}`,
+        sublevels: []
+      });
+    }
+
+    grouped.get(levelNumber).sublevels.push({
+      order: sublevelNumber,
+      sublevel: toDraftSublevel(levelItem)
+    });
+  });
+
+  return [...grouped.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, group]) => ({
+      title: group.title,
+      sublevels: group.sublevels.sort((a, b) => a.order - b.order).map((item) => item.sublevel)
+    }));
 };
 
 const serializeDraftState = (cover, draftLevels) =>
@@ -74,80 +147,110 @@ const serializeDraftState = (cover, draftLevels) =>
       description: (cover?.description || '').trim(),
       category: (cover?.category || '').trim(),
       imageUrl: (cover?.imageUrl || '').trim(),
-      level: cover?.level || ''
+      level: (cover?.level || '').trim()
     },
-    levels: (draftLevels || []).map((lvl, idx) => ({
-      idx,
-      existingId: lvl.existingId || '',
-      title: (lvl.title || '').trim(),
-      contentText: (lvl.contentText || '').trim(),
-      videoUrls: (lvl.videoUrls || []).map((item) => item.trim()).filter(Boolean),
-      pdfUrl: (lvl.pdfUrl || '').trim(),
-      imageUrlInputs: (lvl.imageUrlInputs || []).map((item) => item.trim()).filter(Boolean),
-      imageFiles: (lvl.imageFiles || []).map((fileItem) => fileItem.file?.name || '').filter(Boolean)
+    levels: (draftLevels || []).map((levelItem, levelIndex) => ({
+      levelIndex,
+      title: (levelItem?.title || '').trim(),
+      sublevels: (levelItem?.sublevels || []).map((sublevel, sublevelIndex) => ({
+        sublevelIndex,
+        existingId: sublevel?.existingId || '',
+        title: (sublevel?.title || '').trim(),
+        contentText: (sublevel?.contentText || '').trim(),
+        videoUrls: (sublevel?.videoUrls || []).map((item) => item.trim()).filter(Boolean),
+        pdfUrl: (sublevel?.pdfUrl || '').trim(),
+        imageItems: (sublevel?.imageItems || [])
+          .map((imageItem) => ({
+            sourceType: imageItem?.sourceType || 'url',
+            url: (imageItem?.url || '').trim(),
+            context: (imageItem?.context || '').trim(),
+            fileName: imageItem?.file?.name || ''
+          }))
+          .filter((item) => item.url || item.fileName)
+      }))
     }))
   });
+
+const revokeSublevelImages = (sublevels) => {
+  (sublevels || []).forEach((sublevel) => {
+    (sublevel.imageItems || []).forEach((imageItem) => {
+      if (imageItem?.sourceType === 'file' && imageItem.previewUrl) {
+        URL.revokeObjectURL(imageItem.previewUrl);
+      }
+    });
+  });
+};
 
 export default function ModuleEditor() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+
   const [editorMode, setEditorMode] = useState('create');
   const [editorLoading, setEditorLoading] = useState(false);
   const [baselineDraftSignature, setBaselineDraftSignature] = useState('');
-  const [baselineLevelIds, setBaselineLevelIds] = useState([]);
-  const [modules, setModules] = useState([]);
+  const [baselineSublevelIds, setBaselineSublevelIds] = useState([]);
   const [coverForm, setCoverForm] = useState(INITIAL_COVER_FORM);
   const [createStep, setCreateStep] = useState(1);
   const [coverTriedContinue, setCoverTriedContinue] = useState(false);
   const [draftLevels, setDraftLevels] = useState([createInitialDraftLevel()]);
   const [activeDraftLevelIndex, setActiveDraftLevelIndex] = useState(0);
+  const [activeDraftSublevelIndex, setActiveDraftSublevelIndex] = useState(0);
   const [publishTried, setPublishTried] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
-  const [selectedId, setSelectedId] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [levels, setLevels] = useState([]);
-  const [levelForm, setLevelForm] = useState({ title: '', contentText: '', videoUrl: '', contextForAI: '' });
-  const [editingLevelId, setEditingLevelId] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [publishStepDone, setPublishStepDone] = useState(false);
+  const [expandedLevels, setExpandedLevels] = useState({ 0: true });
+  const [imageEditorState, setImageEditorState] = useState({
+    open: false,
+    levelIndex: 0,
+    sublevelIndex: 0,
+    imageId: ''
+  });
+  const [levelNameModal, setLevelNameModal] = useState({ open: false, levelIndex: 0, value: '' });
+  const [instructionLinkModal, setInstructionLinkModal] = useState({ open: false, label: '', url: '' });
+  const draftLevelsRef = useRef(draftLevels);
+  const instructionTextareaRef = useRef(null);
 
   const isEditingMode = editorMode === 'edit';
   const currentDraftSignature = serializeDraftState(coverForm, draftLevels);
   const createDefaultSignature = serializeDraftState(INITIAL_COVER_FORM, [createInitialDraftLevel()]);
 
-  const load = async () => {
-    const res = await modulesApi.list();
-    setModules(res.data.modules || []);
-  };
-
-  const loadSelected = async (id) => {
-    if (!id) {
-      setSelected(null);
-      setLevels([]);
-      return;
-    }
-    const res = await modulesApi.get(id);
-    setSelected({
-      ...res.data.module,
-      category: res.data.module?.category || 'General',
-      imageUrl: res.data.module?.imageUrl || ''
-    });
-    setLevels(res.data.levels || []);
-    setEditingLevelId('');
-    setLevelForm({ title: '', contentText: '', videoUrl: '', contextForAI: '' });
-  };
+  useEffect(() => {
+    draftLevelsRef.current = draftLevels;
+  }, [draftLevels]);
 
   useEffect(() => {
-    load();
-  }, []);
+    setExpandedLevels((prev) => {
+      const next = {};
+      draftLevels.forEach((_, idx) => {
+        next[idx] = prev[idx] ?? true;
+      });
+      return next;
+    });
+  }, [draftLevels]);
+
+  useEffect(
+    () => () => {
+      draftLevelsRef.current.forEach((levelItem) => revokeSublevelImages(levelItem.sublevels));
+    },
+    []
+  );
 
   useEffect(() => {
     const moduleId = searchParams.get('moduleId');
     if (!moduleId) {
       setEditorMode('create');
-      setBaselineLevelIds([]);
-      setBaselineDraftSignature(serializeDraftState(INITIAL_COVER_FORM, [createInitialDraftLevel()]));
+      setBaselineSublevelIds([]);
+      const initialLevels = [createInitialDraftLevel()];
+      setDraftLevels(initialLevels);
+      setBaselineDraftSignature(serializeDraftState(INITIAL_COVER_FORM, initialLevels));
+      setCoverForm(INITIAL_COVER_FORM);
+      setActiveDraftLevelIndex(0);
+      setActiveDraftSublevelIndex(0);
+      setCreateStep(1);
+      setCoverTriedContinue(false);
+      setPublishTried(false);
       return;
     }
 
@@ -155,11 +258,10 @@ export default function ModuleEditor() {
       setEditorMode('edit');
       setEditorLoading(true);
       try {
-        setSelectedId(moduleId);
         const res = await modulesApi.get(moduleId);
         const moduleItem = res.data?.module || {};
         const fetchedLevels = Array.isArray(res.data?.levels) ? res.data.levels : [];
-        const mappedLevels = fetchedLevels.length ? fetchedLevels.map(toDraftLevel) : [createInitialDraftLevel()];
+
         const nextCover = {
           title: moduleItem.title || '',
           description: moduleItem.description || '',
@@ -168,16 +270,16 @@ export default function ModuleEditor() {
           level: moduleItem.level || 'Básico'
         };
 
-        setSelected(moduleItem);
-        setLevels(fetchedLevels);
+        const hydratedDraftLevels = hydrateDraftLevels(fetchedLevels);
         setCoverForm(nextCover);
-        setDraftLevels(mappedLevels);
+        setDraftLevels(hydratedDraftLevels);
         setActiveDraftLevelIndex(0);
+        setActiveDraftSublevelIndex(0);
         setCreateStep(1);
         setCoverTriedContinue(false);
         setPublishTried(false);
-        setBaselineLevelIds(fetchedLevels.map((lvl) => lvl._id).filter(Boolean));
-        setBaselineDraftSignature(serializeDraftState(nextCover, mappedLevels));
+        setBaselineSublevelIds(fetchedLevels.map((item) => item._id).filter(Boolean));
+        setBaselineDraftSignature(serializeDraftState(nextCover, hydratedDraftLevels));
       } finally {
         setEditorLoading(false);
       }
@@ -203,65 +305,238 @@ export default function ModuleEditor() {
     ? Boolean(baselineDraftSignature) && currentDraftSignature !== baselineDraftSignature
     : currentDraftSignature !== createDefaultSignature;
 
-  const isDraftLevelValid = (lvl) => lvl.title.trim() && lvl.contentText.trim();
+  const isDraftSublevelValid = (sublevel) => sublevel.title.trim() && sublevel.contentText.trim();
 
-  const allDraftLevelsValid = draftLevels.length > 0 && draftLevels.every(isDraftLevelValid);
+  const isDraftLevelValid = (levelItem) =>
+    levelItem.title.trim() &&
+    Array.isArray(levelItem.sublevels) &&
+    levelItem.sublevels.length > 0 &&
+    levelItem.sublevels.every(isDraftSublevelValid);
 
-  const updateDraftLevel = (index, updater) => {
-    setDraftLevels((prev) => prev.map((lvl, i) => (i === index ? updater(lvl) : lvl)));
+  const hasMandatoryFirstSublevel = Boolean(draftLevels[0]?.sublevels?.[0]);
+  const allDraftLevelsValid = draftLevels.length > 0 && hasMandatoryFirstSublevel && draftLevels.every(isDraftLevelValid);
+
+  const activeLevel = draftLevels[activeDraftLevelIndex] || null;
+  const activeSublevel = activeLevel?.sublevels?.[activeDraftSublevelIndex] || null;
+  const flatDraftSublevels = useMemo(() => {
+    const flat = [];
+    draftLevels.forEach((levelItem, levelIndex) => {
+      levelItem.sublevels.forEach((sublevel, sublevelIndex) => {
+        flat.push({ levelIndex, sublevelIndex, levelItem, sublevel });
+      });
+    });
+    return flat;
+  }, [draftLevels]);
+  const activeFlatDraftIndex = flatDraftSublevels.findIndex(
+    (item) => item.levelIndex === activeDraftLevelIndex && item.sublevelIndex === activeDraftSublevelIndex
+  );
+  const editingImage = draftLevels[imageEditorState.levelIndex]
+    ?.sublevels?.[imageEditorState.sublevelIndex]
+    ?.imageItems?.find((imageItem) => imageItem.id === imageEditorState.imageId);
+
+  const openLevelNameModal = (levelIndex) => {
+    const safeIndex = Number(levelIndex) || 0;
+    const currentTitle = draftLevels[safeIndex]?.title || '';
+    setLevelNameModal({
+      open: true,
+      levelIndex: safeIndex,
+      value: currentTitle
+    });
+  };
+
+  const saveLevelNameFromModal = () => {
+    const trimmedTitle = levelNameModal.value.trim();
+    if (!trimmedTitle) return;
+    updateDraftLevel(levelNameModal.levelIndex, (prev) => ({ ...prev, title: trimmedTitle }));
+    setLevelNameModal({ open: false, levelIndex: 0, value: '' });
+  };
+
+  const goToDraftFlatIndex = (index) => {
+    const item = flatDraftSublevels[index];
+    if (!item) return;
+    setActiveDraftLevelIndex(item.levelIndex);
+    setActiveDraftSublevelIndex(item.sublevelIndex);
+    setExpandedLevels((prev) => ({ ...prev, [item.levelIndex]: true }));
+  };
+
+  const openInstructionLinkBuilder = () => {
+    const textarea = instructionTextareaRef.current;
+    const currentText = activeSublevel?.contentText || '';
+    let selected = '';
+
+    if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+      selected = currentText.slice(textarea.selectionStart, textarea.selectionEnd).trim();
+    }
+
+    setInstructionLinkModal({
+      open: true,
+      label: selected,
+      url: ''
+    });
+  };
+
+  const insertInstructionLink = () => {
+    const rawUrl = instructionLinkModal.url.trim();
+    if (!rawUrl) return;
+
+    const finalUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+    const finalLabel = instructionLinkModal.label.trim() || 'Abrir enlace';
+    const markdownLink = `[${finalLabel}](${finalUrl})`;
+
+    const textarea = instructionTextareaRef.current;
+    const currentText = activeSublevel?.contentText || '';
+    const start = textarea && typeof textarea.selectionStart === 'number' ? textarea.selectionStart : currentText.length;
+    const end = textarea && typeof textarea.selectionEnd === 'number' ? textarea.selectionEnd : currentText.length;
+    const nextText = `${currentText.slice(0, start)}${markdownLink}${currentText.slice(end)}`;
+
+    updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+      ...prev,
+      contentText: nextText
+    }));
+
+    setInstructionLinkModal({ open: false, label: '', url: '' });
+
+    requestAnimationFrame(() => {
+      if (!instructionTextareaRef.current) return;
+      const caretPosition = start + markdownLink.length;
+      instructionTextareaRef.current.focus();
+      instructionTextareaRef.current.setSelectionRange(caretPosition, caretPosition);
+    });
+  };
+
+  const updateDraftLevel = (levelIndex, updater) => {
+    setDraftLevels((prev) => prev.map((levelItem, idx) => (idx === levelIndex ? updater(levelItem) : levelItem)));
+  };
+
+  const updateDraftSublevel = (levelIndex, sublevelIndex, updater) => {
+    updateDraftLevel(levelIndex, (levelItem) => ({
+      ...levelItem,
+      sublevels: levelItem.sublevels.map((sublevel, idx) => (idx === sublevelIndex ? updater(sublevel) : sublevel))
+    }));
   };
 
   const addDraftLevel = () => {
     setDraftLevels((prev) => {
       const next = [...prev, createInitialDraftLevel()];
-      setActiveDraftLevelIndex(next.length - 1);
+      const newLevelIndex = next.length - 1;
+      setActiveDraftLevelIndex(newLevelIndex);
+      setActiveDraftSublevelIndex(0);
+      setLevelNameModal({ open: true, levelIndex: newLevelIndex, value: '' });
       return next;
     });
   };
 
-  const removeDraftLevel = (index) => {
-    if (index === 0) return;
-    setDraftLevels((prev) => prev.filter((_, i) => i !== index));
-    setActiveDraftLevelIndex((prev) => {
-      if (prev === index) return Math.max(0, index - 1);
-      if (prev > index) return prev - 1;
-      return prev;
+  const removeDraftLevel = (levelIndex) => {
+    if (levelIndex === 0 || draftLevels.length <= 1) return;
+    revokeSublevelImages(draftLevels[levelIndex]?.sublevels || []);
+
+    setDraftLevels((prev) => prev.filter((_, idx) => idx !== levelIndex));
+    setActiveDraftLevelIndex((prevLevelIndex) => {
+      if (prevLevelIndex === levelIndex) return Math.max(0, levelIndex - 1);
+      if (prevLevelIndex > levelIndex) return prevLevelIndex - 1;
+      return prevLevelIndex;
     });
+    setActiveDraftSublevelIndex(0);
   };
 
-  const addVideoField = (index) => {
-    updateDraftLevel(index, (lvl) => ({ ...lvl, videoUrls: [...lvl.videoUrls, ''] }));
-  };
-
-  const addImageUrlField = (index) => {
-    updateDraftLevel(index, (lvl) => {
-      const totalImages = lvl.imageFiles.length + lvl.imageUrlInputs.length;
-      if (totalImages >= 5) return lvl;
-      return { ...lvl, imageUrlInputs: [...lvl.imageUrlInputs, ''] };
-    });
-  };
-
-  const addImageFiles = (index, files) => {
-    if (!files?.length) return;
-    updateDraftLevel(index, (lvl) => {
-      const availableSlots = Math.max(0, 5 - (lvl.imageFiles.length + lvl.imageUrlInputs.filter((url) => url.trim()).length));
-      if (!availableSlots) return lvl;
-      const pickedFiles = files.slice(0, availableSlots).map((file) => ({
-        file,
-        previewUrl: URL.createObjectURL(file)
-      }));
-      return { ...lvl, imageFiles: [...lvl.imageFiles, ...pickedFiles] };
-    });
-  };
-
-  const removeImageFile = (levelIndex, fileIndex) => {
-    updateDraftLevel(levelIndex, (lvl) => ({
-      ...lvl,
-      imageFiles: lvl.imageFiles.filter((fileItem, i) => {
-        if (i === fileIndex && fileItem?.previewUrl) URL.revokeObjectURL(fileItem.previewUrl);
-        return i !== fileIndex;
-      })
+  const addDraftSublevel = (levelIndex = activeDraftLevelIndex) => {
+    updateDraftLevel(levelIndex, (levelItem) => ({
+      ...levelItem,
+      sublevels: [...levelItem.sublevels, createInitialDraftSublevel()]
     }));
+
+    setActiveDraftLevelIndex(levelIndex);
+    setActiveDraftSublevelIndex((draftLevels[levelIndex]?.sublevels?.length || 0));
+  };
+
+  const removeDraftSublevel = (levelIndex, sublevelIndex) => {
+    const levelItem = draftLevels[levelIndex];
+    if (!levelItem) return;
+    if (levelItem.sublevels.length <= 1) return;
+    if (levelIndex === 0 && sublevelIndex === 0) return;
+
+    const removedSublevel = levelItem.sublevels[sublevelIndex];
+    revokeSublevelImages([removedSublevel]);
+
+    updateDraftLevel(levelIndex, (prev) => ({
+      ...prev,
+      sublevels: prev.sublevels.filter((_, idx) => idx !== sublevelIndex)
+    }));
+
+    if (activeDraftLevelIndex === levelIndex) {
+      setActiveDraftSublevelIndex((prev) => {
+        if (prev === sublevelIndex) return Math.max(0, sublevelIndex - 1);
+        if (prev > sublevelIndex) return prev - 1;
+        return prev;
+      });
+    }
+  };
+
+  const addVideoField = (levelIndex, sublevelIndex) => {
+    updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => ({
+      ...sublevel,
+      videoUrls: [...sublevel.videoUrls, '']
+    }));
+  };
+
+  const addImageUrlField = (levelIndex, sublevelIndex) => {
+    updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => ({
+      ...sublevel,
+      imageItems: [
+        ...sublevel.imageItems,
+        {
+          id: createId(),
+          sourceType: 'url',
+          url: '',
+          context: '',
+          file: null,
+          previewUrl: ''
+        }
+      ]
+    }));
+  };
+
+  const addImageFiles = (levelIndex, sublevelIndex, files) => {
+    if (!files?.length) return;
+
+    updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => ({
+      ...sublevel,
+      imageItems: [
+        ...sublevel.imageItems,
+        ...files.map((file) => ({
+          id: createId(),
+          sourceType: 'file',
+          url: '',
+          context: '',
+          file,
+          previewUrl: URL.createObjectURL(file)
+        }))
+      ]
+    }));
+  };
+
+  const removeImageItem = (levelIndex, sublevelIndex, imageId) => {
+    updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => {
+      const imageToRemove = sublevel.imageItems.find((imageItem) => imageItem.id === imageId);
+      if (imageToRemove?.sourceType === 'file' && imageToRemove.previewUrl) {
+        URL.revokeObjectURL(imageToRemove.previewUrl);
+      }
+
+      return {
+        ...sublevel,
+        imageItems: sublevel.imageItems.filter((imageItem) => imageItem.id !== imageId)
+      };
+    });
+  };
+
+  const goPrevSublevel = () => {
+    if (activeFlatDraftIndex <= 0) return;
+    goToDraftFlatIndex(activeFlatDraftIndex - 1);
+  };
+
+  const goNextSublevel = () => {
+    if (activeFlatDraftIndex >= flatDraftSublevels.length - 1) return;
+    goToDraftFlatIndex(activeFlatDraftIndex + 1);
   };
 
   const exitCreateFlow = () => {
@@ -280,27 +555,38 @@ export default function ModuleEditor() {
     exitCreateFlow();
   };
 
-  const buildLevelPayload = async (lvl, order) => {
-    const trimmedVideoUrls = (lvl.videoUrls || []).map((v) => v.trim()).filter(Boolean);
-    const urlImages = (lvl.imageUrlInputs || []).map((url) => url.trim()).filter(Boolean).slice(0, 5);
-    const fileImages = [];
+  const buildSublevelPayload = async (sublevel, order, levelNumber, sublevelNumber, levelTitle) => {
+    const trimmedVideoUrls = (sublevel.videoUrls || []).map((item) => item.trim()).filter(Boolean);
+    const imageItems = [];
 
-    for (const fileItem of (lvl.imageFiles || []).slice(0, Math.max(0, 5 - urlImages.length))) {
-      const dataUrl = await fileToDataUrl(fileItem.file);
-      if (dataUrl) fileImages.push(dataUrl);
+    for (const imageItem of sublevel.imageItems || []) {
+      const context = (imageItem?.context || '').trim();
+
+      if (imageItem?.sourceType === 'url') {
+        const url = (imageItem?.url || '').trim();
+        if (url) imageItems.push({ url, context });
+        continue;
+      }
+
+      if (imageItem?.sourceType === 'file' && imageItem.file) {
+        const dataUrl = await fileToDataUrl(imageItem.file);
+        if (dataUrl) imageItems.push({ url: dataUrl, context });
+      }
     }
 
     return {
       order,
-      title: lvl.title,
-      contentText: lvl.contentText,
+      levelNumber,
+      sublevelNumber,
+      levelTitle: levelTitle.trim() || `Nivel ${levelNumber}`,
+      title: sublevel.title,
+      contentText: sublevel.contentText,
       videoUrl: trimmedVideoUrls[0] || '',
       resources: [
-        ...urlImages,
-        ...fileImages,
         ...trimmedVideoUrls.slice(1).map((url) => `video:${url}`),
-        ...(lvl.pdfUrl.trim() ? [`pdf:${lvl.pdfUrl.trim()}`] : [])
+        ...(sublevel.pdfUrl.trim() ? [`pdf:${sublevel.pdfUrl.trim()}`] : [])
       ],
+      imageItems,
       contextForAI: ''
     };
   };
@@ -309,6 +595,7 @@ export default function ModuleEditor() {
     setPublishTried(true);
     if (!isCoverValid || !allDraftLevelsValid || publishingDraft) return;
 
+    setPublishStepDone(false);
     setPublishingDraft(true);
     try {
       if (isEditingMode) {
@@ -323,21 +610,38 @@ export default function ModuleEditor() {
           level: coverForm.level
         });
 
-        const currentExistingIds = draftLevels.map((lvl) => lvl.existingId).filter(Boolean);
-        const removedIds = baselineLevelIds.filter((id) => !currentExistingIds.includes(id));
+        const currentExistingIds = draftLevels
+          .flatMap((levelItem) => levelItem.sublevels)
+          .map((sublevel) => sublevel.existingId)
+          .filter(Boolean);
+
+        const removedIds = baselineSublevelIds.filter((id) => !currentExistingIds.includes(id));
 
         for (const removedId of removedIds) {
           await modulesApi.removeLevel(moduleId, removedId);
         }
 
-        for (let i = 0; i < draftLevels.length; i += 1) {
-          const lvl = draftLevels[i];
-          const payload = await buildLevelPayload(lvl, i + 1);
+        let order = 1;
+        for (let levelIndex = 0; levelIndex < draftLevels.length; levelIndex += 1) {
+          const levelItem = draftLevels[levelIndex];
 
-          if (lvl.existingId) {
-            await modulesApi.updateLevel(moduleId, lvl.existingId, payload);
-          } else {
-            await modulesApi.addLevel(moduleId, payload);
+          for (let sublevelIndex = 0; sublevelIndex < levelItem.sublevels.length; sublevelIndex += 1) {
+            const sublevel = levelItem.sublevels[sublevelIndex];
+            const payload = await buildSublevelPayload(
+              sublevel,
+              order,
+              levelIndex + 1,
+              sublevelIndex + 1,
+              levelItem.title
+            );
+
+            if (sublevel.existingId) {
+              await modulesApi.updateLevel(moduleId, sublevel.existingId, payload);
+            } else {
+              await modulesApi.addLevel(moduleId, payload);
+            }
+
+            order += 1;
           }
         }
       } else {
@@ -349,208 +653,130 @@ export default function ModuleEditor() {
         const moduleId = createRes.data?.module?._id;
         if (!moduleId) throw new Error('No se pudo crear el modulo');
 
-        for (let i = 0; i < draftLevels.length; i += 1) {
-          const lvl = draftLevels[i];
-          const payload = await buildLevelPayload(lvl, i + 1);
-          await modulesApi.addLevel(moduleId, payload);
+        let order = 1;
+        for (let levelIndex = 0; levelIndex < draftLevels.length; levelIndex += 1) {
+          const levelItem = draftLevels[levelIndex];
+
+          for (let sublevelIndex = 0; sublevelIndex < levelItem.sublevels.length; sublevelIndex += 1) {
+            const sublevel = levelItem.sublevels[sublevelIndex];
+            const payload = await buildSublevelPayload(
+              sublevel,
+              order,
+              levelIndex + 1,
+              sublevelIndex + 1,
+              levelItem.title
+            );
+
+            await modulesApi.addLevel(moduleId, payload);
+            order += 1;
+          }
         }
 
         await modulesApi.update(moduleId, { isPublished: true });
       }
 
-      await load();
-
-      if (location.pathname.startsWith('/admin')) {
-        navigate('/admin/modules');
-      } else {
-        navigate('/teacher/modules');
-      }
+      setPublishStepDone(true);
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      exitCreateFlow();
     } finally {
       setPublishingDraft(false);
-    }
-  };
-
-  const saveModule = async () => {
-    if (!selected || busy) return;
-    setBusy(true);
-    try {
-      const res = await modulesApi.update(selected._id, {
-        title: selected.title,
-        description: selected.description,
-        category: selected.category,
-        imageUrl: selected.imageUrl,
-        level: selected.level,
-        isPublished: selected.isPublished
-      });
-      setSelected(res.data.module);
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const removeModule = async (id) => {
-    if (!id || busy) return;
-    if (!confirm('Eliminar este modulo? Esta accion no se puede deshacer.')) return;
-    setBusy(true);
-    try {
-      await modulesApi.remove(id);
-      setSelectedId('');
-      setSelected(null);
-      setLevels([]);
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const addLevel = async () => {
-    if (!selected || busy) return;
-    if (!levelForm.title.trim()) return;
-    setBusy(true);
-    try {
-      await modulesApi.addLevel(selected._id, {
-        order: levels.length + 1,
-        title: levelForm.title,
-        contentText: levelForm.contentText,
-        videoUrl: levelForm.videoUrl,
-        contextForAI: levelForm.contextForAI,
-        resources: []
-      });
-      await loadSelected(selected._id);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const startEditLevel = (lvl) => {
-    setEditingLevelId(lvl._id);
-    setLevelForm({
-      title: lvl.title || '',
-      contentText: lvl.contentText || '',
-      videoUrl: lvl.videoUrl || '',
-      contextForAI: lvl.contextForAI || ''
-    });
-  };
-
-  const saveLevel = async () => {
-    if (!selected || !editingLevelId || busy) return;
-    setBusy(true);
-    try {
-      await modulesApi.updateLevel(selected._id, editingLevelId, {
-        title: levelForm.title,
-        contentText: levelForm.contentText,
-        videoUrl: levelForm.videoUrl,
-        contextForAI: levelForm.contextForAI
-      });
-      await loadSelected(selected._id);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const removeLevel = async (lvlId) => {
-    if (!selected || !lvlId || busy) return;
-    if (!confirm('Eliminar este nivel?')) return;
-    setBusy(true);
-    try {
-      await modulesApi.removeLevel(selected._id, lvlId);
-      await loadSelected(selected._id);
-    } finally {
-      setBusy(false);
+      setPublishStepDone(false);
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="px-1">
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-          <span className={createStep === 1 ? 'text-brand-200' : 'text-emerald-300'}>1. Portada</span>
-          <span className={createStep === 2 ? 'text-brand-200' : 'text-slate-400'}>2. Niveles</span>
-        </div>
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800">
-          <div
-            className={`h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-300 ${createStep === 1 ? 'w-1/2' : 'w-full'}`}
-          />
+        <div className="mx-auto max-w-xs">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <span className={createStep === 1 ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>Portada</span>
+            <span className={createStep === 2 || publishingDraft ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>Niveles y subniveles</span>
+          </div>
+
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${createStep > 1 || publishingDraft || publishStepDone ? 'bg-emerald-500 text-white' : 'bg-brand-500 text-white'}`}>
+              {createStep > 1 || publishingDraft || publishStepDone ? <Check className="h-4 w-4" /> : '1'}
+            </span>
+
+            <span className={`h-0.5 flex-1 rounded-full transition-all ${createStep > 1 || publishingDraft || publishStepDone ? 'bg-emerald-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                publishStepDone
+                  ? 'bg-emerald-500 text-white'
+                  : publishingDraft
+                    ? 'bg-cyan-500 text-white'
+                    : createStep === 2
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+              }`}
+            >
+              {publishStepDone ? <Check className="h-4 w-4" /> : publishingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : '2'}
+            </span>
+          </div>
         </div>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900/45">
+      <Card className="border-cyan-100 bg-white/95 dark:border-slate-800 dark:bg-slate-900/45">
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
-              <p className="mt-1 text-sm text-slate-300">Completa primero la portada y luego agrega los niveles.</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Completa la portada y luego configura niveles con sus subniveles.</p>
             </div>
-            <button
-              type="button"
-              onClick={cancelCreateFlow}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800/50"
-            >
-              Cancelar y salir
-            </button>
           </div>
 
           {editorLoading ? (
-            <div className="rounded-xl border border-slate-700 bg-slate-900/35 p-6 text-sm text-slate-300">Cargando datos del modulo...</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-300">Cargando datos del modulo...</div>
           ) : createStep === 1 ? (
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Titulo
                   <input
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     placeholder="Ej: Introduccion a Sensores"
                     value={coverForm.title}
                     onChange={(e) => setCoverForm((f) => ({ ...f, title: e.target.value }))}
                   />
-                  <span className="text-[11px] text-slate-400">Nombre claro y corto.</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Nombre claro y corto.</span>
                   {coverTriedContinue && coverErrors.title && <span className="text-xs text-red-300">El titulo es obligatorio.</span>}
                 </label>
 
-                <label className="grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Categoria
-                  <input
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-700'}`}
-                    placeholder="Ej: General"
+                  <select
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     value={coverForm.category}
                     onChange={(e) => setCoverForm((f) => ({ ...f, category: e.target.value }))}
-                  />
-                  <span className="text-[11px] text-slate-400">Ayuda a organizar modulos.</span>
+                  >
+                    {!CATEGORY_OPTIONS.includes(coverForm.category) && <option value={coverForm.category}>{coverForm.category}</option>}
+                    {CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Ayuda a organizar modulos.</span>
                   {coverTriedContinue && coverErrors.category && <span className="text-xs text-red-300">La categoria es obligatoria.</span>}
                 </label>
 
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-200">
-                  Dificultad
-                  <select
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.level ? 'border-red-400/70' : 'border-slate-700'}`}
-                    value={coverForm.level}
-                    onChange={(e) => setCoverForm((f) => ({ ...f, level: e.target.value }))}
-                  >
-                    <option>Básico</option>
-                    <option>Intermedio</option>
-                    <option>Avanzado</option>
-                  </select>
-                </label>
-
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Descripcion
                   <textarea
-                    className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     rows={4}
                     placeholder="Explica que aprendera el estudiante"
                     value={coverForm.description}
                     onChange={(e) => setCoverForm((f) => ({ ...f, description: e.target.value }))}
                   />
-                  <span className="text-[11px] text-slate-400">Resumen breve del objetivo del modulo.</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">Resumen breve del objetivo del modulo.</span>
                   {coverTriedContinue && coverErrors.description && <span className="text-xs text-red-300">La descripcion es obligatoria.</span>}
                 </label>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
-                <p className="text-sm font-semibold text-slate-100">Vista previa de portada</p>
-                <div className="mt-3 overflow-hidden rounded-xl border border-slate-700 bg-slate-900/70">
-                  <div className="h-36 w-full bg-slate-800">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/55">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">Vista previa de portada</p>
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="h-36 w-full bg-slate-200 dark:bg-slate-800">
                     <img
                       src={coverForm.imageUrl || '/assets/campus-placeholder.svg'}
                       alt="Vista previa portada"
@@ -562,18 +788,18 @@ export default function ModuleEditor() {
                   </div>
                   <div className="space-y-2 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="line-clamp-1 text-sm font-bold text-white">{coverForm.title || 'Titulo del modulo'}</h4>
-                      <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-200">{coverForm.level || 'Nivel'}</span>
+                      <h4 className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-white">{coverForm.title || 'Titulo del modulo'}</h4>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-700 dark:text-slate-200">{coverForm.level || 'Nivel'}</span>
                     </div>
-                    <p className="line-clamp-2 text-xs text-slate-300">{coverForm.description || 'La descripcion del modulo aparecera aqui.'}</p>
-                    <p className="text-[11px] text-slate-400">Categoria: {coverForm.category || 'General'}</p>
+                    <p className="line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{coverForm.description || 'La descripcion del modulo aparecera aqui.'}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Categoria: {coverForm.category || 'General'}</p>
                   </div>
                 </div>
 
-                <label className="mt-3 grid gap-1.5 text-sm font-medium text-slate-200">
+                <label className="mt-3 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Imagen de portada (URL)
                   <input
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30"
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     placeholder="https://..."
                     value={coverForm.imageUrl}
                     onChange={(e) => setCoverForm((f) => ({ ...f, imageUrl: e.target.value }))}
@@ -582,309 +808,469 @@ export default function ModuleEditor() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[250px_1fr] pb-24">
-              <aside className="rounded-xl border border-slate-800 bg-slate-900/25 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">Lista de niveles</p>
-                <div className="mt-3 space-y-2">
-                  {draftLevels.map((lvl, index) => {
-                    const isLevelValid = isDraftLevelValid(lvl);
+            <div className="grid gap-4 lg:grid-cols-[360px_1fr] pb-28">
+              <aside className="rounded-2xl bg-slate-50 p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Estructura del modulo</p>
+                  <button
+                    type="button"
+                    onClick={addDraftLevel}
+                    className="rounded-md bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                  >
+                    + Nivel
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-5">
+                  {draftLevels.map((levelItem, levelIndex) => {
+                    const isExpanded = !!expandedLevels[levelIndex];
+                    const isActiveLevel = activeDraftLevelIndex === levelIndex;
+                    const isLevelValid = isDraftLevelValid(levelItem);
+
                     return (
-                      <button
-                        key={`level-list-${index + 1}`}
-                        type="button"
-                        onClick={() => setActiveDraftLevelIndex(index)}
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition ${activeDraftLevelIndex === index ? 'border-brand-400/40 bg-brand-500/10' : 'border-slate-700/60 bg-slate-900/45 hover:bg-slate-800/55'}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-slate-100">Nivel {index + 1}</span>
-                          <span className={`inline-block h-2.5 w-2.5 rounded-full ${isLevelValid ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-2xl bg-slate-50/80 p-3.5 ring-1 ring-slate-200/80 dark:bg-slate-900/40 dark:ring-slate-700/70">
+                        <div
+                          className="flex cursor-pointer items-center gap-2 rounded-lg"
+                          onClick={() => {
+                            const nextExpanded = !isExpanded;
+                            setExpandedLevels((prev) => ({ ...prev, [levelIndex]: nextExpanded }));
+                            setActiveDraftLevelIndex(levelIndex);
+                            if (nextExpanded) setActiveDraftSublevelIndex(0);
+                          }}
+                        >
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${isLevelValid ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300'}`}>
+                            {isLevelValid ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                          </div>
+
+                          <div className="relative min-w-0 flex-1">
+                            <div className={`flex w-full min-w-0 items-start gap-2 rounded-xl px-3 py-2.5 pr-16 text-left text-sm transition ${isActiveLevel ? 'bg-slate-200/70 text-slate-900 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/80'}`}>
+                              <span className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}. {levelItem.title || 'Sin titulo'}</span>
+                            </div>
+
+                            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openLevelNameModal(levelIndex);
+                                }}
+                                className={`rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-amber-500 hover:bg-slate-200 dark:text-amber-300 dark:hover:bg-slate-700'}`}
+                                title={`Editar nombre del nivel ${levelIndex + 1}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedLevels((prev) => ({ ...prev, [levelIndex]: !isExpanded }));
+                                }}
+                                className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                                title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
+                              >
+                                <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-1 truncate text-xs text-slate-400">{lvl.title || 'Sin titulo'}</p>
-                      </button>
+
+                        <div className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="ml-9 mt-3.5 space-y-3 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
+                            {levelItem.sublevels.map((sublevel, sublevelIndex) => {
+                              const isActiveSublevel =
+                                activeDraftLevelIndex === levelIndex && activeDraftSublevelIndex === sublevelIndex;
+
+                              return (
+                                <button
+                                  key={`editor-sublevel-${levelIndex + 1}-${sublevelIndex + 1}`}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDraftLevelIndex(levelIndex);
+                                    setActiveDraftSublevelIndex(sublevelIndex);
+                                  }}
+                                  className={`flex w-full items-start gap-2 rounded-xl px-3.5 py-3.5 text-left text-[13px] transition ${isActiveSublevel ? 'bg-cyan-500 text-white ring-2 ring-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)] dark:bg-cyan-500 dark:text-white dark:ring-cyan-300' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900/60 dark:text-slate-300 dark:ring-slate-700/60 dark:hover:bg-slate-800/70'}`}
+                                >
+                                  {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="h-3.5 w-3.5" />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || `Subnivel ${levelIndex + 1}.${sublevelIndex + 1}`}</p>
+                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200'}`}>
+                                      {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'OK' : 'Falta'}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addDraftSublevel(levelIndex);
+                                  setExpandedLevels((prev) => ({ ...prev, [levelIndex]: true }));
+                                }}
+                              className="w-full rounded-md bg-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:bg-slate-600"
+                            >
+                              + Agregar subnivel a Nivel {levelIndex + 1}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
-                <button
-                  type="button"
-                  onClick={addDraftLevel}
-                  className="mt-3 w-full rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-100"
-                >
-                  + Agregar nivel
-                </button>
               </aside>
 
-              {draftLevels[activeDraftLevelIndex] && (() => {
-                const lvl = draftLevels[activeDraftLevelIndex];
-                const totalImages = lvl.imageFiles.length + lvl.imageUrlInputs.filter((url) => url.trim()).length;
-                const canAddImageInput =
-                  totalImages < 5 &&
-                  (lvl.imageUrlInputs.length === 0 || lvl.imageUrlInputs[lvl.imageUrlInputs.length - 1].trim());
-                const canAddVideoInput = lvl.videoUrls.length === 0 || lvl.videoUrls[lvl.videoUrls.length - 1].trim();
-                const showLevelErrors = publishTried;
-
-                return (
-                  <section className="rounded-xl border border-slate-800 bg-slate-900/25 p-4">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold text-slate-100">Editando nivel {activeDraftLevelIndex + 1}</h3>
-                      {activeDraftLevelIndex > 0 && (
+              {activeLevel && activeSublevel && (
+                <section className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/75 dark:ring-slate-700/50">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Editando nivel {activeDraftLevelIndex + 1} / subnivel {activeDraftLevelIndex + 1}.{activeDraftSublevelIndex + 1}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {draftLevels.length > 1 && activeDraftLevelIndex > 0 && (
                         <button
                           type="button"
                           onClick={() => removeDraftLevel(activeDraftLevelIndex)}
                           className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200"
                         >
-                          Eliminar este nivel
+                          Eliminar nivel
+                        </button>
+                      )}
+
+                      {activeLevel.sublevels.length > 1 && !(activeDraftLevelIndex === 0 && activeDraftSublevelIndex === 0) && (
+                        <button
+                          type="button"
+                          onClick={() => removeDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex)}
+                          className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200"
+                        >
+                          Eliminar subnivel
                         </button>
                       )}
                     </div>
+                  </div>
 
-                    <div className="grid gap-6">
-                      <div className="space-y-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Contenido principal</p>
-                        <label className="grid gap-1 text-sm font-medium text-slate-200">
-                        Titulo del nivel *
+                  <div className="grid gap-6">
+
+                    <div className="space-y-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Contenido del subnivel</p>
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Titulo del subnivel *
                         <input
-                          className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${showLevelErrors && !lvl.title.trim() ? 'border-red-400/70' : 'border-slate-700'}`}
-                          placeholder="Ej: Que es un sensor"
-                          value={lvl.title}
-                          onChange={(e) => updateDraftLevel(activeDraftLevelIndex, (prev) => ({ ...prev, title: e.target.value }))}
+                          className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${publishTried && !activeSublevel.title.trim() ? 'border-red-400/70' : ''}`}
+                          placeholder={`Ej: Subnivel ${activeDraftLevelIndex + 1}.${activeDraftSublevelIndex + 1}`}
+                          value={activeSublevel.title}
+                          onChange={(e) =>
+                            updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                              ...prev,
+                              title: e.target.value
+                            }))
+                          }
                         />
-                        {showLevelErrors && !lvl.title.trim() && <span className="text-xs text-red-300">El titulo del nivel es obligatorio.</span>}
+                        {publishTried && !activeSublevel.title.trim() && <span className="text-xs text-red-300">El titulo del subnivel es obligatorio.</span>}
                       </label>
 
-                      <label className="grid gap-1 text-sm font-medium text-slate-200">
-                        Contenido *
-                        <textarea
-                          className={`rounded-lg border bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400 ${showLevelErrors && !lvl.contentText.trim() ? 'border-red-400/70' : 'border-slate-700'}`}
-                          rows={5}
-                          placeholder="Escribe la explicacion principal de este nivel"
-                          value={lvl.contentText}
-                          onChange={(e) => updateDraftLevel(activeDraftLevelIndex, (prev) => ({ ...prev, contentText: e.target.value }))}
-                        />
-                        {showLevelErrors && !lvl.contentText.trim() && <span className="text-xs text-red-300">El contenido es obligatorio.</span>}
-                      </label>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Multimedia</p>
-                          <span className="text-xs text-slate-400">Imagenes: {totalImages}/5</span>
-                        </div>
-
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-200">Imagenes de apoyo</span>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => addImageUrlField(activeDraftLevelIndex)}
-                              disabled={!canAddImageInput}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                              title="Agregar URL de imagen"
-                            >
-                              <Link2 className="h-3.5 w-3.5" />
-                            </button>
-                            <label className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-700 text-slate-100" title="Subir imagen">
-                              <Upload className="h-3.5 w-3.5" />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={(e) => {
-                                  addImageFiles(activeDraftLevelIndex, Array.from(e.target.files || []));
-                                  e.currentTarget.value = '';
-                                }}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          {lvl.imageUrlInputs.map((imgUrl, imgIndex) => (
-                            <div key={`img-url-${activeDraftLevelIndex + 1}-${imgIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
-                              <div className="flex gap-2">
-                                <input
-                                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
-                                  placeholder="https://..."
-                                  value={imgUrl}
-                                  onChange={(e) =>
-                                    updateDraftLevel(activeDraftLevelIndex, (prev) => ({
-                                      ...prev,
-                                      imageUrlInputs: prev.imageUrlInputs.map((url, i) => (i === imgIndex ? e.target.value : url))
-                                    }))
-                                  }
-                                />
-                                {lvl.imageUrlInputs.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateDraftLevel(activeDraftLevelIndex, (prev) => ({
-                                        ...prev,
-                                        imageUrlInputs: prev.imageUrlInputs.filter((_, i) => i !== imgIndex)
-                                      }))
-                                    }
-                                    className="rounded-lg bg-slate-700 px-2.5 text-xs"
-                                  >
-                                    Quitar
-                                  </button>
-                                )}
-                              </div>
-                              <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
-                                {imgUrl.trim() ? (
-                                  <img
-                                    src={imgUrl}
-                                    alt="Preview imagen"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
-                                    }}
-                                    className="h-14 w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-14 items-center justify-center text-[11px] text-slate-400">Sin preview</div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-
-                          {lvl.imageFiles.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {lvl.imageFiles.map((fileItem, fileIndex) => (
-                                <div
-                                  key={`img-file-${activeDraftLevelIndex + 1}-${fileIndex + 1}`}
-                                  className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900"
-                                >
-                                  {fileItem.previewUrl ? (
-                                    <img src={fileItem.previewUrl} alt={fileItem.file?.name || 'Imagen subida'} className="h-14 w-20 object-cover" />
-                                  ) : (
-                                    <div className="flex h-14 w-20 items-center justify-center text-[11px] text-slate-400">Imagen</div>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImageFile(activeDraftLevelIndex, fileIndex)}
-                                    className="w-full border-t border-slate-700 bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:text-white"
-                                  >
-                                    Quitar
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-200">Videos de YouTube (opcional)</span>
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>Instrucciones *</span>
                           <button
                             type="button"
-                            onClick={() => addVideoField(activeDraftLevelIndex)}
-                            disabled={!canAddVideoInput}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            title="Agregar video"
+                            onClick={openInstructionLinkBuilder}
+                            className="inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                            title="Insertar enlace con texto legible"
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Link2 className="h-3.5 w-3.5" />
+                            Insertar enlace
                           </button>
                         </div>
-                        <div className="mt-2 grid gap-2">
-                          {lvl.videoUrls.map((video, videoIndex) => (
-                            <div key={`video-${activeDraftLevelIndex + 1}-${videoIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
-                              <div className="flex gap-2">
-                                <input
-                                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
-                                  placeholder="https://www.youtube.com/..."
-                                  value={video}
-                                  onChange={(e) =>
-                                    updateDraftLevel(activeDraftLevelIndex, (prev) => ({
-                                      ...prev,
-                                      videoUrls: prev.videoUrls.map((url, i) => (i === videoIndex ? e.target.value : url))
-                                    }))
-                                  }
-                                />
-                                {lvl.videoUrls.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateDraftLevel(activeDraftLevelIndex, (prev) => ({
-                                        ...prev,
-                                        videoUrls: prev.videoUrls.filter((_, i) => i !== videoIndex)
-                                      }))
-                                    }
-                                    className="rounded-lg bg-slate-700 px-2.5 text-xs"
-                                  >
-                                    Quitar
-                                  </button>
-                                )}
-                              </div>
-                              <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
-                                {getYouTubeThumbnail(video) ? (
-                                  <img src={getYouTubeThumbnail(video)} alt="Preview YouTube" className="h-14 w-full object-cover" />
-                                ) : (
-                                  <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-400">
-                                    <Video className="h-3.5 w-3.5" />
-                                    Sin preview
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <textarea
+                          ref={instructionTextareaRef}
+                          className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${publishTried && !activeSublevel.contentText.trim() ? 'border-red-400/70' : ''}`}
+                          rows={5}
+                          placeholder="Escribe las instrucciones del subnivel"
+                          value={activeSublevel.contentText}
+                          onChange={(e) =>
+                            updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                              ...prev,
+                              contentText: e.target.value
+                            }))
+                          }
+                        />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">Tip: usa "Insertar enlace" para mostrar texto limpio en vez de pegar URLs largas.</span>
+                        {publishTried && !activeSublevel.contentText.trim() && <span className="text-xs text-red-300">Las instrucciones son obligatorias.</span>}
+                      </label>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Album de imagenes</p>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Total: {activeSublevel.imageItems.length}</span>
                       </div>
 
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recursos extra</p>
-                        <label className="grid gap-1 text-sm font-medium text-slate-200">
-                          PDF de apoyo (enlace)
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => addImageUrlField(activeDraftLevelIndex, activeDraftSublevelIndex)}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                          title="Agregar imagen por URL"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                          URL
+                        </button>
+                        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" title="Subir imagenes">
+                          <Upload className="h-3.5 w-3.5" />
+                          Subir
                           <input
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none transition focus:border-brand-400"
-                            placeholder="https://..."
-                            value={lvl.pdfUrl}
-                            onChange={(e) => updateDraftLevel(activeDraftLevelIndex, (prev) => ({ ...prev, pdfUrl: e.target.value }))}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              addImageFiles(activeDraftLevelIndex, activeDraftSublevelIndex, Array.from(e.target.files || []));
+                              e.currentTarget.value = '';
+                            }}
                           />
                         </label>
                       </div>
+
+                      {activeSublevel.imageItems.length ? (
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                          {activeSublevel.imageItems.map((imageItem, imageIndex) => {
+                            const imageSrc = imageItem.sourceType === 'file' ? imageItem.previewUrl : imageItem.url;
+                            const hasContext = Boolean((imageItem.context || '').trim());
+
+                            return (
+                              <button
+                                key={imageItem.id}
+                                type="button"
+                                onClick={() =>
+                                  setImageEditorState({
+                                    open: true,
+                                    levelIndex: activeDraftLevelIndex,
+                                    sublevelIndex: activeDraftSublevelIndex,
+                                    imageId: imageItem.id
+                                  })
+                                }
+                                className="group relative overflow-hidden rounded-lg bg-white text-left shadow-md ring-1 ring-slate-200 hover:ring-brand-400/40 dark:bg-slate-900 dark:ring-slate-700/70"
+                              >
+                                <div className="h-24 w-full bg-slate-200 dark:bg-slate-950">
+                                  {imageSrc ? (
+                                    <img
+                                      src={imageSrc}
+                                      alt={`Preview imagen ${imageIndex + 1}`}
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center text-[11px] text-slate-500 dark:text-slate-400">Sin URL</div>
+                                  )}
+                                </div>
+                                <div className="p-2">
+                                  <p className="truncate text-[11px] text-slate-600 dark:text-slate-300">
+                                    Imagen {imageIndex + 1} ({imageItem.sourceType === 'file' ? 'archivo' : 'URL'})
+                                  </p>
+                                  <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">{hasContext ? imageItem.context : 'Click para agregar contexto'}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeImageItem(activeDraftLevelIndex, activeDraftSublevelIndex, imageItem.id);
+                                  }}
+                                  className="absolute right-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-black"
+                                >
+                                  Quitar
+                                </button>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                          Este subnivel no tiene imagenes aun.
+                        </div>
+                      )}
                     </div>
-                  </section>
-                );
-              })()}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Videos de YouTube (opcional)</span>
+                        <button
+                          type="button"
+                          onClick={() => addVideoField(activeDraftLevelIndex, activeDraftSublevelIndex)}
+                          disabled={
+                            activeSublevel.videoUrls.length > 0 &&
+                            !activeSublevel.videoUrls[activeSublevel.videoUrls.length - 1].trim()
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-700 dark:text-slate-100"
+                          title="Agregar video"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="mt-2 grid gap-2">
+                        {activeSublevel.videoUrls.map((videoUrl, videoIndex) => (
+                          <div key={`video-${activeDraftLevelIndex + 1}-${activeDraftSublevelIndex + 1}-${videoIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                            <div className="flex gap-2">
+                              <input
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                placeholder="https://www.youtube.com/..."
+                                value={videoUrl}
+                                onChange={(e) =>
+                                  updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                                    ...prev,
+                                    videoUrls: prev.videoUrls.map((candidate, idx) => (idx === videoIndex ? e.target.value : candidate))
+                                  }))
+                                }
+                              />
+                              {activeSublevel.videoUrls.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                                      ...prev,
+                                      videoUrls: prev.videoUrls.filter((_, idx) => idx !== videoIndex)
+                                    }))
+                                  }
+                                  className="rounded-lg bg-slate-200 px-2.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+                                >
+                                  Quitar
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+                              {getYouTubeThumbnail(videoUrl) ? (
+                                <img src={getYouTubeThumbnail(videoUrl)} alt="Preview YouTube" className="h-14 w-full object-cover" />
+                              ) : (
+                                  <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                  <Video className="h-3.5 w-3.5" />
+                                  Sin preview
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Recursos extra</p>
+                      <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                        PDF de apoyo (enlace)
+                        <input
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                          placeholder="https://..."
+                          value={activeSublevel.pdfUrl}
+                          onChange={(e) =>
+                            updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                              ...prev,
+                              pdfUrl: e.target.value
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={goPrevSublevel}
+                        disabled={activeFlatDraftIndex <= 0}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200"
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Anterior
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        {flatDraftSublevels.map((item, idx) => {
+                          const complete = isDraftSublevelValid(item.sublevel) && item.levelItem.title.trim();
+                          return (
+                            <span
+                              key={`draft-dot-${item.levelIndex + 1}-${item.sublevelIndex + 1}`}
+                              className={`h-2.5 rounded-full ${idx === activeFlatDraftIndex ? 'w-7 bg-brand-500' : complete ? 'w-2.5 bg-emerald-500' : 'w-2.5 bg-amber-400'}`}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={goNextSublevel}
+                        disabled={activeFlatDraftIndex >= flatDraftSublevels.length - 1}
+                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                      >
+                        Siguiente <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {publishTried && !allDraftLevelsValid && (
-                <p className="lg:col-span-2 text-xs text-amber-300">Para {isEditingMode ? 'guardar' : 'publicar'}, completa titulo y contenido en todos los niveles.</p>
+                <p className="lg:col-span-2 text-xs text-amber-300">Para {isEditingMode ? 'guardar' : 'publicar'}, completa titulo de nivel, titulo de subnivel e instrucciones en todos los subniveles.</p>
               )}
             </div>
           )}
 
-          <div className="sticky bottom-3 z-20 rounded-xl border border-slate-700 bg-slate-950/90 p-3 shadow-lg backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="sticky bottom-3 z-10 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-slate-200 backdrop-blur-md dark:bg-slate-950/95 dark:ring-slate-700/70">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {createStep === 1 ? (
                 <>
-                  <span className="text-xs text-slate-400">Completa la portada para pasar al paso 2.</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={cancelCreateFlow}
+                      className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-500/20 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25"
+                    >
+                      Cancelar y salir
+                    </button>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Completa la portada para pasar al paso 2.</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       setCoverTriedContinue(true);
                       if (!isCoverValid) return;
                       setCreateStep(2);
+                      if (!draftLevels[0]?.title?.trim()) {
+                        setLevelNameModal({ open: true, levelIndex: 0, value: draftLevels[0]?.title || '' });
+                      }
                     }}
-                    className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white shadow-md shadow-brand-500/25"
+                    className="w-full rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white shadow-md shadow-brand-500/25 sm:w-auto"
                   >
                     Continuar a niveles
                   </button>
                 </>
               ) : (
                 <>
-                  <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800/40">
-                    Volver a portada
-                  </button>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={addDraftLevel} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100">
-                      <span className="inline-flex items-center gap-1"><Layers3 className="h-4 w-4" />Agregar nivel</span>
-                    </button>
                     <button
                       type="button"
-                    onClick={publishDraft}
-                    disabled={publishingDraft}
-                    className="rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {publishingDraft ? (isEditingMode ? 'Guardando...' : 'Publicando...') : (isEditingMode ? 'Guardar cambios' : 'Finalizar y publicar')}
-                  </button>
+                      onClick={cancelCreateFlow}
+                      className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-500/20 dark:bg-red-500/15 dark:text-red-200 dark:hover:bg-red-500/25"
+                    >
+                      Cancelar y salir
+                    </button>
+                    <button type="button" onClick={() => setCreateStep(1)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800/40">
+                      Volver a portada
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={publishDraft}
+                      disabled={publishingDraft}
+                      className="w-full rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                    >
+                      {publishingDraft ? (isEditingMode ? 'Guardando...' : 'Publicando...') : (isEditingMode ? 'Guardar cambios' : 'Finalizar y publicar')}
+                    </button>
                   </div>
                 </>
               )}
@@ -892,6 +1278,176 @@ export default function ModuleEditor() {
           </div>
         </div>
       </Card>
+
+      <Modal
+        open={imageEditorState.open && Boolean(editingImage)}
+        onClose={() => setImageEditorState({ open: false, levelIndex: 0, sublevelIndex: 0, imageId: '' })}
+      >
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editar imagen del album</h3>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Subnivel {imageEditorState.levelIndex + 1}.{imageEditorState.sublevelIndex + 1}
+        </p>
+
+        {editingImage && (
+          <div className="mt-4 space-y-3">
+            {editingImage.sourceType === 'url' && (
+              <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                URL de la imagen
+                <input
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  placeholder="https://..."
+                  value={editingImage.url}
+                  onChange={(e) =>
+                    updateDraftSublevel(imageEditorState.levelIndex, imageEditorState.sublevelIndex, (prev) => ({
+                      ...prev,
+                      imageItems: prev.imageItems.map((candidate) =>
+                        candidate.id === editingImage.id ? { ...candidate, url: e.target.value } : candidate
+                      )
+                    }))
+                  }
+                />
+              </label>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-950">
+              {(editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url) ? (
+                <img
+                  src={editingImage.sourceType === 'file' ? editingImage.previewUrl : editingImage.url}
+                  alt="Preview imagen"
+                  className="h-52 w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-52 items-center justify-center text-sm text-slate-500 dark:text-slate-400">Sin preview disponible</div>
+              )}
+            </div>
+
+            <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Contexto para el estudiante
+              <textarea
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                rows={4}
+                placeholder="Describe la imagen y su importancia"
+                value={editingImage.context}
+                onChange={(e) =>
+                  updateDraftSublevel(imageEditorState.levelIndex, imageEditorState.sublevelIndex, (prev) => ({
+                    ...prev,
+                    imageItems: prev.imageItems.map((candidate) =>
+                      candidate.id === editingImage.id ? { ...candidate, context: e.target.value } : candidate
+                    )
+                  }))
+                }
+              />
+            </label>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setImageEditorState({ open: false, levelIndex: 0, sublevelIndex: 0, imageId: '' })}
+                className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={levelNameModal.open}
+        onClose={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
+      >
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Nombre del nivel {levelNameModal.levelIndex + 1}</h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Define un nombre claro para organizar mejor los subniveles.</p>
+        <div className="mt-4 grid gap-1.5">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Titulo del nivel *</label>
+          <input
+            autoFocus
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            placeholder={`Ej: Fundamentos del nivel ${levelNameModal.levelIndex + 1}`}
+            value={levelNameModal.value}
+            onChange={(e) => setLevelNameModal((prev) => ({ ...prev, value: e.target.value }))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                saveLevelNameFromModal();
+              }
+            }}
+          />
+          {!levelNameModal.value.trim() && <p className="text-xs text-amber-300">El nombre del nivel es obligatorio.</p>}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+          >
+            Cerrar
+          </button>
+          <button
+            type="button"
+            disabled={!levelNameModal.value.trim()}
+            onClick={saveLevelNameFromModal}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Guardar nombre
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={instructionLinkModal.open}
+        onClose={() => setInstructionLinkModal({ open: false, label: '', url: '' })}
+      >
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Insertar enlace en instrucciones</h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Escribe un texto legible y pega la URL. Se insertara como enlace clickeable.</p>
+
+        <div className="mt-4 grid gap-3">
+          <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Texto visible
+            <input
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="Ej: Enlace de descarga del Ubuntu 24.04"
+              value={instructionLinkModal.label}
+              onChange={(e) => setInstructionLinkModal((prev) => ({ ...prev, label: e.target.value }))}
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            URL
+            <input
+              autoFocus
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              placeholder="https://..."
+              value={instructionLinkModal.url}
+              onChange={(e) => setInstructionLinkModal((prev) => ({ ...prev, url: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  insertInstructionLink();
+                }
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setInstructionLinkModal({ open: false, label: '', url: '' })}
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!instructionLinkModal.url.trim()}
+            onClick={insertInstructionLink}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Insertar
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={showDiscardModal} onClose={() => setShowDiscardModal(false)}>
         <h3 className="text-lg font-bold">Descartar cambios</h3>
@@ -901,7 +1457,7 @@ export default function ModuleEditor() {
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={() => setShowDiscardModal(false)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-100"
+            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
           >
             Seguir editando
           </button>
@@ -916,186 +1472,6 @@ export default function ModuleEditor() {
           </button>
         </div>
       </Modal>
-
-      {!isEditingMode && (
-      <Card>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-brand-300">Modulos existentes</h3>
-          <select
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm"
-            value={selectedId}
-            onChange={async (e) => {
-              const id = e.target.value;
-              setSelectedId(id);
-              await loadSelected(id);
-            }}
-          >
-            <option value="">Selecciona un modulo...</option>
-            {modules.map((m) => (
-              <option key={m._id} value={m._id}>
-                {m.title} ({m.level})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {selected ? (
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                className="rounded-lg bg-slate-900 px-3 py-2"
-                value={selected.title}
-                onChange={(e) => setSelected((s) => ({ ...s, title: e.target.value }))}
-              />
-              <input
-                className="rounded-lg bg-slate-900 px-3 py-2"
-                value={selected.category || ''}
-                placeholder="Categoria"
-                onChange={(e) => setSelected((s) => ({ ...s, category: e.target.value }))}
-              />
-              <select
-                className="rounded-lg bg-slate-900 px-3 py-2"
-                value={selected.level}
-                onChange={(e) => setSelected((s) => ({ ...s, level: e.target.value }))}
-              >
-                <option>Básico</option>
-                <option>Intermedio</option>
-                <option>Avanzado</option>
-              </select>
-              <textarea
-                className="md:col-span-2 rounded-lg bg-slate-900 px-3 py-2"
-                value={selected.description}
-                onChange={(e) => setSelected((s) => ({ ...s, description: e.target.value }))}
-              />
-              <input
-                className="md:col-span-2 rounded-lg bg-slate-900 px-3 py-2"
-                value={selected.imageUrl || ''}
-                placeholder="Imagen URL (opcional)"
-                onChange={(e) => setSelected((s) => ({ ...s, imageUrl: e.target.value }))}
-              />
-              <label className="flex items-center gap-2 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={!!selected.isPublished}
-                  onChange={(e) => setSelected((s) => ({ ...s, isPublished: e.target.checked }))}
-                />
-                Publicado
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={saveModule}
-                  disabled={busy}
-                  className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
-                >
-                  Guardar
-                </button>
-                <button
-                  onClick={() => removeModule(selected._id)}
-                  disabled={busy}
-                  className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-bold text-red-200 disabled:opacity-50"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-brand-300">Niveles</h4>
-                <div className="text-xs text-slate-400">Total: {levels.length}</div>
-              </div>
-
-              <div className="space-y-3">
-                {levels.map((lvl) => (
-                  <div key={lvl._id} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold">{lvl.order}. {lvl.title}</div>
-                      <div className="truncate text-xs text-slate-400">{(lvl.contentText || '').slice(0, 80)}</div>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        onClick={() => startEditLevel(lvl)}
-                        className="rounded-lg bg-brand-500/20 px-3 py-2 text-xs text-brand-200"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => removeLevel(lvl._id)}
-                        className="rounded-lg bg-red-500/20 px-3 py-2 text-xs text-red-200"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                <h5 className="text-sm font-bold">{editingLevelId ? 'Editar nivel' : 'Agregar nivel'}</h5>
-                <input
-                  className="rounded-lg bg-slate-900 px-3 py-2"
-                  placeholder="Titulo del nivel"
-                  value={levelForm.title}
-                  onChange={(e) => setLevelForm((f) => ({ ...f, title: e.target.value }))}
-                />
-                <input
-                  className="rounded-lg bg-slate-900 px-3 py-2"
-                  placeholder="Video URL (opcional)"
-                  value={levelForm.videoUrl}
-                  onChange={(e) => setLevelForm((f) => ({ ...f, videoUrl: e.target.value }))}
-                />
-                <textarea
-                  className="rounded-lg bg-slate-900 px-3 py-2"
-                  placeholder="Contenido"
-                  rows={6}
-                  value={levelForm.contentText}
-                  onChange={(e) => setLevelForm((f) => ({ ...f, contentText: e.target.value }))}
-                />
-                <textarea
-                  className="rounded-lg bg-slate-900 px-3 py-2"
-                  placeholder="Contexto para IA (opcional)"
-                  rows={3}
-                  value={levelForm.contextForAI}
-                  onChange={(e) => setLevelForm((f) => ({ ...f, contextForAI: e.target.value }))}
-                />
-                <div className="flex gap-2">
-                  {editingLevelId ? (
-                    <>
-                      <button
-                        onClick={saveLevel}
-                        disabled={busy}
-                        className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
-                      >
-                        Guardar nivel
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingLevelId('');
-                          setLevelForm({ title: '', contentText: '', videoUrl: '', contextForAI: '' });
-                        }}
-                        className="rounded-lg bg-slate-800 px-4 py-2 text-sm"
-                      >
-                        Cancelar
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={addLevel}
-                      disabled={busy}
-                      className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-bold disabled:opacity-50"
-                    >
-                      Agregar nivel
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-4 text-sm text-slate-400">Selecciona un modulo para editar niveles.</div>
-        )}
-      </Card>
-      )}
     </div>
   );
 }

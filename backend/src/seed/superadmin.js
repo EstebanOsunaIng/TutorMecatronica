@@ -4,7 +4,7 @@ import { User } from '../models/User.model.js';
 import { hashPassword } from '../utils/hash.js';
 
 const defaults = {
-  email: 'admin@tutormecatronica.com',
+  email: 'admin1@gmail.com',
   password: 'Admin12345!',
   name: 'Super',
   lastName: 'Admin',

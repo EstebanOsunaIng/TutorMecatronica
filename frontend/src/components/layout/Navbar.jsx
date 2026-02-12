@@ -1,6 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Bell, ChevronDown, LogOut, Menu, Moon, Settings, Sun } from 'lucide-react';
+import {
+  Award,
+  ArrowDown,
+  ArrowUp,
+  Bell,
+  BellOff,
+  ChevronDown,
+  Crown,
+  LogOut,
+  MinusCircle,
+  Menu,
+  Moon,
+  PlusCircle,
+  RefreshCcw,
+  Settings,
+  Sun,
+  Trash2,
+  TrendingDown
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useNotifications } from '../../context/NotificationContext.jsx';
@@ -21,10 +39,12 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { notifications } = useNotifications();
+  const { notifications, unreadCount, isMuted, toggleMuted, markRead, markAllRead, hasNew } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [hasAvatarError, setHasAvatarError] = useState(false);
   const profileMenuRef = useRef(null);
+  const notificationsMenuRef = useRef(null);
 
   const isStudent = user?.role === 'STUDENT';
   const logoSrc = theme === 'dark' ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png';
@@ -47,20 +67,15 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
     setHasAvatarError(false);
   }, [avatarSrc]);
 
-  const notificationsCount = useMemo(() => {
-    if (!user?.role) return notifications.length;
-    return notifications.filter((notification) => {
-      if (Array.isArray(notification.roles)) return notification.roles.includes(user.role);
-      if (typeof notification.role === 'string') return notification.role === user.role;
-      if (typeof notification.targetRole === 'string') return notification.targetRole === user.role;
-      return true;
-    }).length;
-  }, [notifications, user?.role]);
+  const notificationsCount = unreadCount;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
         setIsProfileMenuOpen(false);
+      }
+      if (notificationsMenuRef.current && !notificationsMenuRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
       }
     };
 
@@ -80,6 +95,29 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   const handleLogout = () => {
     setIsProfileMenuOpen(false);
     logout();
+  };
+
+  const notificationVisuals = (type) => {
+    switch (type) {
+      case 'RANKING_SUBIO':
+        return { Icon: ArrowUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
+      case 'RANKING_BAJO':
+        return { Icon: ArrowDown, color: 'text-rose-500', bg: 'bg-rose-500/10' };
+      case 'INSIGNIA_OBTENIDA':
+        return { Icon: Award, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+      case 'MODULO_CREADO':
+        return { Icon: PlusCircle, color: 'text-sky-500', bg: 'bg-sky-500/10' };
+      case 'MODULO_EDITADO':
+        return { Icon: RefreshCcw, color: 'text-sky-500', bg: 'bg-sky-500/10' };
+      case 'MODULO_ELIMINADO':
+        return { Icon: MinusCircle, color: 'text-rose-500', bg: 'bg-rose-500/10' };
+      case 'TOP_1':
+        return { Icon: Crown, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+      case 'FUE_SUPERADO':
+        return { Icon: TrendingDown, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+      default:
+        return { Icon: Bell, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+    }
   };
 
   return (
@@ -114,16 +152,83 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
             </button>
           )}
 
-          <button
-            type="button"
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
-            aria-label="Notificaciones"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-              {notificationsCount}
-            </span>
-          </button>
+          <div className="relative" ref={notificationsMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsNotificationsOpen((prev) => !prev)}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800 ${
+                hasNew && !isMuted ? 'animate-bounce' : ''
+              }`}
+              aria-label="Notificaciones"
+            >
+              {isMuted ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+              {notificationsCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                  {notificationsCount}
+                </span>
+              )}
+            </button>
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-100">
+                  <span>Notificaciones</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={markAllRead}
+                      className="rounded-full px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      Marcar todo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleMuted}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        isMuted
+                          ? 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                          : 'bg-sky-500 text-white'
+                      }`}
+                    >
+                      {isMuted ? 'Silenciadas' : 'Silenciar'}
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-[320px] overflow-y-auto">
+                  {notifications.length === 0 && (
+                    <div className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                      No tienes notificaciones nuevas.
+                    </div>
+                  )}
+                  {notifications.map((item) => {
+                    const { Icon, color, bg } = notificationVisuals(item.type);
+                    return (
+                    <button
+                      type="button"
+                      key={item._id}
+                      onClick={() => markRead(item._id)}
+                      className={`w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${
+                        item.isRead ? 'opacity-80' : 'bg-sky-50/40 dark:bg-sky-500/5'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${bg}`}>
+                          <Icon className={`h-4 w-4 ${color}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.title}</div>
+                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{item.message}</div>
+                          <div className="mt-2 text-[11px] uppercase tracking-wider text-slate-400">
+                            {new Date(item.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={toggleTheme}
@@ -187,3 +292,21 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
     </header>
   );
 }
+  const notificationVisuals = (type) => {
+    switch (type) {
+      case 'RANKING_SUBIO':
+        return { Icon: ArrowUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' };
+      case 'RANKING_BAJO':
+        return { Icon: ArrowDown, color: 'text-rose-500', bg: 'bg-rose-500/10' };
+      case 'INSIGNIA_OBTENIDA':
+        return { Icon: Award, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+      case 'MODULO_CREADO':
+        return { Icon: PlusCircle, color: 'text-sky-500', bg: 'bg-sky-500/10' };
+      case 'MODULO_ELIMINADO':
+        return { Icon: Trash2, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+      case 'TOP_1':
+        return { Icon: Crown, color: 'text-amber-500', bg: 'bg-amber-500/10' };
+      default:
+        return { Icon: Bell, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+    }
+  };
