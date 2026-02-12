@@ -1,9 +1,0 @@
-
-{
-  "name": "TuVir - Tutor Virtual de Mecatrónica",
-  "description": "Una plataforma avanzada de tutoría virtual para estudiantes de mecatrónica de la Universitaria de Colombia, con módulos de aprendizaje adaptativos y un chatbot de IA especializado.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
