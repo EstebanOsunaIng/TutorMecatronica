@@ -10,6 +10,7 @@ export default function ForgotPassword() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [step, setStep] = useState(1);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
 
   const inputClass = `block w-full rounded-xl px-4 py-2.5 text-[0.95rem] shadow-sm outline-none transition ${
@@ -142,21 +143,41 @@ export default function ForgotPassword() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label htmlFor="newPassword" className={labelClass}>Nueva contraseña</label>
-                  <div className="mt-1.5">
-                    <input
-                      id="newPassword"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="••••••••"
-                      className={inputClass}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+                 <div>
+                   <label htmlFor="newPassword" className={labelClass}>Nueva contraseña</label>
+                   <div className="mt-1.5 relative">
+                     <input
+                       id="newPassword"
+                       type={showNewPassword ? 'text' : 'password'}
+                       autoComplete="new-password"
+                       placeholder="••••••••"
+                       className={`${inputClass} pr-12`}
+                       value={newPassword}
+                       onChange={(e) => setNewPassword(e.target.value)}
+                       required
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setShowNewPassword((prev) => !prev)}
+                       className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 transition ${isDark ? 'text-sky-200/80 hover:text-white' : 'text-[#4b5e71] hover:text-[#1f3f5f]'}`}
+                       aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                     >
+                       {showNewPassword ? (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M3 3l18 18" />
+                           <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                           <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                           <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                         </svg>
+                       ) : (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                           <circle cx="12" cy="12" r="3" />
+                         </svg>
+                       )}
+                     </button>
+                   </div>
+                 </div>
                 <button
                   className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
                 >

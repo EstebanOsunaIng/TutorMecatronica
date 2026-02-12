@@ -16,7 +16,11 @@ const userSchema = new mongoose.Schema(
     badgesUnlocked: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
     badgesCount: { type: Number, default: 0 },
     completedModulesCount: { type: Number, default: 0 },
-    lastBadgeUnlockedAt: { type: Date }
+    lastBadgeUnlockedAt: { type: Date },
+    resetCodeHash: { type: String },
+    resetCodeExpires: { type: Date },
+    resetCodeAttempts: { type: Number, default: 0 },
+    resetCodeLastSentAt: { type: Date }
   },
   { versionKey: false }
 );

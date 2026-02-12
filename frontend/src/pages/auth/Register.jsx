@@ -20,6 +20,8 @@ export default function Register() {
     teacherCode: ''
   });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -171,19 +173,77 @@ export default function Register() {
                   </div>
                 )}
 
-                <div>
-                  <label htmlFor="password" className={labelClass}>Contraseña</label>
-                  <div className="mt-1.5">
-                    <input id="password" type="password" autoComplete="new-password" placeholder="••••••••" className={inputClass} value={form.password} onChange={(e) => update('password', e.target.value)} required />
-                  </div>
-                </div>
+                 <div>
+                   <label htmlFor="password" className={labelClass}>Contraseña</label>
+                   <div className="mt-1.5 relative">
+                     <input
+                       id="password"
+                       type={showPassword ? 'text' : 'password'}
+                       autoComplete="new-password"
+                       placeholder="••••••••"
+                       className={`${inputClass} pr-12`}
+                       value={form.password}
+                       onChange={(e) => update('password', e.target.value)}
+                       required
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setShowPassword((prev) => !prev)}
+                       className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 transition ${isDark ? 'text-sky-200/80 hover:text-white' : 'text-[#4b5e71] hover:text-[#1f3f5f]'}`}
+                       aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                     >
+                       {showPassword ? (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M3 3l18 18" />
+                           <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                           <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                           <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                         </svg>
+                       ) : (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                           <circle cx="12" cy="12" r="3" />
+                         </svg>
+                       )}
+                     </button>
+                   </div>
+                 </div>
 
-                <div>
-                  <label htmlFor="confirm" className={labelClass}>Confirmar contraseña</label>
-                  <div className="mt-1.5">
-                    <input id="confirm" type="password" autoComplete="new-password" placeholder="••••••••" className={inputClass} value={form.confirm} onChange={(e) => update('confirm', e.target.value)} required />
-                  </div>
-                </div>
+                 <div>
+                   <label htmlFor="confirm" className={labelClass}>Confirmar contraseña</label>
+                   <div className="mt-1.5 relative">
+                     <input
+                       id="confirm"
+                       type={showConfirm ? 'text' : 'password'}
+                       autoComplete="new-password"
+                       placeholder="••••••••"
+                       className={`${inputClass} pr-12`}
+                       value={form.confirm}
+                       onChange={(e) => update('confirm', e.target.value)}
+                       required
+                     />
+                     <button
+                       type="button"
+                       onClick={() => setShowConfirm((prev) => !prev)}
+                       className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 transition ${isDark ? 'text-sky-200/80 hover:text-white' : 'text-[#4b5e71] hover:text-[#1f3f5f]'}`}
+                       aria-label={showConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                     >
+                       {showConfirm ? (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M3 3l18 18" />
+                           <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                           <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                           <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                         </svg>
+                       ) : (
+                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                           <circle cx="12" cy="12" r="3" />
+                         </svg>
+                       )}
+                     </button>
+                   </div>
+                 </div>
               </div>
 
               <button
