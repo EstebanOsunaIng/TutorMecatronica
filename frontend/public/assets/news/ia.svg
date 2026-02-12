@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="Inteligencia Artificial">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#081323"/>
+      <stop offset="0.55" stop-color="#2a2f7a"/>
+      <stop offset="1" stop-color="#050a14"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#93c5fd" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <g transform="translate(150,120)" opacity="0.95">
+    <rect x="0" y="0" width="540" height="420" rx="40" fill="#0b1226" fill-opacity="0.55" stroke="#ffffff" stroke-opacity="0.14"/>
+    <rect x="92" y="82" width="356" height="256" rx="26" fill="url(#chip)" stroke="#ffffff" stroke-opacity="0.18"/>
+    <g stroke="#ffffff" stroke-opacity="0.18">
+      <path d="M92 170H0"/>
+      <path d="M92 250H0"/>
+      <path d="M540 170H448"/>
+      <path d="M540 250H448"/>
+      <path d="M180 82V0"/>
+      <path d="M270 82V0"/>
+      <path d="M360 82V0"/>
+      <path d="M180 420V540"/>
+      <path d="M270 420V540"/>
+      <path d="M360 420V540"/>
+    </g>
+    <g fill="#ffffff" fill-opacity="0.22">
+      <circle cx="210" cy="210" r="10"/>
+      <circle cx="330" cy="210" r="10"/>
+      <circle cx="270" cy="270" r="10"/>
+    </g>
+  </g>
+  <g transform="translate(820,140)" opacity="0.7" fill="#93c5fd">
+    <circle cx="150" cy="150" r="150" fill-opacity="0.10"/>
+    <circle cx="150" cy="150" r="92" fill-opacity="0.12"/>
+  </g>
+</svg>

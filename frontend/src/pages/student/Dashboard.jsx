@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card.jsx';
 import BadgeGrid from '../../components/gamification/BadgeGrid.jsx';
 import RankingCard from '../../components/gamification/RankingCard.jsx';
 import MyRankCard from '../../components/gamification/MyRankCard.jsx';
 import NewsFeed from '../../components/news/NewsFeed.jsx';
+import ActivityChart from '../../components/charts/ActivityChart.jsx';
 import { gamificationApi } from '../../api/gamification.api.js';
 import { newsApi } from '../../api/news.api.js';
 import { modulesApi } from '../../api/modules.api.js';
@@ -15,6 +17,7 @@ export default function StudentDashboard() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const navigate = useNavigate();
   const [badges, setBadges] = useState([]);
   const [unlocked, setUnlocked] = useState([]);
   const [top, setTop] = useState([]);
@@ -22,6 +25,7 @@ export default function StudentDashboard() {
   const [news, setNews] = useState([]);
   const [modules, setModules] = useState([]);
   const [progressRows, setProgressRows] = useState([]);
+  const [activityRange, setActivityRange] = useState('week');
 
   useEffect(() => {
     async function load() {
@@ -64,13 +68,13 @@ export default function StudentDashboard() {
   });
 
   const completedModules = moduleTimeline.filter((m) => m.completed).length;
+  const inProgressModules = moduleTimeline.filter((m) => m.inProgress).length;
   const totalModules = moduleTimeline.length;
   const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
 
-  const currentModule =
-    moduleTimeline.find((m) => m.inProgress) ||
-    moduleTimeline.find((m) => !m.completed) ||
-    null;
+  const continueModule = moduleTimeline.find((m) => m.inProgress) || null;
+
+  const currentModule = continueModule || moduleTimeline.find((m) => !m.completed) || null;
 
   const activeStep = currentModule
     ? moduleTimeline.findIndex((m) => String(m.id) === String(currentModule.id))
@@ -80,150 +84,184 @@ export default function StudentDashboard() {
   const nextBadge = badges.find((badge) => !unlockedSet.has(String(badge._id)));
   const nextStepText = currentModule?.title || nextBadge?.name || 'Sigue completando tus niveles';
 
+  const badgesCount = Number.isFinite(user?.badgesCount) ? user.badgesCount : (unlocked || []).length;
+
   const ringStyle = {
     background: `conic-gradient(${isDark ? '#38bdf8' : '#1d4f91'} ${progressPercent * 3.6}deg, ${isDark ? '#12345a' : '#dbe4ef'} 0deg)`
   };
 
+  const displayName = (user?.name || '').trim();
+
   return (
-    <div className="space-y-6">
-      <Card
-        className={`overflow-hidden rounded-3xl border ${
-          isDark ? 'border-slate-700/40 bg-[#0b1632]' : 'border-slate-300 bg-[#f5f7fa]'
-        }`}
-      >
-        <div className="grid gap-6 md:grid-cols-[170px_1fr_auto] md:items-center">
-          <div className="flex justify-center md:justify-start">
-            <div className="relative h-28 w-28 rounded-full p-2" style={ringStyle}>
-              <div
-                className={`flex h-full w-full flex-col items-center justify-center rounded-full ${
-                  isDark ? 'bg-[#0b1632]' : 'bg-[#f5f7fa]'
-                }`}
-              >
-                <div className={`text-4xl font-extrabold ${isDark ? 'text-white' : 'text-[#173f74]'}`}>{progressPercent}%</div>
-                <div className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Completado
+    <div className="rounded-3xl border border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-4 text-slate-900 shadow-inner md:p-6 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100">
+      <div className="space-y-6">
+        <div
+          className={`rounded-3xl border px-5 py-4 ${
+            isDark
+              ? 'border-slate-700/50 bg-slate-900/30'
+              : 'border-cyan-100/80 bg-gradient-to-r from-sky-50/80 via-cyan-50/60 to-slate-50'
+          }`}
+        >
+          <div className={`text-sm font-semibold ${isDark ? 'text-sky-200' : 'text-[#1d4f91]'}`}>Bienvenido de vuelta</div>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-[#0f2b53]'}`}>
+              {displayName ? `¡Hola, ${displayName}!` : '¡Hola!'}
+            </h1>
+            <span className={`text-2xl ${isDark ? 'text-sky-200' : 'text-[#1d4f91]'}`} aria-hidden="true">👋</span>
+          </div>
+          <div className={`mt-3 h-1 w-16 rounded-full ${isDark ? 'bg-sky-500/60' : 'bg-[#1d4f91]'}`} />
+        </div>
+
+        <Card className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+          <div className="grid gap-6 md:grid-cols-[150px_1fr_200px] md:items-center">
+            <div className="flex justify-center md:justify-start">
+              <div className="relative h-28 w-28 rounded-full p-2" style={ringStyle}>
+                <div
+                  className={`flex h-full w-full flex-col items-center justify-center rounded-full ${
+                    isDark ? 'bg-slate-900/40' : 'bg-white'
+                  }`}
+                >
+                  <div className={`text-4xl font-extrabold ${isDark ? 'text-white' : 'text-[#1d4f91]'}`}>{progressPercent}%</div>
+                  <div className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                    Completado
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <h3 className={`text-4xl font-extrabold leading-tight ${isDark ? 'text-white' : 'text-[#0f2b53]'}`}>Tu progreso</h3>
-            <p className={`mt-1 text-2xl ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Vas por buen camino, sigue asi.</p>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              {moduleTimeline.length === 0 && (
-                <div className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  No hay modulos publicados aun.
-                </div>
-              )}
-              {moduleTimeline.map((moduleItem, idx) => {
-                const active = moduleItem.completed || idx === activeStep;
-                const current = idx === activeStep && !moduleItem.completed;
-                return (
-                  <React.Fragment key={moduleItem.id}>
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold ${
-                        moduleItem.completed
-                          ? isDark
-                            ? 'border-[#2e6cb0] bg-[#173f74] text-white'
-                            : 'border-[#244e88] bg-[#1d4f91] text-white'
-                          : current
-                            ? isDark
-                              ? 'border-[#1b3e70] bg-[#12345a] text-sky-100'
-                              : 'border-[#2c5c9c] bg-[#d9e4f1] text-[#173f74]'
-                          : isDark
-                            ? 'border-slate-700 bg-slate-800 text-slate-400'
-                            : 'border-slate-300 bg-slate-100 text-slate-500'
-                      } ${current ? 'ring-2 ring-offset-2 ring-offset-transparent ring-[#3f8be0]' : ''}`}
-                      title={moduleItem.title}
-                    >
-                      {moduleItem.completed ? (
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        idx + 1
-                      )}
-                    </div>
-                    {idx < moduleTimeline.length - 1 && (
-                      <div
-                        className={`h-[2px] w-8 ${
-                          active
-                            ? isDark
-                              ? 'bg-[#2e6cb0]'
-                              : 'bg-[#2e6cb0]'
-                            : isDark
-                              ? 'bg-slate-700'
-                              : 'bg-slate-300'
-                        }`}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-
-            <p className={`mt-3 text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              Proximo paso: <span className={`font-semibold ${isDark ? 'text-sky-300' : 'text-[#173f74]'}`}>{nextStepText}</span>
-            </p>
-          </div>
-
-          <div className="flex items-end justify-between gap-6 md:flex-col md:items-end md:justify-center">
             <div>
-              <div className={`text-right text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Insignias: {completedModules}</div>
+              <h3 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>¡Tu progreso!</h3>
+              <p className={`mt-1 text-lg ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Vas por buen camino, ¡sigue asi!</p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {moduleTimeline.length === 0 && (
+                  <div className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>No hay modulos publicados aun.</div>
+                )}
+
+                {moduleTimeline.map((moduleItem, idx) => {
+                  const current = idx === activeStep && !moduleItem.completed;
+                  const upcoming = !moduleItem.completed && idx !== activeStep;
+                  const done = moduleItem.completed;
+                  const lineActive = idx < activeStep || done;
+
+                  return (
+                    <React.Fragment key={moduleItem.id}>
+                      <button
+                        type="button"
+                        onClick={() => moduleItem?.id && navigate(`/student/courses/${moduleItem.id}`)}
+                        disabled={!moduleItem?.id}
+                        aria-label={`Ir al modulo ${moduleItem.title}`}
+                        title={moduleItem.title}
+                        className={
+                          `flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60 ` +
+                          (done
+                            ? isDark
+                              ? 'border-sky-400/60 bg-sky-500 text-slate-950 hover:bg-sky-400'
+                              : 'border-[#1d4f91] bg-[#1d4f91] text-white hover:bg-[#173f74]'
+                            : current
+                              ? isDark
+                                ? 'border-sky-400 bg-slate-900/30 text-sky-200 hover:bg-slate-900/50'
+                                : 'border-[#1d4f91] bg-white text-[#1d4f91] hover:bg-slate-50'
+                              : upcoming
+                                ? isDark
+                                  ? 'border-slate-600 bg-transparent text-slate-300 hover:border-slate-500'
+                                  : 'border-slate-200 bg-transparent text-slate-500 hover:border-slate-300'
+                                : '')
+                        }
+                      >
+                        {done ? (
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          idx + 1
+                        )}
+                      </button>
+                      {idx < moduleTimeline.length - 1 && (
+                        <div
+                          className={
+                            `h-[2px] w-8 rounded-full ` +
+                            (lineActive
+                              ? isDark
+                                ? 'bg-sky-400/60'
+                                : 'bg-[#1d4f91]'
+                              : isDark
+                                ? 'bg-slate-700'
+                                : 'bg-slate-200')
+                          }
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              <p className={`mt-3 text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                Proximo: <span className={`font-semibold ${isDark ? 'text-sky-200' : 'text-[#1d4f91]'}`}>{nextStepText}</span>
+              </p>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={`rounded-xl p-2 ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-[#173f74]'}`}
-                aria-label="Configuracion"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317a1.724 1.724 0 013.35 0 1.724 1.724 0 002.573 1.066 1.724 1.724 0 012.36 2.36 1.724 1.724 0 001.066 2.573 1.724 1.724 0 010 3.35 1.724 1.724 0 00-1.066 2.573 1.724 1.724 0 01-2.36 2.36 1.724 1.724 0 00-2.573 1.066 1.724 1.724 0 01-3.35 0 1.724 1.724 0 00-2.573-1.066 1.724 1.724 0 01-2.36-2.36 1.724 1.724 0 00-1.066-2.573 1.724 1.724 0 010-3.35 1.724 1.724 0 001.066-2.573 1.724 1.724 0 012.36-2.36 1.724 1.724 0 002.573-1.066z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className={`rounded-xl p-2 ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-[#173f74]'}`}
-                aria-label="Insignias"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className={`rounded-xl p-2 ${isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-[#173f74]'}`}
-                aria-label="Cursos"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h-2a2 2 0 00-2 2v8a2 2 0 002 2h7" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2h-7" />
-                </svg>
-              </button>
+
+            <div className="flex items-start justify-end">
+              <div className={`text-right text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                <span className="mr-2" aria-hidden="true">⚡</span>
+                Insignias: {badgesCount}
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <BadgeGrid badges={badges} unlocked={unlocked} />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-2">
+            <BadgeGrid badges={badges} unlocked={unlocked} />
+
+            <Card className="p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Actividad</div>
+                  <div className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">Tu actividad</div>
+                </div>
+                <select
+                  value={activityRange}
+                  onChange={(e) => setActivityRange(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 md:w-auto"
+                >
+                  <option value="day">Dia</option>
+                  <option value="week">Semana</option>
+                  <option value="month">Mes</option>
+                </select>
+              </div>
+
+              <div className="mt-4">
+                <ActivityChart progressRows={progressRows} range={activityRange} isDark={isDark} />
+              </div>
+
+              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Basado en tu actividad reciente en modulos.
+              </div>
+            </Card>
+          </div>
+          <div className="space-y-4">
+            <RankingCard top={top} />
+            <MyRankCard position={rank.position} total={rank.total} badgesCount={user?.badgesCount} />
+          </div>
         </div>
-        <div className="space-y-4">
-          <RankingCard top={top} />
-          <MyRankCard position={rank.position} total={rank.total} badgesCount={user?.badgesCount} />
-        </div>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Ultimas 3
+            </div>
+          </div>
+          <div className="mt-4">
+            <NewsFeed
+              items={[...(news || [])]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 3)}
+            />
+          </div>
+        </Card>
       </div>
-
-      <Card>
-        <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-brand-300">Noticias del dia</h3>
-        <NewsFeed items={news} />
-      </Card>
     </div>
   );
 }
