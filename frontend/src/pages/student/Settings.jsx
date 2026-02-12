@@ -38,6 +38,10 @@ export default function StudentSettings() {
 
   const isSecurityView = location.pathname.endsWith('/security');
   const userInitials = `${user?.name?.[0] || ''}${user?.lastName?.[0] || ''}`.toUpperCase() || 'U';
+  const isAdminView = user?.role === 'ADMIN';
+  const settingsPanelClass = isAdminView
+    ? 'space-y-5 rounded-3xl border border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none md:p-6'
+    : 'space-y-5 rounded-3xl border border-cyan-100 bg-white/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 md:p-6';
 
   const labelClass = 'text-sm font-semibold text-slate-800 dark:text-slate-200';
   const inputClass =
@@ -169,7 +173,7 @@ export default function StudentSettings() {
         {!isSecurityView ? (
           <form
             onSubmit={save}
-            className="space-y-5 rounded-3xl border border-cyan-100 bg-white/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 md:p-6"
+            className={settingsPanelClass}
           >
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Información Personal</h2>
 
@@ -238,7 +242,7 @@ export default function StudentSettings() {
         ) : (
           <form
             onSubmit={changePassword}
-            className="space-y-5 rounded-3xl border border-cyan-100 bg-white/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 md:p-6"
+            className={settingsPanelClass}
           >
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Cambiar Contraseña</h2>
 

@@ -136,6 +136,8 @@ export async function getDashboardMetrics(req, res) {
   const students = users.filter((u) => u.role === 'STUDENT');
   const totalStudents = students.length;
   const activeStudents = students.filter((u) => u.isActive).length;
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.isActive).length;
   const certifications = students.reduce((sum, u) => sum + (u.badgesCount || 0), 0);
 
   const studentIds = students.map((u) => u._id);
@@ -253,6 +255,8 @@ export async function getDashboardMetrics(req, res) {
 
   res.json({
     overview: {
+      totalUsers,
+      activeUsers,
       activeStudents,
       averageTimeMinutes,
       certifications,
