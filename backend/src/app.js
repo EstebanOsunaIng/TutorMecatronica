@@ -18,12 +18,19 @@ import { errorHandler } from './middleware/errorHandler.js';
 const app = express();
 
 app.use(helmet());
-const allowedOrigins = ['http://localhost:3000', 'http://192.168.56.1:3000'];
+
+const allowedOriginPatterns = [
+  /^http:\/\/localhost:\d+$/,
+  /^http:\/\/127\.0\.0\.1:\d+$/,
+  /^http:\/\/192\.168\.\d+\.\d+:\d+$/
+];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin) return callback(null, true);
+      const ok = allowedOriginPatterns.some((re) => re.test(origin));
+      if (ok) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true

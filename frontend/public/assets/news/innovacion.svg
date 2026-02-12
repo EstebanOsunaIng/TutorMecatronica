@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="Innovacion">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1a2f"/>
+      <stop offset="0.55" stop-color="#145e8e"/>
+      <stop offset="1" stop-color="#04101c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="35%" cy="30%" r="65%">
+      <stop offset="0" stop-color="#7dd3fc" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7dd3fc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <rect width="1200" height="720" fill="url(#glow)"/>
+  <g opacity="0.18" fill="#ffffff">
+    <path d="M140 520c120-220 330-330 520-270 160 50 280 190 360 360H140Z"/>
+  </g>
+  <g transform="translate(860,110)" opacity="0.95">
+    <circle cx="120" cy="120" r="110" fill="#0b1226" fill-opacity="0.55" stroke="#ffffff" stroke-opacity="0.16"/>
+    <path d="M120 40c44 0 80 36 80 80 0 32-19 60-46 73v31a10 10 0 0 1-10 10h-48a10 10 0 0 1-10-10v-31c-27-13-46-41-46-73 0-44 36-80 80-80Z" fill="#7dd3fc" fill-opacity="0.20"/>
+    <path d="M96 260h48" stroke="#ffffff" stroke-opacity="0.25" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>
