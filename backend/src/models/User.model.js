@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema(
     badgesCount: { type: Number, default: 0 },
     completedModulesCount: { type: Number, default: 0 },
     lastBadgeUnlockedAt: { type: Date },
+    notificationsMuted: { type: Boolean, default: false },
     resetCodeHash: { type: String },
     resetCodeExpires: { type: Date },
     resetCodeAttempts: { type: Number, default: 0 },
