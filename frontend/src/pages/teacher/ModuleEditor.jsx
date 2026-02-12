@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronRight, FileText, Folder, FolderOpen, Link2, Pencil, Plus, Upload, Video } from 'lucide-react';
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, FileText, Link2, Loader2, Pencil, Plus, Upload, Video } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
 const INITIAL_COVER_FORM = { title: '', description: '', category: 'General', imageUrl: '', level: 'Básico' };
+const CATEGORY_OPTIONS = ['General', 'Robotica', 'Programacion', 'Electronica', 'Diseno 3D', 'Automatizacion', 'Inteligencia Artificial', 'Mecanica'];
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -198,6 +199,7 @@ export default function ModuleEditor() {
   const [publishTried, setPublishTried] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
+  const [publishStepDone, setPublishStepDone] = useState(false);
   const [expandedLevels, setExpandedLevels] = useState({ 0: true });
   const [imageEditorState, setImageEditorState] = useState({
     open: false,
@@ -316,6 +318,18 @@ export default function ModuleEditor() {
 
   const activeLevel = draftLevels[activeDraftLevelIndex] || null;
   const activeSublevel = activeLevel?.sublevels?.[activeDraftSublevelIndex] || null;
+  const flatDraftSublevels = useMemo(() => {
+    const flat = [];
+    draftLevels.forEach((levelItem, levelIndex) => {
+      levelItem.sublevels.forEach((sublevel, sublevelIndex) => {
+        flat.push({ levelIndex, sublevelIndex, levelItem, sublevel });
+      });
+    });
+    return flat;
+  }, [draftLevels]);
+  const activeFlatDraftIndex = flatDraftSublevels.findIndex(
+    (item) => item.levelIndex === activeDraftLevelIndex && item.sublevelIndex === activeDraftSublevelIndex
+  );
   const editingImage = draftLevels[imageEditorState.levelIndex]
     ?.sublevels?.[imageEditorState.sublevelIndex]
     ?.imageItems?.find((imageItem) => imageItem.id === imageEditorState.imageId);
@@ -335,6 +349,14 @@ export default function ModuleEditor() {
     if (!trimmedTitle) return;
     updateDraftLevel(levelNameModal.levelIndex, (prev) => ({ ...prev, title: trimmedTitle }));
     setLevelNameModal({ open: false, levelIndex: 0, value: '' });
+  };
+
+  const goToDraftFlatIndex = (index) => {
+    const item = flatDraftSublevels[index];
+    if (!item) return;
+    setActiveDraftLevelIndex(item.levelIndex);
+    setActiveDraftSublevelIndex(item.sublevelIndex);
+    setExpandedLevels((prev) => ({ ...prev, [item.levelIndex]: true }));
   };
 
   const openInstructionLinkBuilder = () => {
@@ -507,6 +529,16 @@ export default function ModuleEditor() {
     });
   };
 
+  const goPrevSublevel = () => {
+    if (activeFlatDraftIndex <= 0) return;
+    goToDraftFlatIndex(activeFlatDraftIndex - 1);
+  };
+
+  const goNextSublevel = () => {
+    if (activeFlatDraftIndex >= flatDraftSublevels.length - 1) return;
+    goToDraftFlatIndex(activeFlatDraftIndex + 1);
+  };
+
   const exitCreateFlow = () => {
     if (location.pathname.startsWith('/admin')) {
       navigate('/admin/modules');
@@ -563,6 +595,7 @@ export default function ModuleEditor() {
     setPublishTried(true);
     if (!isCoverValid || !allDraftLevelsValid || publishingDraft) return;
 
+    setPublishStepDone(false);
     setPublishingDraft(true);
     try {
       if (isEditingMode) {
@@ -642,23 +675,45 @@ export default function ModuleEditor() {
         await modulesApi.update(moduleId, { isPublished: true });
       }
 
+      setPublishStepDone(true);
+      await new Promise((resolve) => setTimeout(resolve, 420));
       exitCreateFlow();
     } finally {
       setPublishingDraft(false);
+      setPublishStepDone(false);
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="px-1">
-        <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
-          <span className={createStep === 1 ? 'text-brand-500 dark:text-brand-200' : 'text-emerald-600 dark:text-emerald-300'}>1. Portada</span>
-          <span className={createStep === 2 ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>2. Niveles y subniveles</span>
-        </div>
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-          <div
-            className={`h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-300 ${createStep === 1 ? 'w-1/2' : 'w-full'}`}
-          />
+        <div className="mx-auto max-w-xs">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <span className={createStep === 1 ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>Portada</span>
+            <span className={createStep === 2 || publishingDraft ? 'text-brand-500 dark:text-brand-200' : 'text-slate-500 dark:text-slate-400'}>Niveles y subniveles</span>
+          </div>
+
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${createStep > 1 || publishingDraft || publishStepDone ? 'bg-emerald-500 text-white' : 'bg-brand-500 text-white'}`}>
+              {createStep > 1 || publishingDraft || publishStepDone ? <Check className="h-4 w-4" /> : '1'}
+            </span>
+
+            <span className={`h-0.5 flex-1 rounded-full transition-all ${createStep > 1 || publishingDraft || publishStepDone ? 'bg-emerald-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                publishStepDone
+                  ? 'bg-emerald-500 text-white'
+                  : publishingDraft
+                    ? 'bg-cyan-500 text-white'
+                    : createStep === 2
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+              }`}
+            >
+              {publishStepDone ? <Check className="h-4 w-4" /> : publishingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : '2'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -690,27 +745,18 @@ export default function ModuleEditor() {
 
                 <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Categoria
-                  <input
+                  <select
                     className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
-                    placeholder="Ej: General"
                     value={coverForm.category}
                     onChange={(e) => setCoverForm((f) => ({ ...f, category: e.target.value }))}
-                  />
+                  >
+                    {!CATEGORY_OPTIONS.includes(coverForm.category) && <option value={coverForm.category}>{coverForm.category}</option>}
+                    {CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">Ayuda a organizar modulos.</span>
                   {coverTriedContinue && coverErrors.category && <span className="text-xs text-red-300">La categoria es obligatoria.</span>}
-                </label>
-
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Dificultad
-                  <select
-                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.level ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
-                    value={coverForm.level}
-                    onChange={(e) => setCoverForm((f) => ({ ...f, level: e.target.value }))}
-                  >
-                    <option>Básico</option>
-                    <option>Intermedio</option>
-                    <option>Avanzado</option>
-                  </select>
                 </label>
 
                 <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -762,8 +808,8 @@ export default function ModuleEditor() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[320px_1fr] pb-28">
-              <aside className="rounded-2xl bg-slate-50 p-3 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+            <div className="grid gap-4 lg:grid-cols-[360px_1fr] pb-28">
+              <aside className="rounded-2xl bg-slate-50 p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Estructura del modulo</p>
                   <button
@@ -775,50 +821,62 @@ export default function ModuleEditor() {
                   </button>
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-5">
                   {draftLevels.map((levelItem, levelIndex) => {
                     const isExpanded = !!expandedLevels[levelIndex];
                     const isActiveLevel = activeDraftLevelIndex === levelIndex;
                     const isLevelValid = isDraftLevelValid(levelItem);
 
                     return (
-                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-lg bg-white/80 dark:bg-slate-900/40">
-                        <div className="flex items-center gap-1 rounded-lg px-1.5 py-1">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedLevels((prev) => ({ ...prev, [levelIndex]: !isExpanded }))}
-                            className="rounded p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                            title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
-                          >
-                            <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
-                          </button>
+                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-2xl bg-slate-50/80 p-3.5 ring-1 ring-slate-200/80 dark:bg-slate-900/40 dark:ring-slate-700/70">
+                        <div
+                          className="flex cursor-pointer items-center gap-2 rounded-lg"
+                          onClick={() => {
+                            const nextExpanded = !isExpanded;
+                            setExpandedLevels((prev) => ({ ...prev, [levelIndex]: nextExpanded }));
+                            setActiveDraftLevelIndex(levelIndex);
+                            if (nextExpanded) setActiveDraftSublevelIndex(0);
+                          }}
+                        >
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${isLevelValid ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300'}`}>
+                            {isLevelValid ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveDraftLevelIndex(levelIndex);
-                              setActiveDraftSublevelIndex(0);
-                            }}
-                            className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition ${isActiveLevel ? 'bg-brand-500/15 text-brand-600 dark:bg-brand-500/20 dark:text-brand-100' : 'text-slate-700 hover:bg-slate-200 dark:text-slate-200 dark:hover:bg-slate-800/80'}`}
-                          >
-                            {isExpanded ? <FolderOpen className="h-4 w-4 text-amber-300" /> : <Folder className="h-4 w-4 text-amber-300" />}
-                            <span className="truncate">Nivel {levelIndex + 1}: {levelItem.title || 'Sin titulo'}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openLevelNameModal(levelIndex);
-                              }}
-                              className={`ml-auto rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-amber-500 hover:bg-slate-200 dark:text-amber-300 dark:hover:bg-slate-700'}`}
-                              title={`Editar nombre del nivel ${levelIndex + 1}`}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          </button>
+                          <div className="relative min-w-0 flex-1">
+                            <div className={`flex w-full min-w-0 items-start gap-2 rounded-xl px-3 py-2.5 pr-16 text-left text-sm transition ${isActiveLevel ? 'bg-slate-200/70 text-slate-900 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/80'}`}>
+                              <span className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}. {levelItem.title || 'Sin titulo'}</span>
+                            </div>
+
+                            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openLevelNameModal(levelIndex);
+                                }}
+                                className={`rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-amber-500 hover:bg-slate-200 dark:text-amber-300 dark:hover:bg-slate-700'}`}
+                                title={`Editar nombre del nivel ${levelIndex + 1}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedLevels((prev) => ({ ...prev, [levelIndex]: !isExpanded }));
+                                }}
+                                className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                                title={isExpanded ? 'Contraer nivel' : 'Expandir nivel'}
+                              >
+                                <ChevronRight className={`h-4 w-4 transition ${isExpanded ? 'rotate-90' : ''}`} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
-                        {isExpanded && (
-                          <div className="ml-8 mt-1 space-y-1 border-l border-slate-300 pl-3 dark:border-slate-700/80">
+                        <div className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="ml-9 mt-3.5 space-y-3 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
                             {levelItem.sublevels.map((sublevel, sublevelIndex) => {
                               const isActiveSublevel =
                                 activeDraftLevelIndex === levelIndex && activeDraftSublevelIndex === sublevelIndex;
@@ -827,30 +885,41 @@ export default function ModuleEditor() {
                                 <button
                                   key={`editor-sublevel-${levelIndex + 1}-${sublevelIndex + 1}`}
                                   type="button"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setActiveDraftLevelIndex(levelIndex);
                                     setActiveDraftSublevelIndex(sublevelIndex);
                                   }}
-                                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition ${isActiveSublevel ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-100' : 'text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800/70'}`}
+                                  className={`flex w-full items-start gap-2 rounded-xl px-3.5 py-3.5 text-left text-[13px] transition ${isActiveSublevel ? 'bg-cyan-500 text-white ring-2 ring-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)] dark:bg-cyan-500 dark:text-white dark:ring-cyan-300' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900/60 dark:text-slate-300 dark:ring-slate-700/60 dark:hover:bg-slate-800/70'}`}
                                 >
-                                  <FileText className="h-3.5 w-3.5" />
-                                  <span className="truncate">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || 'Subnivel sin titulo'}</span>
+                                  {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="h-3.5 w-3.5" />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || `Subnivel ${levelIndex + 1}.${sublevelIndex + 1}`}</p>
+                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200'}`}>
+                                      {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'OK' : 'Falta'}
+                                    </span>
+                                  </div>
                                 </button>
                               );
                             })}
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                addDraftSublevel(levelIndex);
-                                setExpandedLevels((prev) => ({ ...prev, [levelIndex]: true }));
-                              }}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  addDraftSublevel(levelIndex);
+                                  setExpandedLevels((prev) => ({ ...prev, [levelIndex]: true }));
+                                }}
                               className="w-full rounded-md bg-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:bg-slate-600"
                             >
                               + Agregar subnivel a Nivel {levelIndex + 1}
                             </button>
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1107,6 +1176,38 @@ export default function ModuleEditor() {
                           }
                         />
                       </label>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
+                      <button
+                        type="button"
+                        onClick={goPrevSublevel}
+                        disabled={activeFlatDraftIndex <= 0}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200"
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Anterior
+                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        {flatDraftSublevels.map((item, idx) => {
+                          const complete = isDraftSublevelValid(item.sublevel) && item.levelItem.title.trim();
+                          return (
+                            <span
+                              key={`draft-dot-${item.levelIndex + 1}-${item.sublevelIndex + 1}`}
+                              className={`h-2.5 rounded-full ${idx === activeFlatDraftIndex ? 'w-7 bg-brand-500' : complete ? 'w-2.5 bg-emerald-500' : 'w-2.5 bg-amber-400'}`}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={goNextSublevel}
+                        disabled={activeFlatDraftIndex >= flatDraftSublevels.length - 1}
+                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                      >
+                        Siguiente <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </section>

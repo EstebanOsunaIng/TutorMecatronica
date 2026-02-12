@@ -34,3 +34,28 @@ export async function completeLevel(req, res) {
   await progress.save();
   res.json({ progress, badgeUnlocked: badge });
 }
+
+export async function restartModule(req, res) {
+  const { moduleId } = req.body;
+  if (!moduleId) return res.status(400).json({ error: 'moduleId is required' });
+
+  const progress = await Progress.findOneAndUpdate(
+    { userId: req.user.id, moduleId },
+    {
+      $set: {
+        currentLevelOrder: 1,
+        levelsCompleted: [],
+        moduleProgressPercent: 0,
+        completedAt: null,
+        startedAt: new Date()
+      }
+    },
+    { new: true }
+  );
+
+  if (!progress) {
+    return res.status(404).json({ error: 'Progress not found for this module' });
+  }
+
+  res.json({ progress });
+}

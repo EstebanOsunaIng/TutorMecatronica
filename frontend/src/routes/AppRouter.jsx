@@ -18,6 +18,7 @@ import StudentSettings from '../pages/student/Settings.jsx';
 
 import TeacherDashboard from '../pages/teacher/Dashboard.jsx';
 import TeacherStudents from '../pages/teacher/Students.jsx';
+import TeacherModules from '../pages/teacher/Modules.jsx';
 import TeacherModuleEditor from '../pages/teacher/ModuleEditor.jsx';
 import TeacherNews from '../pages/teacher/News.jsx';
 import TeacherSettings from '../pages/teacher/Settings.jsx';
@@ -77,7 +78,8 @@ export default function AppRouter() {
         <Route path="dashboard" element={<TeacherDashboard />} />
         <Route path="students" element={<TeacherStudents />} />
         <Route path="news" element={<TeacherNews />} />
-        <Route path="modules" element={<TeacherModuleEditor />} />
+        <Route path="modules" element={<TeacherModules />} />
+        <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="settings" element={<TeacherSettings />} />
         <Route path="settings/security" element={<TeacherSettings />} />
       </Route>
