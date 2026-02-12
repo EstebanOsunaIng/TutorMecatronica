@@ -20,7 +20,12 @@ export default function Login() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError('Credenciales invalidas');
+      const apiError = err?.response?.data?.error || err?.response?.data?.message;
+      if (apiError) {
+        setError(apiError);
+      } else {
+        setError('Credenciales invalidas');
+      }
     }
   };
 

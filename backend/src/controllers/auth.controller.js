@@ -52,6 +52,10 @@ export async function login(req, res) {
   const user = await User.findOne({ email: String(email).toLowerCase() });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
+  if (!user.isActive) {
+    return res.status(403).json({ error: 'Perfil inactivo. No puedes ingresar.' });
+  }
+
   const ok = await comparePassword(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 

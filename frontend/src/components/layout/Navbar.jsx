@@ -239,11 +239,6 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
             {theme === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </button>
 
-          <div className="hidden max-w-[180px] flex-col text-right sm:flex">
-            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{userNameDisplay}</span>
-            <span className="truncate text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{userRole}</span>
-          </div>
-
           <div className="relative" ref={profileMenuRef}>
             <button
               type="button"

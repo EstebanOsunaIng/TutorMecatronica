@@ -200,6 +200,7 @@ export default function ModuleEditor() {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [publishingDraft, setPublishingDraft] = useState(false);
   const [publishStepDone, setPublishStepDone] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [expandedLevels, setExpandedLevels] = useState({ 0: true });
   const [imageEditorState, setImageEditorState] = useState({
     open: false,
@@ -539,12 +540,12 @@ export default function ModuleEditor() {
     goToDraftFlatIndex(activeFlatDraftIndex + 1);
   };
 
-  const exitCreateFlow = () => {
+  const exitCreateFlow = (noticeMessage = '') => {
     if (location.pathname.startsWith('/admin')) {
-      navigate('/admin/modules');
+      navigate('/admin/modules', { state: noticeMessage ? { notice: noticeMessage } : undefined });
       return;
     }
-    navigate('/teacher/modules');
+    navigate('/teacher/modules', { state: noticeMessage ? { notice: noticeMessage } : undefined });
   };
 
   const cancelCreateFlow = () => {
@@ -595,6 +596,7 @@ export default function ModuleEditor() {
     setPublishTried(true);
     if (!isCoverValid || !allDraftLevelsValid || publishingDraft) return;
 
+    setSaveError('');
     setPublishStepDone(false);
     setPublishingDraft(true);
     try {
@@ -677,7 +679,9 @@ export default function ModuleEditor() {
 
       setPublishStepDone(true);
       await new Promise((resolve) => setTimeout(resolve, 420));
-      exitCreateFlow();
+      exitCreateFlow(isEditingMode ? 'Los cambios del modulo se guardaron correctamente.' : 'Modulo creado y publicado correctamente.');
+    } catch (error) {
+      setSaveError(error?.response?.data?.error || 'No fue posible guardar los cambios. Intenta de nuevo.');
     } finally {
       setPublishingDraft(false);
       setPublishStepDone(false);
@@ -808,7 +812,7 @@ export default function ModuleEditor() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[360px_1fr] pb-28">
+            <div className="grid gap-4 lg:grid-cols-[360px_1fr] pb-4">
               <aside className="rounded-2xl bg-slate-50 p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Estructura del modulo</p>
@@ -1219,7 +1223,12 @@ export default function ModuleEditor() {
             </div>
           )}
 
-          <div className="sticky bottom-3 z-10 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-slate-200 backdrop-blur-md dark:bg-slate-950/95 dark:ring-slate-700/70">
+          <div className="mt-2 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-slate-200 dark:bg-slate-950/95 dark:ring-slate-700/70">
+            {saveError && (
+              <p className="mb-3 rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/20 dark:text-red-100">
+                {saveError}
+              </p>
+            )}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {createStep === 1 ? (
                 <>
