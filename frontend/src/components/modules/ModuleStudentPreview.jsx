@@ -292,6 +292,18 @@ export default function ModuleStudentPreview({
     if (!lightboxState.open) setExpandedContext(false);
   }, [lightboxState.open, lightboxState.index]);
 
+  useEffect(() => {
+    if (!lightboxState.open) return undefined;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+    };
+  }, [lightboxState.open]);
+
   const goToFlatIndex = (index) => {
     const item = flatSublevels[index];
     if (!item) return;
@@ -628,14 +640,14 @@ export default function ModuleStudentPreview({
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-black">
               <img src={lightboxState.images[lightboxState.index]?.url} alt={`Imagen ${lightboxState.index + 1}`} className="max-h-full w-full object-contain" />
             </div>
-            <div className="relative mt-2 rounded-lg bg-slate-900/80 p-3 text-sm text-slate-200">
-              <div className={`${expandedContext ? 'max-h-56 overflow-y-auto pr-1' : 'max-h-24 overflow-hidden'}`}>
+            <div className="mt-2 rounded-lg bg-slate-900/80 p-3 text-sm text-slate-200">
+              <div
+                className={`overflow-y-auto pr-1 ${
+                  expandedContext ? 'max-h-44' : 'max-h-24'
+                }`}
+              >
                 {renderFormattedText(lightboxState.images[lightboxState.index]?.context, 'image-context')}
               </div>
-
-              {!expandedContext && shouldAllowContextExpansion && (
-                <div className="pointer-events-none absolute inset-x-3 bottom-10 h-8 bg-gradient-to-t from-slate-900/95 to-transparent" />
-              )}
 
               {shouldAllowContextExpansion && (
                 <div className="mt-2 flex justify-end">

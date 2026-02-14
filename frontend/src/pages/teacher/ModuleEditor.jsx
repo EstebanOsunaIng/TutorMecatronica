@@ -480,6 +480,28 @@ export default function ModuleEditor() {
     }));
   };
 
+  const addVideoFiles = async (levelIndex, sublevelIndex, files) => {
+    if (!files?.length) return;
+
+    const dataUrls = await Promise.all(
+      files.map(async (file) => {
+        try {
+          return await fileToDataUrl(file);
+        } catch {
+          return '';
+        }
+      })
+    );
+
+    const validUrls = dataUrls.filter(Boolean);
+    if (!validUrls.length) return;
+
+    updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => ({
+      ...sublevel,
+      videoUrls: [...sublevel.videoUrls, ...validUrls]
+    }));
+  };
+
   const addImageUrlField = (levelIndex, sublevelIndex) => {
     updateDraftSublevel(levelIndex, sublevelIndex, (sublevel) => ({
       ...sublevel,
@@ -1102,65 +1124,107 @@ export default function ModuleEditor() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Videos de YouTube (opcional)</span>
-                        <button
-                          type="button"
-                          onClick={() => addVideoField(activeDraftLevelIndex, activeDraftSublevelIndex)}
-                          disabled={
-                            activeSublevel.videoUrls.length > 0 &&
-                            !activeSublevel.videoUrls[activeSublevel.videoUrls.length - 1].trim()
-                          }
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-700 dark:text-slate-100"
-                          title="Agregar video"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Videos (opcional)</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => addVideoField(activeDraftLevelIndex, activeDraftSublevelIndex)}
+                            disabled={
+                              activeSublevel.videoUrls.length > 0 &&
+                              !activeSublevel.videoUrls[activeSublevel.videoUrls.length - 1].trim()
+                            }
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-700 dark:text-slate-100"
+                            title="Agregar video por URL"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" title="Subir videos">
+                            <Upload className="h-3.5 w-3.5" />
+                            Subir
+                            <input
+                              type="file"
+                              accept="video/*"
+                              multiple
+                              className="hidden"
+                              onChange={async (e) => {
+                                await addVideoFiles(activeDraftLevelIndex, activeDraftSublevelIndex, Array.from(e.target.files || []));
+                                e.currentTarget.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
 
                       <div className="mt-2 grid gap-2">
-                        {activeSublevel.videoUrls.map((videoUrl, videoIndex) => (
-                          <div key={`video-${activeDraftLevelIndex + 1}-${activeDraftSublevelIndex + 1}-${videoIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
-                            <div className="flex gap-2">
-                              <input
-                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                                placeholder="https://www.youtube.com/..."
-                                value={videoUrl}
-                                onChange={(e) =>
-                                  updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
-                                    ...prev,
-                                    videoUrls: prev.videoUrls.map((candidate, idx) => (idx === videoIndex ? e.target.value : candidate))
-                                  }))
-                                }
-                              />
-                              {activeSublevel.videoUrls.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
-                                      ...prev,
-                                      videoUrls: prev.videoUrls.filter((_, idx) => idx !== videoIndex)
-                                    }))
-                                  }
-                                  className="rounded-lg bg-slate-200 px-2.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-100"
-                                >
-                                  Quitar
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
-                              {getYouTubeThumbnail(videoUrl) ? (
-                                <img src={getYouTubeThumbnail(videoUrl)} alt="Preview YouTube" className="h-14 w-full object-cover" />
+                        {activeSublevel.videoUrls.map((videoUrl, videoIndex) => {
+                          const isFileVideo = videoUrl.startsWith('data:video/');
+                          return (
+                            <div key={`video-${activeDraftLevelIndex + 1}-${activeDraftSublevelIndex + 1}-${videoIndex + 1}`} className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                              {isFileVideo ? (
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                  <div className="flex items-center gap-2">
+                                    <Video className="h-3.5 w-3.5" />
+                                    Video cargado desde archivo
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                                        ...prev,
+                                        videoUrls: prev.videoUrls.filter((_, idx) => idx !== videoIndex)
+                                      }))
+                                    }
+                                    className="rounded-lg bg-slate-200 px-2.5 py-1 text-[11px] text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+                                  >
+                                    Quitar
+                                  </button>
+                                </div>
                               ) : (
-                                  <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                  <Video className="h-3.5 w-3.5" />
-                                  Sin preview
+                                <div className="flex gap-2">
+                                  <input
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    placeholder="https://www.youtube.com/..."
+                                    value={videoUrl}
+                                    onChange={(e) =>
+                                      updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                                        ...prev,
+                                        videoUrls: prev.videoUrls.map((candidate, idx) => (idx === videoIndex ? e.target.value : candidate))
+                                      }))
+                                    }
+                                  />
+                                  {activeSublevel.videoUrls.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateDraftSublevel(activeDraftLevelIndex, activeDraftSublevelIndex, (prev) => ({
+                                          ...prev,
+                                          videoUrls: prev.videoUrls.filter((_, idx) => idx !== videoIndex)
+                                        }))
+                                      }
+                                      className="rounded-lg bg-slate-200 px-2.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+                                    >
+                                      Quitar
+                                    </button>
+                                  )}
                                 </div>
                               )}
+
+                              <div className="overflow-hidden rounded-lg border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+                                {isFileVideo ? (
+                                  <video src={videoUrl} className="h-14 w-full object-cover" muted />
+                                ) : getYouTubeThumbnail(videoUrl) ? (
+                                  <img src={getYouTubeThumbnail(videoUrl)} alt="Preview YouTube" className="h-14 w-full object-cover" />
+                                ) : (
+                                  <div className="flex h-14 items-center justify-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                    <Video className="h-3.5 w-3.5" />
+                                    Sin preview
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1272,6 +1336,16 @@ export default function ModuleEditor() {
                     </button>
                   </div>
                   <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        addDraftSublevel(activeDraftLevelIndex);
+                        setExpandedLevels((prev) => ({ ...prev, [activeDraftLevelIndex]: true }));
+                      }}
+                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800/40"
+                    >
+                      Agregar subnivel
+                    </button>
                     <button
                       type="button"
                       onClick={publishDraft}
