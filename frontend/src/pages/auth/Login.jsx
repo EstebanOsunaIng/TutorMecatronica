@@ -73,14 +73,14 @@ export default function Login() {
             </div>
 
             <div className="mb-8 pt-4 text-center">
-              <div className="mx-auto flex h-20 w-[290px] items-center justify-center md:h-24 md:w-[340px]">
+              <div className="mx-auto flex h-14 w-[220px] items-center justify-center md:h-16 md:w-[260px]">
                 <img
                   src={isDark ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png'}
                   alt="Logo Universitaria de Colombia"
                   className="w-auto max-w-full object-contain"
                 />
               </div>
-              <h2 className={`mt-5 text-[3rem] font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-[#092748]'}`}>TuVir Académico</h2>
+              <h2 className={`mt-4 text-[2.2rem] font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-[#092748]'}`}>TuVir Académico</h2>
               <p className={`mt-3 text-[1.1rem] ${isDark ? 'text-sky-100/85' : 'text-[#5f7184]'}`}>Bienvenido al ecosistema industrial</p>
             </div>
 
@@ -169,7 +169,7 @@ export default function Login() {
 
             <div className={`mt-8 border-t pt-6 ${isDark ? 'border-sky-900/50' : 'border-[#cad3dc]'}`}>
               <p className={`text-center text-sm ${isDark ? 'text-sky-100/75' : 'text-[#6d7b8a]'}`}>
-              ¿No tienes cuenta?{' '}
+                ¿No tienes cuenta?{' '}
                 <Link to="/register" className={`font-semibold ${isDark ? 'text-sky-300 hover:text-sky-200' : 'text-[#2f82bb] hover:text-[#1f5f92]'}`}>
                   Regístrate aquí
                 </Link>

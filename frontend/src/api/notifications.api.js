@@ -1,7 +1,8 @@
 import axiosClient from './axiosClient.js';
 
 export const notificationsApi = {
-  list: () => axiosClient.get('/notificaciones'),
+  list: (params) => axiosClient.get('/notificaciones', { params }),
   markRead: (id) => axiosClient.patch(`/notificaciones/${id}/leida`),
-  markAllRead: () => axiosClient.patch('/notificaciones/leidas')
+  markAllRead: (params) => axiosClient.patch('/notificaciones/marcar-todas', {}, { params }),
+  removeMany: (ids) => axiosClient.delete('/notificaciones/lote', { data: { ids } })
 };

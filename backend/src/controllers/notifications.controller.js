@@ -8,7 +8,7 @@ export async function listNotifications(req, res) {
 
     if (isAdmin && userId) {
       filter.userId = userId;
-    } else if (!isAdmin) {
+    } else {
       filter.userId = req.user.id;
     }
 
@@ -39,10 +39,36 @@ export async function markNotificationRead(req, res) {
 
 export async function markAllRead(req, res) {
   try {
-    await Notification.updateMany({ userId: req.user.id, isRead: false }, { $set: { isRead: true } });
-    return res.json({ ok: true });
+    const isAdmin = req.user?.role === 'ADMIN';
+    const { userId } = req.query;
+    const filter = { isRead: false };
+
+    if (isAdmin) {
+      if (userId) filter.userId = userId;
+    } else {
+      filter.userId = req.user.id;
+    }
+
+    const result = await Notification.updateMany(filter, { $set: { isRead: true } });
+    return res.json({ ok: true, modified: result.modifiedCount || 0 });
   } catch (error) {
     return res.status(500).json({ error: 'No se pudieron actualizar las notificaciones' });
+  }
+}
+
+export async function deleteManyNotifications(req, res) {
+  try {
+    const isAdmin = req.user?.role === 'ADMIN';
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) return res.status(400).json({ error: 'No se enviaron notificaciones para eliminar' });
+
+    const filter = { _id: { $in: ids } };
+    if (!isAdmin) filter.userId = req.user.id;
+
+    const result = await Notification.deleteMany(filter);
+    return res.json({ ok: true, deleted: result.deletedCount || 0 });
+  } catch (error) {
+    return res.status(500).json({ error: 'No se pudieron eliminar las notificaciones seleccionadas' });
   }
 }
 
