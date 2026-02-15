@@ -1,4 +1,3 @@
-import { createRequire } from 'module';
 import { News } from '../models/News.model.js';
 import { env } from '../config/env.js';
 
@@ -95,7 +94,7 @@ async function pickLatest(category) {
     .filter((x) => x.title && x.url)
     .filter((x) => matchesCategory(x, category));
 
-  const sorted = (filtered.length > 0 ? filtered : collected)
+  const sorted = filtered
     .filter((x) => x.title && x.url)
     .sort((a, b) => {
       const da = a.pubDate ? a.pubDate.getTime() : 0;

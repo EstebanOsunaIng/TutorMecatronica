@@ -108,7 +108,7 @@ export default function TeacherStudents() {
             Reporte institucional, detallado
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -117,7 +117,7 @@ export default function TeacherStudents() {
           />
           <button
             onClick={load}
-            className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-brand-600"
+            className="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-brand-600 sm:w-auto"
           >
             Buscar
           </button>

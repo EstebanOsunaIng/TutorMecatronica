@@ -247,7 +247,7 @@ export default function StudentDashboard() {
         </div>
 
         <Card>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Ultimas 3

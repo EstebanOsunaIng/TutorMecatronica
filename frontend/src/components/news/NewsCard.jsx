@@ -1,15 +1,19 @@
 import React from 'react';
 
 const FALLBACK_BY_CATEGORY = {
-  Innovación: '/assets/news/innovacion.svg',
-  Innovacion: '/assets/news/innovacion.svg',
-  'Inteligencia Artificial': '/assets/news/ia.svg',
-  IA: '/assets/news/ia.svg',
-  Robótica: '/assets/news/robotica.svg',
-  Robotica: '/assets/news/robotica.svg',
-  Humanoides: '/assets/news/humanoides.svg',
-  Mecatrónica: '/assets/news/robotica.svg',
-  Mecatronica: '/assets/news/robotica.svg'
+  'Mecatrónica': '/assets/mecatronica.png',
+  Mecatronica: '/assets/mecatronica.png',
+  'Robótica': '/assets/robotica.png',
+  Robotica: '/assets/robotica.png',
+  Humanoides: '/assets/humanoide.png',
+  Humanoide: '/assets/humanoide.png',
+  'Ingeniería': '/assets/ingenieria.png',
+  Ingenieria: '/assets/ingenieria.png',
+  Unitree: '/assets/unitree.png',
+  'Innovación': '/assets/mecatronica.png',
+  Innovacion: '/assets/mecatronica.png',
+  'Inteligencia Artificial': '/assets/mecatronica.png',
+  IA: '/assets/mecatronica.png'
 };
 
 function relativeTime(dateValue) {
@@ -25,7 +29,7 @@ function relativeTime(dateValue) {
 
 function pickFallback(category) {
   const key = String(category || '').trim();
-  return FALLBACK_BY_CATEGORY[key] || '/assets/news/default.svg';
+  return FALLBACK_BY_CATEGORY[key] || '/assets/mecatronica.png';
 }
 
 export default function NewsCard({ item }) {

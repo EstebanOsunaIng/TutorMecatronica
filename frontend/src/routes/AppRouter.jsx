@@ -28,6 +28,7 @@ import AdminUsers from '../pages/admin/Users.jsx';
 import AdminModules from '../pages/admin/Modules.jsx';
 import AdminStats from '../pages/admin/Stats.jsx';
 import AdminSettings from '../pages/admin/Settings.jsx';
+import AdminNews from '../pages/admin/News.jsx';
 
 export default function AppRouter() {
   const { user } = useAuth();
@@ -98,6 +99,7 @@ export default function AppRouter() {
         <Route path="users" element={<AdminUsers />} />
         <Route path="modules" element={<AdminModules />} />
         <Route path="modules/editor" element={<TeacherModuleEditor />} />
+        <Route path="news" element={<AdminNews />} />
         <Route path="stats" element={<AdminStats />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="settings/security" element={<AdminSettings />} />

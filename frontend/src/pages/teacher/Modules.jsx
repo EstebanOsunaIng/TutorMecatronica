@@ -69,7 +69,7 @@ export default function TeacherModules() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-bold">Gestion de modulos</h2>
@@ -90,7 +90,7 @@ export default function TeacherModules() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar modulo por nombre"
-            className="w-full rounded-xl border border-slate-700 bg-slate-900/70 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-brand-400"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100"
           />
         </div>
       </Card>
@@ -100,7 +100,7 @@ export default function TeacherModules() {
           <Card
             key={m._id}
             onClick={() => openPreview(m)}
-            className="group h-[440px] overflow-hidden border border-white/15 bg-white/[0.08] p-0 shadow-[0_18px_45px_-28px_rgba(8,47,73,0.95)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/[0.12]"
+            className="group h-[440px] overflow-hidden border border-cyan-100 bg-white p-0 shadow-[0_18px_45px_-28px_rgba(8,47,73,0.28)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200 hover:bg-sky-50/30 dark:border-white/15 dark:bg-white/[0.08] dark:shadow-[0_18px_45px_-28px_rgba(8,47,73,0.95)] dark:backdrop-blur-md dark:hover:bg-white/[0.12]"
           >
             <div className="flex h-full flex-col">
               <div className="relative h-44 w-full shrink-0 overflow-hidden bg-slate-800">
@@ -114,24 +114,27 @@ export default function TeacherModules() {
                   }}
                   className="h-full w-full object-cover"
                 />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/10 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/10 to-transparent" />
 
-                <span className="absolute left-3 top-3 rounded-full bg-slate-900/75 px-2 py-1 text-[11px] font-bold text-slate-100 ring-1 ring-white/20">
+                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[11px] font-bold text-slate-800 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
                   Modulo {m.moduleNumber}
                 </span>
 
-                <span className="absolute right-3 top-3 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
+                <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
                   {m.category || 'General'}
                 </span>
               </div>
 
               <div className="flex flex-1 flex-col gap-3 p-5">
                 <div className="space-y-2.5">
-                  <h3 className="line-clamp-2 text-xl font-bold leading-tight text-white">{m.title || 'Modulo sin titulo'}</h3>
-                  <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-300" title={m.description || 'Sin descripcion.'}>
+                  <h3 className="line-clamp-2 text-xl font-bold leading-tight text-slate-900 dark:text-white">{m.title || 'Modulo sin titulo'}</h3>
+                  <p
+                    className="line-clamp-2 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300"
+                    title={m.description || 'Sin descripcion.'}
+                  >
                     {m.description || 'Sin descripcion.'}
                   </p>
-                  <p className="text-[11px] text-cyan-100/80">
+                  <p className="text-[11px] text-cyan-700 dark:text-cyan-100/80">
                     {m.moduleNumber > 1 ? (
                       <>
                         Se desbloquea al completar: <span className="font-semibold">Modulo {m.moduleNumber - 1}</span>
@@ -144,14 +147,14 @@ export default function TeacherModules() {
                   </p>
                 </div>
 
-                <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+                <div className="mt-auto grid grid-cols-2 gap-2 border-t border-cyan-100 pt-3 dark:border-white/10">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/teacher/modules/editor?moduleId=${m._id}`);
                     }}
                     disabled={busyId === m._id}
-                    className="inline-flex h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-brand-500/15 px-2 py-1.5 text-[10px] font-semibold text-brand-100 ring-1 ring-brand-300/30 transition hover:bg-brand-500/25 disabled:opacity-50"
+                    className="inline-flex h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-brand-100 px-2 py-1.5 text-[10px] font-semibold text-brand-700 ring-1 ring-brand-300 transition hover:bg-brand-200/70 disabled:opacity-50 dark:bg-brand-500/15 dark:text-brand-100 dark:ring-brand-300/30 dark:hover:bg-brand-500/25"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     Editar
@@ -162,7 +165,7 @@ export default function TeacherModules() {
                       setModuleToDelete(m);
                     }}
                     disabled={busyId === m._id}
-                    className="inline-flex h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-red-500/15 px-2 py-1.5 text-[10px] font-semibold text-red-200 ring-1 ring-red-400/25 transition hover:bg-red-500/25 disabled:opacity-50"
+                    className="inline-flex h-8 w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-red-100 px-2 py-1.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-300 transition hover:bg-red-200/70 disabled:opacity-50 dark:bg-red-500/15 dark:text-red-200 dark:ring-red-400/25 dark:hover:bg-red-500/25"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Eliminar
@@ -174,7 +177,7 @@ export default function TeacherModules() {
         ))}
 
         {!filteredModules.length && (
-          <Card>
+          <Card className="bg-cyan-50/70 dark:bg-slate-900">
             <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
           </Card>
         )}

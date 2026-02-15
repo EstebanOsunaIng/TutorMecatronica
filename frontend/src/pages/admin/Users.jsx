@@ -294,8 +294,8 @@ export default function AdminUsers() {
         {error && <p className="mt-4 rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/20 dark:text-red-100">{error}</p>}
         {success && <p className="mt-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">{success}</p>}
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-cyan-100 dark:border-slate-700">
-          <table className="w-full table-fixed text-left text-sm">
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 dark:border-slate-700">
+          <table className="min-w-[720px] w-full table-fixed text-left text-sm">
             <colgroup>
               <col className="w-1/5" />
               <col className="w-1/5" />

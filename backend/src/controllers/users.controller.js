@@ -1,5 +1,6 @@
 import { User } from '../models/User.model.js';
 import { hashPassword } from '../utils/hash.js';
+import { createNotification } from '../services/notifications.service.js';
 
 function sanitizeUser(user) {
   const { passwordHash, ...safe } = user.toObject();
@@ -84,6 +85,12 @@ export async function createUserByAdmin(req, res) {
     passwordHash
   });
 
+  await createNotification({
+    userId: req.user.id,
+    title: 'Usuario registrado',
+    message: `Se creó un nuevo usuario con rol ${role === 'STUDENT' ? 'Estudiante' : 'Docente'}.`,
+    type: 'USUARIO_CREADO'
+  });
   return res.status(201).json({ user: sanitizeUser(user) });
 }
 
