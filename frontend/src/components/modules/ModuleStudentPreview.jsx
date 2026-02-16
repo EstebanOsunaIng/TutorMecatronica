@@ -133,7 +133,7 @@ const getYouTubeId = (url) => {
   if (shortMatch?.[1]) return shortMatch[1];
   const watchMatch = input.match(/[?&]v=([^?&/]+)/i);
   if (watchMatch?.[1]) return watchMatch[1];
-  const embedMatch = input.match(/youtube\.com\/(embed|shorts)\/([^?&/]+)/i);
+  const embedMatch = input.match(/youtube\.com\/(embed|shorts|live|v)\/([^?&/]+)/i);
   if (embedMatch?.[2]) return embedMatch[2];
   return '';
 };

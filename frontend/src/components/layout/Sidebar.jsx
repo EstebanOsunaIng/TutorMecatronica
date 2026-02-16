@@ -31,6 +31,7 @@ const roleItems = {
     { to: '/admin/dashboard', label: 'Inicio', icon: Home },
     { to: '/admin/users', label: 'Registro de usuarios', icon: Users },
     { to: '/admin/modules', label: 'Gestion de modulos', icon: Edit3 },
+    { to: '/admin/news', label: 'Noticias', icon: Newspaper },
     { to: '/admin/stats', label: 'Estadisticas', icon: BarChart3 },
     { to: '/admin/settings', label: 'Ajustes', icon: Settings }
   ]

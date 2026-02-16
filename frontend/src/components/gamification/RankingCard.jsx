@@ -1,41 +1,33 @@
 import React from 'react';
 import Card from '../common/Card.jsx';
-import { Crown, Medal } from 'lucide-react';
+import { Award, Crown } from 'lucide-react';
 
-function medalStyles(idx) {
-  // 1) Zafiro 2) Diamante 3) Oro 4) Plata 5) Bronce
+function coinStyles(idx) {
   if (idx === 0) {
     return {
-      ring: 'ring-sky-300/50',
-      bg: 'bg-sky-100 text-sky-900',
-      darkBg: 'dark:bg-sky-400/15 dark:text-sky-200'
+      ring: 'ring-amber-300/40',
+      bg: 'bg-amber-300/14 text-amber-500',
+      darkBg: 'dark:bg-amber-300/12 dark:text-amber-300'
     };
   }
   if (idx === 1) {
     return {
-      ring: 'ring-cyan-300/50',
-      bg: 'bg-cyan-100 text-cyan-900',
-      darkBg: 'dark:bg-cyan-400/15 dark:text-cyan-200'
+      ring: 'ring-slate-300/45',
+      bg: 'bg-slate-300/16 text-slate-500',
+      darkBg: 'dark:bg-slate-200/14 dark:text-slate-200'
     };
   }
   if (idx === 2) {
     return {
-      ring: 'ring-amber-300/50',
-      bg: 'bg-amber-100 text-amber-900',
-      darkBg: 'dark:bg-amber-500/15 dark:text-amber-200'
-    };
-  }
-  if (idx === 3) {
-    return {
-      ring: 'ring-slate-300/60',
-      bg: 'bg-slate-100 text-slate-900',
-      darkBg: 'dark:bg-slate-400/15 dark:text-slate-100'
+      ring: 'ring-orange-300/45',
+      bg: 'bg-orange-300/14 text-orange-500',
+      darkBg: 'dark:bg-orange-300/12 dark:text-orange-300'
     };
   }
   return {
-    ring: 'ring-orange-300/50',
-    bg: 'bg-orange-100 text-orange-900',
-    darkBg: 'dark:bg-orange-500/15 dark:text-orange-200'
+    ring: 'ring-slate-300/35',
+    bg: 'bg-white/65 text-slate-500',
+    darkBg: 'dark:bg-slate-200/12 dark:text-slate-300'
   };
 }
 
@@ -59,7 +51,7 @@ export default function RankingCard({ top }) {
 
       <div className="space-y-2">
         {ranked.map((user, idx) => {
-          const s = medalStyles(idx);
+          const s = coinStyles(idx);
           return (
             <div
               key={user._id}
@@ -68,10 +60,10 @@ export default function RankingCard({ top }) {
               <div className="flex min-w-0 items-center gap-3">
                 <div
                   className={
-                    `flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${s.ring} ${s.bg} ${s.darkBg}`
+                    `flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ${s.ring} ${s.bg} ${s.darkBg}`
                   }
                 >
-                  <Medal className="h-4 w-4" />
+                  <Award className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-extrabold">

@@ -8,7 +8,7 @@ export const env = {
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   },
   news: {
-    gnewsApiKey: process.env.GNEWS_API_KEY || '',
+    gnewsApiKey: (process.env.GNEWS_API_KEY || process.env.GNEWS_TOKEN || '').trim(),
     gnewsLang: process.env.GNEWS_LANG || 'all',
     translateUrl: process.env.NEWS_TRANSLATE_URL || 'https://libretranslate.de/translate',
     translateApiKey: process.env.NEWS_TRANSLATE_API_KEY || ''

@@ -172,10 +172,15 @@ async function translateToSpanishSafe(text) {
 export async function ensureDailyNews() {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const cutoff = new Date(start.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
   await News.deleteMany({ date: { $lt: cutoff } });
-  const count = await News.countDocuments();
-  if (count > 0) return;
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const todayCount = await News.countDocuments({ date: { $gte: start, $lt: end } });
+  if (todayCount > 0) return;
+
+  await News.deleteMany({ date: { $gte: start, $lt: end } });
 
   const batch = [];
   const usedUrls = new Set();

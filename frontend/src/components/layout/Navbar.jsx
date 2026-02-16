@@ -50,8 +50,8 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
   const notificationsMenuRef = useRef(null);
 
   const logoSrc = theme === 'dark' ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png';
-  const logoLightSize = 'h-9 w-[160px]';
-  const logoDarkSize = 'h-8 w-[140px] brightness-90';
+  const logoLightSize = 'h-9 w-[50px]';
+  const logoDarkSize = 'h-8 w-[200px] brightness-90';
   const logoSizeClass = theme === 'dark' ? logoDarkSize : logoLightSize;
   const avatarSrc = user?.profilePhotoUrl || user?.avatarUrl || user?.photoUrl || '';
   const userName = user?.name || 'Usuario';

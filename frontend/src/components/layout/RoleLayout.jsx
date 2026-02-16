@@ -53,7 +53,7 @@ export default function RoleLayout() {
           <main className="min-w-0 flex-1 bg-sky-50/45 p-6 dark:bg-transparent">
             <Outlet />
           </main>
-          <div className="hidden w-[360px] border-l border-cyan-100/80 bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:border-slate-800 dark:bg-transparent">
+          <div className="hidden w-[360px] bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:bg-transparent">
             <ChatDock />
           </div>
         </div>
