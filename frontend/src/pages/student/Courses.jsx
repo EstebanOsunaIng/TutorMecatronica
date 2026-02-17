@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Lock, PlayCircle } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
@@ -9,6 +9,7 @@ import { progressApi } from '../../api/progress.api.js';
 const DEFAULT_MODULE_IMAGE = '/assets/campus-placeholder.svg';
 
 export default function Courses() {
+  const navigate = useNavigate();
   const [modules, setModules] = useState([]);
   const [progressRows, setProgressRows] = useState([]);
   const [restartingModuleId, setRestartingModuleId] = useState('');
@@ -71,9 +72,17 @@ export default function Courses() {
       <h2 className="text-2xl font-bold">Cursos</h2>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {modulesWithProgress.map((m) => (
-          <Card key={m._id} className="group h-[420px] overflow-hidden border border-white/15 bg-white/[0.08] p-0 shadow-[0_18px_45px_-28px_rgba(8,47,73,0.95)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/[0.12]">
-            <div className="relative h-full">
-              <div className="relative h-36 w-full shrink-0 overflow-hidden bg-slate-800">
+          <Card
+            key={m._id}
+            onClick={() => {
+              if (!m.locked) navigate(`/student/courses/${m._id}`);
+            }}
+            className={`group overflow-hidden border border-cyan-100 bg-white/90 !p-0 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50 ${
+              m.locked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+            }`}
+          >
+            <div className="relative h-full min-h-[380px]">
+              <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-t-2xl bg-slate-800">
                 <img
                   src={m.imageUrl || DEFAULT_MODULE_IMAGE}
                   alt={m.title || 'Modulo'}
@@ -82,68 +91,74 @@ export default function Courses() {
                   }}
                   className={`h-full w-full object-cover ${m.locked ? 'opacity-60' : ''}`}
                 />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/10 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent dark:from-slate-950/55" />
 
-                <span className="absolute left-3 top-3 rounded-full bg-slate-900/75 px-2 py-1 text-[11px] font-bold text-slate-100 ring-1 ring-white/20">
+                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[11px] font-bold text-slate-800 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
                   Modulo {m.moduleNumber}
                 </span>
 
                 {m.locked ? (
                   <>
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-900/75 px-2 py-1 text-[11px] font-semibold text-slate-100 ring-1 ring-white/20">
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-100/95 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
                       <Lock className="h-3.5 w-3.5" />
                       Bloqueado
                     </span>
-                    <span className="absolute right-3 top-12 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
+                    <span className="absolute right-3 top-12 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
                       {m.category || 'General'}
                     </span>
                   </>
                 ) : m.completed ? (
                   <>
-                    <span className="absolute right-3 top-3 rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] font-semibold text-emerald-100 ring-1 ring-emerald-300/35">
+                    <span className="absolute right-3 top-3 rounded-full bg-emerald-100/95 px-2 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-100 dark:ring-emerald-300/35">
                       Completado
                     </span>
-                    <span className="absolute right-3 top-12 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
+                    <span className="absolute right-3 top-12 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
                       {m.category || 'General'}
                     </span>
                   </>
                 ) : (
                   <>
-                    <span className="absolute right-3 top-3 rounded-full bg-cyan-500/20 px-2 py-1 text-[11px] font-semibold text-cyan-100 ring-1 ring-cyan-300/35">
+                    <span className="absolute right-3 top-3 rounded-full bg-cyan-100/95 px-2 py-1 text-[11px] font-semibold text-cyan-800 ring-1 ring-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-100 dark:ring-cyan-300/35">
                       {m.inProgress ? 'En progreso' : 'Pendiente'}
                     </span>
-                    <span className="absolute right-3 top-12 rounded-full bg-slate-900/70 px-2 py-1 text-[10px] font-semibold text-slate-200 ring-1 ring-white/15">
+                    <span className="absolute right-3 top-12 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
                       {m.category || 'General'}
                     </span>
                   </>
                 )}
               </div>
 
-              <div className="flex h-[calc(100%-9rem)] flex-col p-5">
-                <div className="space-y-2.5">
-                  <h3 className="line-clamp-2 text-xl font-bold leading-tight text-white">{m.title || 'Modulo sin titulo'}</h3>
-                  <p className="line-clamp-2 text-xs leading-relaxed text-slate-300" title={m.description || 'Sin descripcion.'}>
+              <div className="flex flex-1 flex-col p-4">
+                <div className="h-[112px] space-y-2 overflow-hidden">
+                  <h3 className="line-clamp-2 text-base font-extrabold text-slate-900 group-hover:text-[#1d4f91] dark:text-white dark:group-hover:text-sky-200">
+                    {m.title || 'Modulo sin titulo'}
+                  </h3>
+                  <p className="line-clamp-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300" title={m.description || 'Sin descripcion.'}>
                     {m.description || 'Sin descripcion.'}
                   </p>
                 </div>
 
-                <div className="mt-auto space-y-2.5 pt-3">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                <div className="mt-auto h-[104px] space-y-2.5 pt-3">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-300">
                     <span>Progreso</span>
                     <span>{m.progressPercent}%</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-700/80">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700/80">
                     <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400" style={{ width: `${m.progressPercent}%` }} />
                   </div>
 
                   {m.locked ? (
-                    <div className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-slate-700/60 px-3 py-2 text-sm font-semibold text-slate-200">
+                    <div className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
                       <Lock className="h-4 w-4" />
                       Completa el modulo anterior
                     </div>
                   ) : m.completed ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <Link to={`/student/courses/${m._id}`} className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white">
+                      <Link
+                        to={`/student/courses/${m._id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
+                      >
                         <PlayCircle className="h-4 w-4" />
                         Ver modulo
                       </Link>
@@ -151,13 +166,17 @@ export default function Courses() {
                           type="button"
                           onClick={() => setRestartTarget(m)}
                           disabled={restartingModuleId === m._id}
-                          className="inline-flex w-full items-center justify-center rounded-lg bg-slate-700/60 px-3 py-2 text-sm font-semibold text-slate-200 ring-1 ring-white/15 disabled:opacity-50"
+                          className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
                         >
                         {restartingModuleId === m._id ? 'Reiniciando...' : 'Reiniciar'}
                       </button>
                     </div>
                   ) : (
-                    <Link to={`/student/courses/${m._id}`} className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white">
+                    <Link
+                      to={`/student/courses/${m._id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
+                    >
                       <PlayCircle className="h-4 w-4" />
                       Continuar modulo
                     </Link>

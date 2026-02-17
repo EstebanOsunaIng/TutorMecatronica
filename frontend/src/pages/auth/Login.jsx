@@ -78,11 +78,12 @@ export default function Login() {
             </div>
 
             <div className="mb-8 pt-4 text-center">
-              <div className="mx-auto flex h-14 w-[220px] items-center justify-center md:h-16 md:w-[260px]">
+              <div className="mx-auto flex h-14 w-[260px] items-center justify-center overflow-hidden md:h-16 md:w-[280px]">
                 <img
                   src={isDark ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png'}
                   alt="Logo Universitaria de Colombia"
-                  className="w-auto max-w-full object-contain"
+                  className="h-full w-full object-contain"
+                  style={{ transform: isDark ? 'scale(1.6)' : 'scale(0.82)' }}
                 />
               </div>
               <h2 className={`mt-4 text-[2.2rem] font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-[#092748]'}`}>TuVir Académico</h2>

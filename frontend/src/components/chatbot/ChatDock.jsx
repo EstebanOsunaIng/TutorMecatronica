@@ -80,8 +80,8 @@ export default function ChatDock() {
   }, [loading]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-cyan-100/80 bg-white/95 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
-      <div className="border-b border-cyan-100/80 p-4 dark:border-slate-800">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[color:var(--light-divider)] bg-white/95 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
+      <div className="border-b border-[color:var(--light-divider)] p-4 dark:border-slate-800">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">Chat TuVir</h3>
           <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function ChatDock() {
         </div>
       </div>
       {showHistory && (
-        <div className="border-b border-cyan-100/80 bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="border-b border-[color:var(--light-divider)] bg-white/70 p-3 dark:border-slate-800 dark:bg-slate-900/40">
           <div className="max-h-40 space-y-2 overflow-y-auto">
             {history.length === 0 && (
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
@@ -127,10 +127,10 @@ export default function ChatDock() {
         </div>
       )}
       <ChatMessages messages={messages} loading={loading} />
-      <div className="border-t border-cyan-100/80 p-4 dark:border-slate-800">
+      <div className="border-t border-[color:var(--light-divider)] p-4 dark:border-slate-800">
         <div className="flex gap-2">
           <input
-            className="flex-1 rounded-lg border border-cyan-100 bg-white/90 px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="flex-1 rounded-lg border border-[color:var(--light-divider)] bg-white/90 px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-300 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             placeholder="Pregunta sobre robotica, humanoides, etc..."
             value={input}
             onChange={(e) => setInput(e.target.value)}

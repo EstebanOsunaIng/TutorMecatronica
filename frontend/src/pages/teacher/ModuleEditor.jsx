@@ -6,7 +6,7 @@ import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
 const INITIAL_COVER_FORM = { title: '', description: '', category: 'General', imageUrl: '', level: 'Básico' };
-const CATEGORY_OPTIONS = ['General', 'Robotica', 'Programacion', 'Electronica', 'Diseno 3D', 'Automatizacion', 'Inteligencia Artificial', 'Mecanica'];
+const CATEGORY_OPTIONS = ['General', 'Robotica', 'Programacion', 'Electronica', 'Diseño 3D', 'Automatizacion', 'Inteligencia Artificial', 'Mecanica'];
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -854,7 +854,7 @@ export default function ModuleEditor() {
                     const isLevelValid = isDraftLevelValid(levelItem);
 
                     return (
-                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-2xl bg-slate-50/80 p-3.5 ring-1 ring-slate-200/80 dark:bg-slate-900/40 dark:ring-slate-700/70">
+                      <div key={`editor-level-${levelIndex + 1}`} className="rounded-2xl border border-cyan-100 bg-white/90 p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900/40">
                         <div
                           className="flex cursor-pointer items-center gap-2 rounded-lg"
                           onClick={() => {
@@ -864,7 +864,7 @@ export default function ModuleEditor() {
                             if (nextExpanded) setActiveDraftSublevelIndex(0);
                           }}
                         >
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${isLevelValid ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300'}`}>
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${isLevelValid ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-sky-100 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300'}`}>
                             {isLevelValid ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                           </div>
 
@@ -880,7 +880,7 @@ export default function ModuleEditor() {
                                   e.stopPropagation();
                                   openLevelNameModal(levelIndex);
                                 }}
-                                className={`rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-amber-500 hover:bg-slate-200 dark:text-amber-300 dark:hover:bg-slate-700'}`}
+                                className={`rounded p-1 ${isLevelValid ? 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700' : 'text-sky-500 hover:bg-slate-200 dark:text-sky-300 dark:hover:bg-slate-700'}`}
                                 title={`Editar nombre del nivel ${levelIndex + 1}`}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
@@ -925,7 +925,7 @@ export default function ModuleEditor() {
                                   )}
                                   <div className="min-w-0 flex-1">
                                     <p className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || `Subnivel ${levelIndex + 1}.${sublevelIndex + 1}`}</p>
-                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200'}`}>
+                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'}`}>
                                       {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'OK' : 'Falta'}
                                     </span>
                                   </div>
@@ -953,7 +953,7 @@ export default function ModuleEditor() {
               </aside>
 
               {activeLevel && activeSublevel && (
-                <section className="rounded-2xl bg-white p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/75 dark:ring-slate-700/50">
+                <section className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900/75">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Editando nivel {activeDraftLevelIndex + 1} / subnivel {activeDraftLevelIndex + 1}.{activeDraftSublevelIndex + 1}</h3>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1262,7 +1262,7 @@ export default function ModuleEditor() {
                           return (
                             <span
                               key={`draft-dot-${item.levelIndex + 1}-${item.sublevelIndex + 1}`}
-                              className={`h-2.5 rounded-full ${idx === activeFlatDraftIndex ? 'w-7 bg-brand-500' : complete ? 'w-2.5 bg-emerald-500' : 'w-2.5 bg-amber-400'}`}
+                              className={`h-2.5 rounded-full ${idx === activeFlatDraftIndex ? 'w-7 bg-brand-500' : complete ? 'w-2.5 bg-emerald-500' : 'w-2.5 bg-sky-400'}`}
                             />
                           );
                         })}
@@ -1282,7 +1282,7 @@ export default function ModuleEditor() {
               )}
 
               {publishTried && !allDraftLevelsValid && (
-                <p className="lg:col-span-2 text-xs text-amber-300">Para {isEditingMode ? 'guardar' : 'publicar'}, completa titulo de nivel, titulo de subnivel e instrucciones en todos los subniveles.</p>
+                <p className="lg:col-span-2 text-xs text-rose-500 dark:text-rose-300">Para {isEditingMode ? 'guardar' : 'publicar'}, completa titulo de nivel, titulo de subnivel e instrucciones en todos los subniveles.</p>
               )}
             </div>
           )}
@@ -1442,10 +1442,10 @@ export default function ModuleEditor() {
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Nombre del nivel {levelNameModal.levelIndex + 1}</h3>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Define un nombre claro para organizar mejor los subniveles.</p>
         <div className="mt-4 grid gap-1.5">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Titulo del nivel *</label>
+          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">Titulo del nivel *</label>
           <input
             autoFocus
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-300/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             placeholder={`Ej: Fundamentos del nivel ${levelNameModal.levelIndex + 1}`}
             value={levelNameModal.value}
             onChange={(e) => setLevelNameModal((prev) => ({ ...prev, value: e.target.value }))}
@@ -1456,13 +1456,12 @@ export default function ModuleEditor() {
               }
             }}
           />
-          {!levelNameModal.value.trim() && <p className="text-xs text-amber-300">El nombre del nivel es obligatorio.</p>}
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={() => setLevelNameModal({ open: false, levelIndex: 0, value: '' })}
-            className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+            className="rounded-lg border border-slate-400 px-4 py-2 text-sm font-semibold transition hover:bg-slate-400 !bg-slate-300 !text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
           >
             Cerrar
           </button>
@@ -1470,7 +1469,7 @@ export default function ModuleEditor() {
             type="button"
             disabled={!levelNameModal.value.trim()}
             onClick={saveLevelNameFromModal}
-            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-brand-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Guardar nombre
           </button>

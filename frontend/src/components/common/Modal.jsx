@@ -27,10 +27,10 @@ export default function Modal({ open, onClose, children, maxWidthClass = 'max-w-
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-400 text-sm font-bold transition hover:bg-slate-400 !bg-slate-300 !text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
             aria-label="Cerrar"
           >
-            x
+            X
           </button>
         </div>
         {children}

@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: light;
+  --light-divider: rgba(178, 219, 235, 0.95);
 }
 
 .dark {

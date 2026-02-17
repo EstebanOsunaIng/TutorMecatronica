@@ -14,7 +14,9 @@ import {
 } from 'recharts';
 import { ArrowRight, BookOpenCheck, ChartColumnBig, Pencil, UsersRound } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import NewsFeed from '../../components/news/NewsFeed.jsx';
 import { modulesApi } from '../../api/modules.api.js';
+import { newsApi } from '../../api/news.api.js';
 import { teacherApi } from '../../api/teacher.api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
@@ -45,6 +47,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth();
   const [modules, setModules] = useState([]);
   const [students, setStudents] = useState([]);
+  const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,10 +55,11 @@ export default function TeacherDashboard() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [modulesRes, studentsRes] = await Promise.all([modulesApi.list(), teacherApi.listStudents()]);
+        const [modulesRes, studentsRes, newsRes] = await Promise.all([modulesApi.list(), teacherApi.listStudents(), newsApi.list()]);
         if (!active) return;
         setModules(modulesRes.data.modules || []);
         setStudents(studentsRes.data.students || []);
+        setNews(newsRes.data.news || []);
       } finally {
         if (active) setLoading(false);
       }
@@ -139,13 +143,6 @@ export default function TeacherDashboard() {
               Aqui tienes un resumen de modulos y actividad de tus estudiantes para tomar decisiones rapidas.
             </p>
           </div>
-          <button
-            onClick={() => navigate('/teacher/modules')}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-500/25 transition hover:brightness-110"
-          >
-            Gestionar modulos
-            <ArrowRight className="h-4 w-4" />
-          </button>
         </div>
       </Card>
 
@@ -249,7 +246,7 @@ export default function TeacherDashboard() {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-sky-700 dark:text-brand-300">Modulos recientes</h3>
+          <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Modulos recientes</h3>
           <button
             type="button"
             onClick={() => navigate('/teacher/modules')}
@@ -265,12 +262,12 @@ export default function TeacherDashboard() {
             <Card
               key={m._id}
               onClick={() => navigate(`/teacher/modules/editor?moduleId=${m._id}`)}
-              className="group h-[370px] overflow-hidden border border-cyan-100 bg-white p-0 shadow-[0_18px_45px_-28px_rgba(8,47,73,0.25)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200 hover:bg-sky-50/30 dark:border-white/15 dark:bg-white/[0.08] dark:shadow-[0_18px_45px_-28px_rgba(8,47,73,0.95)] dark:backdrop-blur-md dark:hover:bg-white/[0.12]"
+              className="group overflow-hidden border border-cyan-100 bg-white/90 !p-0 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50"
             >
               <div className="flex h-full flex-col">
-                <div className="relative h-36 w-full shrink-0 overflow-hidden bg-slate-800">
+                <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-t-2xl bg-slate-800">
                   <img src={moduleImage(m)} alt={m.title || 'Modulo'} className="h-full w-full object-cover" />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/10 to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent dark:from-slate-950/55" />
 
                   <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[11px] font-bold text-slate-800 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
                     Modulo {m.moduleNumber}
@@ -289,10 +286,14 @@ export default function TeacherDashboard() {
                   </span>
                 </div>
 
-                <div className="flex flex-1 flex-col gap-3 p-5">
-                  <div className="space-y-2.5">
-                    <h4 className="line-clamp-2 text-xl font-bold leading-tight text-slate-900 dark:text-white">{m.title || 'Modulo sin titulo'}</h4>
-                    <p className="line-clamp-2 text-sm leading-relaxed text-slate-700 dark:text-slate-300">{m.description || 'Sin descripcion.'}</p>
+                <div className="flex flex-1 flex-col gap-3 p-4">
+                  <div className="space-y-2">
+                    <h4 className="line-clamp-2 text-base font-extrabold text-slate-900 group-hover:text-[#1d4f91] dark:text-white dark:group-hover:text-sky-200">
+                      {m.title || 'Modulo sin titulo'}
+                    </h4>
+                    <p className="line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                      {m.description || 'Sin descripcion.'}
+                    </p>
                   </div>
 
                   <button
@@ -300,7 +301,7 @@ export default function TeacherDashboard() {
                       e.stopPropagation();
                       navigate(`/teacher/modules/editor?moduleId=${m._id}`);
                     }}
-                    className="mt-auto inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-brand-100 px-3 text-sm font-semibold text-brand-700 ring-1 ring-brand-300 transition hover:bg-brand-200/70 dark:bg-brand-500/15 dark:text-brand-100 dark:ring-brand-300/30 dark:hover:bg-brand-500/25"
+                    className="mt-auto inline-flex w-fit items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
                   >
                     <Pencil className="h-4 w-4" />
                     Editar
@@ -317,6 +318,27 @@ export default function TeacherDashboard() {
           )}
         </div>
       </div>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/news')}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-brand-200 dark:hover:text-brand-100"
+          >
+            Ver mas
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-4">
+          <NewsFeed
+            items={[...(news || [])]
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 3)}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

@@ -152,7 +152,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-5 rounded-3xl border border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-4 text-slate-900 shadow-inner md:p-6 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100">
+    <div className="space-y-5 rounded-3xl border border-[color:var(--light-divider)] bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-4 text-slate-900 shadow-inner md:p-6 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Panel de Administración</p>
@@ -169,7 +169,7 @@ export default function AdminDashboard() {
           return (
             <div
               key={card.title}
-              className={`rounded-2xl border border-cyan-100/70 bg-gradient-to-br p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:bg-none dark:text-slate-100 ${card.color}`}
+              className={`rounded-2xl border border-cyan-100/70 bg-gradient-to-br p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:bg-none dark:text-slate-100 ${card.color}`}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
               key={action.to}
               type="button"
               onClick={() => navigate(action.to)}
-              className="flex items-center gap-3 rounded-2xl border border-cyan-100 bg-white/90 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+              className="flex items-center gap-3 rounded-2xl border border-cyan-100 bg-white/90 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
             >
               <span className="rounded-xl bg-brand-100 p-2 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200">
                 <Icon className="h-4 w-4" />
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-        <section className="rounded-2xl border border-cyan-100 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section className="rounded-2xl border border-cyan-100 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-bold">Registro de Usuarios</h2>
             <div className="flex items-center gap-2">
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-cyan-100 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <section className="rounded-2xl border border-cyan-100 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
           <h2 className="mb-4 text-base font-bold">Distribucion de Roles</h2>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">

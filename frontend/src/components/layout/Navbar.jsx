@@ -50,9 +50,7 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
   const notificationsMenuRef = useRef(null);
 
   const logoSrc = theme === 'dark' ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png';
-  const logoLightSize = 'h-9 w-[160px]';
-  const logoDarkSize = 'h-8 w-[140px] brightness-90';
-  const logoSizeClass = theme === 'dark' ? logoDarkSize : logoLightSize;
+  const logoScale = theme === 'dark' ? 1.6 : 0.82;
   const avatarSrc = user?.profilePhotoUrl || user?.avatarUrl || user?.photoUrl || '';
   const userName = user?.name || 'Usuario';
   const userNameDisplay = userName.toUpperCase();
@@ -154,7 +152,7 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-cyan-100/80 bg-sky-50/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
+    <header className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-[color:var(--light-divider)] bg-sky-50/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-6">
       <div className="grid h-full grid-cols-[auto_1fr_auto] items-center gap-4">
         <button
           onClick={onOpenSidebar}
@@ -168,7 +166,14 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
         <div className="hidden h-10 w-10 min-[1200px]:block" aria-hidden="true" />
 
         <div className="flex items-center justify-center">
-          <img src={logoSrc} alt="Logo UD" className={`object-contain ${logoSizeClass}`} />
+          <div className="flex h-10 w-[180px] items-center justify-center overflow-hidden">
+            <img
+              src={logoSrc}
+              alt="Logo UD"
+              className="h-full w-full object-contain"
+              style={{ transform: `scale(${logoScale})` }}
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 sm:gap-3">

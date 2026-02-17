@@ -354,8 +354,8 @@ export default function ModuleStudentPreview({
   const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-      <aside className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+    <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+      <aside className="rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Contenido del modulo</p>
         <div className="mt-3 space-y-2">
           {groupedLevels.map((levelItem, levelIdx) => {
@@ -365,7 +365,7 @@ export default function ModuleStudentPreview({
             const allLevelCompleted = isStudent && levelItem.sublevels.length > 0 && completedCount === levelItem.sublevels.length;
 
             return (
-              <div key={`preview-level-${levelItem.levelNumber}`} className="border-b border-slate-200/80 py-2.5 last:border-b-0 dark:border-slate-700/70">
+                <div key={`preview-level-${levelItem.levelNumber}`} className="border-b border-slate-200/80 py-2 last:border-b-0 dark:border-slate-700/70">
                 <div
                   className="flex cursor-pointer items-center gap-2 rounded-lg"
                   onClick={() => {
@@ -381,7 +381,7 @@ export default function ModuleStudentPreview({
 
                   <div className="relative min-w-0 flex-1">
                     <div
-                      className={`flex w-full min-w-0 items-start gap-2 rounded-lg px-2 py-2 pr-10 text-left text-sm transition ${
+                      className={`flex w-full min-w-0 items-start gap-2 rounded-lg px-2 py-1.5 pr-10 text-left text-sm transition ${
                         isSelectedLevel
                           ? 'bg-slate-200/70 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
                           : 'text-slate-700 hover:bg-slate-100/90 dark:text-slate-200 dark:hover:bg-slate-800/80'
@@ -407,8 +407,8 @@ export default function ModuleStudentPreview({
                   </div>
                 </div>
 
-                <div className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <div className="ml-9 mt-3 space-y-2.5 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
+                  <div className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="ml-9 mt-2 space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
                     {levelItem.sublevels.map((sublevel, subIdx) => {
                       const isSelected = isSelectedLevel && activeSublevelIndex === subIdx;
                       const state = getSublevelState(sublevel);
@@ -423,7 +423,7 @@ export default function ModuleStudentPreview({
                             setActiveLevelIndex(levelIdx);
                             setActiveSublevelIndex(subIdx);
                           }}
-                          className={`flex w-full items-start gap-2 rounded-xl px-3.5 py-3.5 text-left text-[13px] transition ${
+                          className={`flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] transition ${
                             state.locked
                               ? 'cursor-not-allowed bg-slate-100 text-slate-400 ring-1 ring-slate-200 dark:bg-slate-900/50 dark:text-slate-500 dark:ring-slate-700/50'
                               : isSelected

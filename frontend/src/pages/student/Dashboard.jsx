@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Lock, PlayCircle } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import BadgeGrid from '../../components/gamification/BadgeGrid.jsx';
 import RankingCard from '../../components/gamification/RankingCard.jsx';
@@ -71,6 +72,36 @@ export default function StudentDashboard() {
   const inProgressModules = moduleTimeline.filter((m) => m.inProgress).length;
   const totalModules = moduleTimeline.length;
   const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+
+  const modulesWithProgress = useMemo(() => {
+    if (!modules.length) return [];
+    return modules.map((moduleItem, index) => {
+      const row = progressByModuleId.get(String(moduleItem._id));
+      const percent = Math.max(0, Math.min(100, Number(row?.moduleProgressPercent || 0)));
+      const completed = percent >= 100 || Boolean(row?.completedAt);
+      const inProgress = !completed && percent > 0;
+      let locked = false;
+      if (index > 0) {
+        const previous = modules[index - 1];
+        const previousRow = progressByModuleId.get(String(previous._id));
+        const previousCompleted = Number(previousRow?.moduleProgressPercent || 0) >= 100 || Boolean(previousRow?.completedAt);
+        locked = !previousCompleted;
+      }
+
+      return {
+        ...moduleItem,
+        moduleNumber: index + 1,
+        progressPercent: percent,
+        completed,
+        inProgress,
+        locked
+      };
+    });
+  }, [modules, progressByModuleId]);
+
+  const firstModules = useMemo(() => modulesWithProgress.slice(0, 3), [modulesWithProgress]);
+
+  const moduleImage = (moduleItem) => moduleItem.imageUrl || moduleItem.image || moduleItem.coverImage || '/assets/campus-placeholder.svg';
 
   const continueModule = moduleTimeline.find((m) => m.inProgress) || null;
 
@@ -246,9 +277,111 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Modulos</h3>
+            <button
+              type="button"
+              onClick={() => navigate('/student/courses')}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-brand-200 dark:hover:text-brand-100"
+            >
+              Ver mas
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {firstModules.map((m) => (
+              <Card
+                key={m._id}
+                onClick={() => {
+                  if (!m.locked) navigate(`/student/courses/${m._id}`);
+                }}
+                className={`group overflow-hidden border border-cyan-100 bg-white/90 !p-0 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50 ${
+                  m.locked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                }`}
+              >
+                <div className="flex h-full flex-col">
+                  <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-t-2xl bg-slate-800">
+                    <img src={moduleImage(m)} alt={m.title || 'Modulo'} className="h-full w-full object-cover" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent dark:from-slate-950/55" />
+
+                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[11px] font-bold text-slate-800 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
+                      Modulo {m.moduleNumber}
+                    </span>
+                    {m.locked ? (
+                      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-100/95 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/75 dark:text-slate-100 dark:ring-white/20">
+                        <Lock className="h-3.5 w-3.5" />
+                        Bloqueado
+                      </span>
+                    ) : m.completed ? (
+                      <span className="absolute right-3 top-3 rounded-full bg-emerald-100/95 px-2 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-100 dark:ring-emerald-300/35">
+                        Completado
+                      </span>
+                    ) : (
+                      <span className="absolute right-3 top-3 rounded-full bg-cyan-100/95 px-2 py-1 text-[11px] font-semibold text-cyan-800 ring-1 ring-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-100 dark:ring-cyan-300/35">
+                        {m.inProgress ? 'En progreso' : 'Pendiente'}
+                      </span>
+                    )}
+                    <span className="absolute right-3 top-12 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
+                      {m.category || 'General'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    <div className="space-y-2">
+                      <h4 className="line-clamp-2 text-base font-extrabold text-slate-900 group-hover:text-[#1d4f91] dark:text-white dark:group-hover:text-sky-200">
+                        {m.title || 'Modulo sin titulo'}
+                      </h4>
+                      <p className="line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                        {m.description || 'Sin descripcion.'}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto space-y-2.5 pt-3">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-300">
+                        <span>Progreso</span>
+                        <span>{m.progressPercent}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700/80">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400"
+                          style={{ width: `${m.progressPercent}%` }}
+                        />
+                      </div>
+
+                      {m.locked ? (
+                        <div className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+                          <Lock className="h-4 w-4" />
+                          Completa el modulo anterior
+                        </div>
+                      ) : (
+                        <Link
+                          to={`/student/courses/${m._id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
+                        >
+                          <PlayCircle className="h-4 w-4" />
+                          {m.completed ? 'Ver modulo' : 'Continuar modulo'}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {!firstModules.length && (
+              <Card className="bg-cyan-50/70 dark:bg-slate-900">
+                <p className="text-sm text-slate-400">Aun no hay modulos publicados.</p>
+              </Card>
+            )}
+          </div>
+        </div>
+
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
+            <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Ultimas 3
             </div>
