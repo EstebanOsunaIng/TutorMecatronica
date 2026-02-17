@@ -162,12 +162,12 @@ export default function Courses() {
                         <PlayCircle className="h-4 w-4" />
                         Ver modulo
                       </Link>
-                        <button
-                          type="button"
-                          onClick={() => setRestartTarget(m)}
-                          disabled={restartingModuleId === m._id}
-                          className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
-                        >
+                      <button
+                        type="button"
+                        onClick={() => setRestartTarget(m)}
+                        disabled={restartingModuleId === m._id}
+                        className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-200 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
+                      >
                         {restartingModuleId === m._id ? 'Reiniciando...' : 'Reiniciar'}
                       </button>
                     </div>

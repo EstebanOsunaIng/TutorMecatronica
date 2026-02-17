@@ -126,14 +126,14 @@ export default function AdminModules() {
           </div>
         </div>
 
-        {notice && (
-          <p className="mt-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">
-            {notice}
-          </p>
-        )}
-      </Card>
+          {notice && (
+            <p className="mt-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">
+              {notice}
+            </p>
+          )}
+        </Card>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filteredModules.map((m) => {
           return (
           <Card
@@ -245,7 +245,7 @@ export default function AdminModules() {
             <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
           </Card>
         )}
-      </div>
+        </div>
 
       <Modal open={Boolean(moduleToDelete)} onClose={() => setModuleToDelete(null)}>
         <h3 className="text-lg font-bold">Confirmar eliminacion</h3>

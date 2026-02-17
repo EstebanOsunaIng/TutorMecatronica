@@ -42,10 +42,19 @@ const getYouTubeId = (url) => {
   const watchMatch = input.match(/[?&]v=([^?&/]+)/i);
   if (watchMatch?.[1]) return watchMatch[1];
 
-  const embedMatch = input.match(/youtube\.com\/(embed|shorts)\/([^?&/]+)/i);
+  const embedMatch = input.match(/youtube\.com\/(embed|shorts|live|v)\/([^?&/]+)/i);
   if (embedMatch?.[2]) return embedMatch[2];
 
   return '';
+};
+
+const normalizeVideoUrl = (url) => {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (value.startsWith('data:video/')) return value;
+  const id = getYouTubeId(value);
+  if (id) return `https://www.youtube.com/watch?v=${id}`;
+  return value;
 };
 
 const getYouTubeThumbnail = (url) => {
@@ -579,7 +588,9 @@ export default function ModuleEditor() {
   };
 
   const buildSublevelPayload = async (sublevel, order, levelNumber, sublevelNumber, levelTitle) => {
-    const trimmedVideoUrls = (sublevel.videoUrls || []).map((item) => item.trim()).filter(Boolean);
+    const trimmedVideoUrls = (sublevel.videoUrls || [])
+      .map((item) => normalizeVideoUrl(item))
+      .filter(Boolean);
     const imageItems = [];
 
     for (const imageItem of sublevel.imageItems || []) {
@@ -1139,7 +1150,7 @@ export default function ModuleEditor() {
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </button>
-                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" title="Subir videos">
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" title="Subir videos locales">
                             <Upload className="h-3.5 w-3.5" />
                             Subir
                             <input

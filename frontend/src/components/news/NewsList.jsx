@@ -43,7 +43,7 @@ function NewsCard({ item }) {
       href={item.url || undefined}
       target={item.url ? '_blank' : undefined}
       rel={item.url ? 'noopener noreferrer' : undefined}
-      className="group flex flex-col gap-4 rounded-2xl border border-slate-800/10 bg-white/95 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800/70 dark:bg-slate-900/40 md:flex-row md:items-center"
+      className="group flex flex-col gap-4 rounded-2xl border border-slate-800/10 bg-white/95 p-4 shadow-[0_14px_34px_-22px_rgba(14,116,144,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_42px_-22px_rgba(14,116,144,0.46)] dark:border-slate-800/70 dark:bg-slate-900/40 dark:shadow-[0_16px_38px_-24px_rgba(56,189,248,0.24)] dark:hover:shadow-[0_20px_46px_-22px_rgba(56,189,248,0.32)] md:flex-row md:items-center"
     >
       <div className="w-full md:w-56">
         <NewsImage item={item} />

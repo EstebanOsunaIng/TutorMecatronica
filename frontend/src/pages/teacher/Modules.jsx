@@ -69,33 +69,34 @@ export default function TeacherModules() {
 
   return (
     <div className="space-y-4">
-      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Gestion de modulos</h2>
-            <p className="mt-1 text-sm text-slate-400">Edita tus modulos y revisa como los vera el estudiante.</p>
+      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),inset_0_0_0_1px_rgba(125,211,252,0.35),inset_0_-18px_32px_-26px_rgba(6,95,130,0.28)] dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:shadow-[inset_0_1px_0_rgba(148,163,184,0.08),inset_0_0_0_1px_rgba(56,189,248,0.18),inset_0_-20px_34px_-24px_rgba(15,118,110,0.22)]">
+        <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Gestion de modulos</h2>
+              <p className="mt-1 text-sm text-slate-400">Edita tus modulos y revisa como los vera el estudiante.</p>
+            </div>
+            <button
+              onClick={() => navigate('/teacher/modules/editor')}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-500/25 transition hover:brightness-110"
+            >
+              <Plus className="h-4 w-4" />
+              Crear Nuevo Modulo
+            </button>
           </div>
-          <button
-            onClick={() => navigate('/teacher/modules/editor')}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-500/25 transition hover:brightness-110"
-          >
-            <Plus className="h-4 w-4" />
-            Crear Nuevo Modulo
-          </button>
-        </div>
 
-        <div className="relative mt-4">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar modulo por nombre"
-            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100"
-          />
-        </div>
-      </Card>
+          <div className="relative mt-4">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar modulo por nombre"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100"
+            />
+          </div>
+        </Card>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filteredModules.map((m) => (
           <Card
             key={m._id}
@@ -180,7 +181,8 @@ export default function TeacherModules() {
             <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
           </Card>
         )}
-      </div>
+        </div>
+      </Card>
 
       <Modal open={Boolean(moduleToDelete)} onClose={() => setModuleToDelete(null)}>
         <h3 className="text-lg font-bold">Confirmar eliminacion</h3>
@@ -210,8 +212,8 @@ export default function TeacherModules() {
           <div className="mx-auto h-full w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
               <div>
-                <h3 className="text-lg font-bold text-white">Vista previa del estudiante</h3>
-                <p className="text-xs text-slate-400">{previewState.moduleItem?.title || 'Modulo'}</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Vista previa del estudiante</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400">{previewState.moduleItem?.title || 'Modulo'}</p>
               </div>
               <button
                 type="button"
