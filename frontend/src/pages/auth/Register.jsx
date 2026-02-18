@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
@@ -20,10 +20,134 @@ export default function Register() {
     teacherCode: ''
   });
   const [error, setError] = useState('');
+  const [inputHint, setInputHint] = useState({ field: '', message: '', visible: false });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const hintTimeoutRef = useRef(null);
+  const hintCooldownRef = useRef({});
 
-  const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const LETTERS_REGEX = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s]+$/;
+
+  useEffect(() => {
+    return () => {
+      if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
+    };
+  }, []);
+
+  const showInputHint = (field, message) => {
+    const now = Date.now();
+    const prev = hintCooldownRef.current[field] || 0;
+    if (now - prev < 350) return;
+    hintCooldownRef.current[field] = now;
+
+    setInputHint({ field, message, visible: true });
+    if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
+    hintTimeoutRef.current = setTimeout(() => {
+      setInputHint((prevState) => ({ ...prevState, visible: false }));
+    }, 1500);
+  };
+
+  const renderHint = (field) => {
+    if (!inputHint.visible || inputHint.field !== field) return null;
+    return (
+      <div
+        className={`pointer-events-none absolute left-0 top-full z-20 mt-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold shadow-md transition ${
+          isDark ? 'bg-slate-800 text-sky-100 ring-1 ring-sky-500/30' : 'bg-sky-50 text-sky-800 ring-1 ring-sky-200'
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        {inputHint.message}
+      </div>
+    );
+  };
+
+  const update = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const handleLettersBeforeInput = (field) => (e) => {
+    if (!e.data) return;
+    if (!LETTERS_REGEX.test(e.data)) {
+      e.preventDefault();
+      showInputHint(field, 'Solo se aceptan letras');
+    }
+  };
+
+  const handleLettersPaste = (field) => (e) => {
+    const pasted = e.clipboardData.getData('text') || '';
+    const filtered = pasted.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s]/g, '');
+    if (!filtered) {
+      e.preventDefault();
+      showInputHint(field, 'Solo se aceptan letras');
+      return;
+    }
+    if (filtered !== pasted) {
+      showInputHint(field, 'Solo se aceptan letras');
+    }
+    e.preventDefault();
+    const target = e.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const next = `${target.value.slice(0, start)}${filtered}${target.value.slice(end)}`;
+    update(field, next);
+  };
+
+  const handleNumericBeforeInput = (field, max = 10) => (e) => {
+    if (!e.data) return;
+    if (!/^\d+$/.test(e.data)) {
+      e.preventDefault();
+      showInputHint(field, 'Solo se aceptan numeros');
+      return;
+    }
+
+    const target = e.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const nextLength = target.value.length - (end - start) + e.data.length;
+    if (nextLength > max) {
+      e.preventDefault();
+      showInputHint(field, 'Maximo 10 digitos');
+    }
+  };
+
+  const handleNumericPaste = (field, max = 10) => (e) => {
+    const pasted = e.clipboardData.getData('text') || '';
+    const onlyDigits = pasted.replace(/\D/g, '');
+    if (!onlyDigits) {
+      e.preventDefault();
+      showInputHint(field, 'Solo se aceptan numeros');
+      return;
+    }
+
+    const target = e.currentTarget;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? target.value.length;
+    const nextRaw = `${target.value.slice(0, start)}${onlyDigits}${target.value.slice(end)}`;
+    const next = nextRaw.slice(0, max);
+
+    e.preventDefault();
+    update(field, next);
+
+    if (onlyDigits !== pasted) showInputHint(field, 'Solo se aceptan numeros');
+    if (nextRaw.length > max) showInputHint(field, 'Maximo 10 digitos');
+  };
+
+  const validateForm = (strict = false) => {
+    const nextErrors = {};
+    if ((strict || form.name.trim()) && !LETTERS_REGEX.test(form.name.trim())) nextErrors.name = 'Solo letras y espacios.';
+    if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
+    if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Identificacion invalida: 10 digitos.';
+    if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Celular invalido: 10 digitos.';
+    if ((strict || form.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim().toLowerCase())) nextErrors.email = 'Correo invalido.';
+    if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Contrasena invalida: minimo 6 caracteres.';
+    if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
+    if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
+    return nextErrors;
+  };
+
+  const validationErrors = validateForm(false);
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
 
   const inputClass = `block w-full rounded-xl px-4 py-2.5 text-[0.95rem] shadow-sm outline-none transition ${
     isDark
@@ -36,8 +160,9 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.password !== form.confirm) {
-      setError('Las contraseñas no coinciden');
+    const nextErrors = validateForm(true);
+    if (Object.keys(nextErrors).length > 0) {
+      setError(Object.values(nextErrors)[0]);
       return;
     }
     try {
@@ -53,7 +178,8 @@ export default function Register() {
       });
       navigate('/login');
     } catch (err) {
-      setError('No se pudo registrar');
+      const apiError = err?.response?.data?.error || err?.response?.data?.message;
+      setError(apiError || 'No se pudo registrar');
     }
   };
 
@@ -131,29 +257,69 @@ export default function Register() {
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
                   <label htmlFor="name" className={labelClass}>Nombre</label>
-                  <div className="mt-1.5">
-                    <input id="name" placeholder="Ej. Carlos" className={inputClass} value={form.name} onChange={(e) => update('name', e.target.value)} required />
+                  <div className="relative mt-1.5">
+                    <input
+                      id="name"
+                      placeholder="Ej. Carlos"
+                      className={inputClass}
+                      value={form.name}
+                      onBeforeInput={handleLettersBeforeInput('name')}
+                      onPaste={handleLettersPaste('name')}
+                      onChange={(e) => update('name', e.target.value)}
+                      required
+                    />
+                    {renderHint('name')}
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="lastName" className={labelClass}>Apellido</label>
-                  <div className="mt-1.5">
-                    <input id="lastName" placeholder="Apellido" className={inputClass} value={form.lastName} onChange={(e) => update('lastName', e.target.value)} required />
+                  <div className="relative mt-1.5">
+                    <input
+                      id="lastName"
+                      placeholder="Apellido"
+                      className={inputClass}
+                      value={form.lastName}
+                      onBeforeInput={handleLettersBeforeInput('lastName')}
+                      onPaste={handleLettersPaste('lastName')}
+                      onChange={(e) => update('lastName', e.target.value)}
+                      required
+                    />
+                    {renderHint('lastName')}
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="document" className={labelClass}>Identificación</label>
-                  <div className="mt-1.5">
-                    <input id="document" placeholder="Documento" className={inputClass} value={form.document} onChange={(e) => update('document', e.target.value)} required />
+                  <div className="relative mt-1.5">
+                    <input
+                      id="document"
+                      placeholder="Documento"
+                      className={inputClass}
+                      value={form.document}
+                      onBeforeInput={handleNumericBeforeInput('document', 10)}
+                      onPaste={handleNumericPaste('document', 10)}
+                      onChange={(e) => update('document', e.target.value)}
+                      required
+                    />
+                    {renderHint('document')}
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="phone" className={labelClass}>Celular</label>
-                  <div className="mt-1.5">
-                    <input id="phone" placeholder="Número celular" className={inputClass} value={form.phone} onChange={(e) => update('phone', e.target.value)} required />
+                  <div className="relative mt-1.5">
+                    <input
+                      id="phone"
+                      placeholder="Número celular"
+                      className={inputClass}
+                      value={form.phone}
+                      onBeforeInput={handleNumericBeforeInput('phone', 10)}
+                      onPaste={handleNumericPaste('phone', 10)}
+                      onChange={(e) => update('phone', e.target.value)}
+                      required
+                    />
+                    {renderHint('phone')}
                   </div>
                 </div>
 
@@ -185,7 +351,7 @@ export default function Register() {
                        value={form.password}
                        onChange={(e) => update('password', e.target.value)}
                        required
-                     />
+                      />
                      <button
                        type="button"
                        onClick={() => setShowPassword((prev) => !prev)}
@@ -221,7 +387,7 @@ export default function Register() {
                        value={form.confirm}
                        onChange={(e) => update('confirm', e.target.value)}
                        required
-                     />
+                      />
                      <button
                        type="button"
                        onClick={() => setShowConfirm((prev) => !prev)}
@@ -248,7 +414,8 @@ export default function Register() {
 
               <button
                 type="submit"
-                className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
+                disabled={hasValidationErrors}
+                className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
               >
                 Crear mi cuenta
               </button>

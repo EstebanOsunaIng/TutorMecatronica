@@ -13,9 +13,21 @@ export default function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
+  const passwordError = password && password.trim().length < 6 ? 'Minimo 6 caracteres.' : '';
+  const hasValidationErrors = Boolean(emailError || passwordError);
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!email.trim() || !password.trim()) {
+      setError('Correo y contrasena son obligatorios.');
+      return;
+    }
+    if (hasValidationErrors) {
+      setError('Corrige los campos antes de continuar.');
+      return;
+    }
     try {
       await login(email, password);
       navigate('/');
@@ -33,8 +45,8 @@ export default function Login() {
     <div className={`min-h-screen w-full ${isDark ? 'bg-[#020b1c] text-white' : 'bg-[#e4e4f3] text-[#10253c]'}`} style={{ fontFamily: 'Roboto, sans-serif' }}>
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
         <section className="relative hidden md:block">
-          <img src={isDark ? '/assets/campus-placeholder.svg' : '/assets/fondoClaroLogin.png'} alt="Laboratorio de ingeniería mecatrónica" className="absolute inset-0 h-full w-full object-cover" />
-          <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]' : 'bg-gradient-to-r from-[#dbe3ec]/60 via-[#cad4e0]/45 to-[#8ea0b8]/28'}`} />
+          <img src={isDark ? '/assets/campus-placeholder.svg' : '/assets/campus-placeholder.svg'} alt="Laboratorio de ingeniería mecatrónica" className="absolute inset-0 h-full w-full object-cover" />
+          <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]' : 'bg-gradient-to-r from-[#d5dee8]/86 via-[#c8d4e2]/82 to-[#9aaec2]/68'}`} />
           <div className="absolute inset-0 flex items-end p-10 lg:p-14">
             <div className={`max-w-lg ${isDark ? 'text-white' : 'text-[#0d2746]'}`}>
               <h1 className="text-3xl font-extrabold leading-tight md:text-4xl lg:text-[3rem] lg:leading-[1.03]">
@@ -113,6 +125,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     className={`block w-full rounded-xl px-4 py-3 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#c8d1db] bg-[#ffffff] text-[#2c3b4a] placeholder:text-[#7c8998] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
                   />
+                  {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
                 </div>
               </div>
 
@@ -132,6 +145,7 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     className={`block w-full rounded-xl px-4 py-3 pr-12 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#c8d1db] bg-[#ffffff] text-[#2c3b4a] placeholder:text-[#7c8998] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
                   />
+                  {passwordError && <p className="mt-1 text-xs text-red-500">{passwordError}</p>}
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
@@ -166,6 +180,7 @@ export default function Login() {
               <div>
                 <button
                   type="submit"
+                  disabled={hasValidationErrors}
                   className={`flex w-full justify-center rounded-xl px-4 py-3 text-base font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
                 >
                   Ingresar

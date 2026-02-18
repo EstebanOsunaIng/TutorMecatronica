@@ -25,7 +25,18 @@ export async function listNews(req, res) {
   const normalized = normalizeCategory(category);
   const mappedCategory = categoryMap[normalized] || category;
   const filter = mappedCategory ? { category: mappedCategory } : {};
-  const news = await News.find(filter).sort({ date: -1 });
+  const rows = await News.find(filter).sort({ date: -1, createdAt: -1 }).limit(30);
+
+  const seen = new Set();
+  const news = [];
+  for (const item of rows) {
+    const key = (item.url && String(item.url).trim()) || String(item.title || '').trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    news.push(item);
+    if (news.length >= 10) break;
+  }
+
   res.json({ news });
 }
 

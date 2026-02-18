@@ -80,17 +80,66 @@ async function fetchGnews(query) {
   }));
 }
 
+async function fetchNewsApi(query) {
+  const apiKey = env.news.newsApiKey;
+  if (!apiKey) return [];
+
+  const url = new URL('https://newsapi.org/v2/everything');
+  url.searchParams.set('q', query);
+  url.searchParams.set('apiKey', apiKey);
+  url.searchParams.set('pageSize', '20');
+  url.searchParams.set('sortBy', 'publishedAt');
+  url.searchParams.set('searchIn', 'title,description');
+
+  const rawLang = String(env.news.gnewsLang || '').trim().toLowerCase();
+  if (rawLang && rawLang !== 'all') {
+    const lang = rawLang.slice(0, 2);
+    if (lang) url.searchParams.set('language', lang);
+  }
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw Object.assign(new Error('NewsAPI error'), { status: 502, details: body });
+  }
+
+  const data = await res.json();
+  const articles = Array.isArray(data?.articles) ? data.articles : [];
+  return articles.map((a) => ({
+    title: a.title || '',
+    summary: a.description || '',
+    url: a.url || '',
+    imageUrl: a.urlToImage || '',
+    pubDate: a.publishedAt ? new Date(a.publishedAt) : null,
+    source: a.source?.name || 'NewsAPI'
+  }));
+}
+
+async function fetchFromProviders(query) {
+  try {
+    const gnewsItems = await fetchGnews(query);
+    if (gnewsItems.length > 0) return gnewsItems;
+  } catch (err) {
+    console.error('[news] gnews provider failed', err?.message || err);
+  }
+
+  try {
+    const newsApiItems = await fetchNewsApi(query);
+    if (newsApiItems.length > 0) return newsApiItems;
+  } catch (err) {
+    console.error('[news] newsapi provider failed', err?.message || err);
+  }
+
+  return [];
+}
+
 async function pickLatest(category) {
   const queries = buildQueries(category);
   const collected = [];
 
   for (const q of queries) {
-    try {
-      const items = await fetchGnews(q);
-      collected.push(...items);
-    } catch (err) {
-      console.error('[news] query failed', category, q, err?.message || err);
-    }
+    const items = await fetchFromProviders(q);
+    collected.push(...items);
   }
 
   const normalized = collected
@@ -175,7 +224,7 @@ async function translateToSpanishSafe(text) {
 export async function ensureDailyNews() {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const cutoff = new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(start.getTime() - 3 * 24 * 60 * 60 * 1000);
   await News.deleteMany({ date: { $lt: cutoff } });
 
   const end = new Date(start);
@@ -187,11 +236,16 @@ export async function ensureDailyNews() {
 
   const batch = [];
   const usedUrls = new Set();
+  const usedTitles = new Set();
   for (const category of categories) {
     let picked = null;
     try {
       const candidates = await pickLatest(category);
-      picked = candidates.find((item) => !usedUrls.has(item.url)) || null;
+      picked =
+        candidates.find((item) => {
+          const normalizedTitle = String(item.title || '').trim().toLowerCase();
+          return !usedUrls.has(item.url) && !usedTitles.has(normalizedTitle);
+        }) || null;
     } catch (err) {
       console.error('[news] gnews failed', category, err?.message || err);
     }
@@ -211,6 +265,7 @@ export async function ensureDailyNews() {
     }
 
     usedUrls.add(picked.url);
+    usedTitles.add(String(picked.title || '').trim().toLowerCase());
 
     batch.push({
       title: picked.title,

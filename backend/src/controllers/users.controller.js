@@ -1,6 +1,7 @@
 import { User } from '../models/User.model.js';
 import { hashPassword } from '../utils/hash.js';
 import { createNotification } from '../services/notifications.service.js';
+import { isValidDocument, isValidEmail, isValidName, isValidPassword, isValidPhone, normalizeText } from '../utils/validators.js';
 
 function sanitizeUser(user) {
   const { passwordHash, ...safe } = user.toObject();
@@ -24,7 +25,13 @@ export async function getMe(req, res) {
 
 export async function updateMe(req, res) {
   const updates = {};
-  if (typeof req.body.phone === 'string') updates.phone = req.body.phone;
+  if (typeof req.body.phone === 'string') {
+    const safePhone = normalizeText(req.body.phone);
+    if (safePhone && !isValidPhone(safePhone)) {
+      return res.status(400).json({ error: 'Celular invalido: debe tener 10 digitos numericos.' });
+    }
+    updates.phone = safePhone;
+  }
   if (typeof req.body.profilePhotoUrl === 'string') updates.profilePhotoUrl = req.body.profilePhotoUrl;
   if (typeof req.body.notificationsMuted === 'boolean') updates.notificationsMuted = req.body.notificationsMuted;
   const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
@@ -61,11 +68,19 @@ export async function createUserByAdmin(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  if (String(password).trim().length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
-  }
+  const safeName = normalizeText(name);
+  const safeLastName = normalizeText(lastName);
+  const safeDocument = normalizeText(document);
+  const safePhone = normalizeText(phone);
+  const normalizedEmail = normalizeText(email).toLowerCase();
 
-  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!isValidName(safeName)) return res.status(400).json({ error: 'Nombre invalido: solo letras y espacios.' });
+  if (!isValidName(safeLastName)) return res.status(400).json({ error: 'Apellido invalido: solo letras y espacios.' });
+  if (!isValidDocument(safeDocument)) return res.status(400).json({ error: 'Identificacion invalida: debe tener 10 digitos numericos.' });
+  if (!isValidPhone(safePhone)) return res.status(400).json({ error: 'Celular invalido: debe tener 10 digitos numericos.' });
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Correo invalido.' });
+  if (!isValidPassword(password)) return res.status(400).json({ error: 'Contrasena invalida: minimo 6 caracteres.' });
+
   const exists = await User.findOne({ email: normalizedEmail });
   if (exists) {
     return res.status(409).json({ error: 'Email already registered' });
@@ -75,11 +90,11 @@ export async function createUserByAdmin(req, res) {
 
   const user = await User.create({
     role,
-    name: String(name).trim(),
-    lastName: String(lastName).trim(),
-    document: String(document).trim(),
+    name: safeName,
+    lastName: safeLastName,
+    document: safeDocument,
     email: normalizedEmail,
-    phone: String(phone).trim(),
+    phone: safePhone,
     profilePhotoUrl: String(profilePhotoUrl).trim(),
     isActive: Boolean(isActive),
     passwordHash

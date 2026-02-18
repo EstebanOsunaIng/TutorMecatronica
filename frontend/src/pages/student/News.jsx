@@ -5,9 +5,29 @@ import { newsApi } from '../../api/news.api.js';
 
 export default function StudentNews() {
   const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    newsApi.list().then((res) => setNews(res.data.news || []));
+    let mounted = true;
+    const run = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await newsApi.list();
+        if (!mounted) return;
+        setNews(res.data.news || []);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err?.response?.data?.error || err?.response?.data?.message || 'No fue posible cargar noticias.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
@@ -19,7 +39,17 @@ export default function StudentNews() {
             <h2 className="text-2xl font-bold">Noticias y Tendencias</h2>
           </div>
         </Card>
-        <NewsList items={news} limit={10} />
+        {loading ? (
+          <div className="rounded-2xl border border-cyan-100 bg-white/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+            Cargando noticias...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+            {error}
+          </div>
+        ) : (
+          <NewsList items={news} limit={10} />
+        )}
       </div>
     </Card>
   );

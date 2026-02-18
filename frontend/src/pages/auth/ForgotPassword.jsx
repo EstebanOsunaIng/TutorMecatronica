@@ -13,6 +13,10 @@ export default function ForgotPassword() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
 
+  const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
+  const codeError = step === 2 && code && !/^\d{6}$/.test(code.trim()) ? 'El codigo debe tener 6 digitos.' : '';
+  const newPasswordError = step === 2 && newPassword && newPassword.trim().length < 6 ? 'Minimo 6 caracteres.' : '';
+
   const inputClass = `block w-full rounded-xl px-4 py-2.5 text-[0.95rem] shadow-sm outline-none transition ${
     isDark
       ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25'
@@ -24,22 +28,32 @@ export default function ForgotPassword() {
   const requestCode = async (e) => {
     e.preventDefault();
     setError('');
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     try {
       await authApi.forgot({ email });
       setStep(2);
     } catch (err) {
-      setError('No se pudo enviar el código. Verifica el correo e inténtalo de nuevo.');
+      const apiError = err?.response?.data?.error || err?.response?.data?.message;
+      setError(apiError || 'No se pudo enviar el codigo. Verifica el correo e intentalo de nuevo.');
     }
   };
 
   const reset = async (e) => {
     e.preventDefault();
     setError('');
+    if (emailError || codeError || newPasswordError) {
+      setError(emailError || codeError || newPasswordError);
+      return;
+    }
     try {
       await authApi.reset({ email, code, newPassword });
       setStep(3);
     } catch (err) {
-      setError('No se pudo cambiar la contraseña. Revisa el código e inténtalo nuevamente.');
+      const apiError = err?.response?.data?.error || err?.response?.data?.message;
+      setError(apiError || 'No se pudo cambiar la contrasena. Revisa el codigo e intentalo nuevamente.');
     }
   };
 
@@ -116,13 +130,15 @@ export default function ForgotPassword() {
                       className={inputClass}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+                        required
+                      />
+                      {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
+                    </div>
                   </div>
-                </div>
-                <button
-                  className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
-                >
+                  <button
+                   disabled={Boolean(emailError)}
+                   className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
+                 >
                   Enviar código
                 </button>
               </form>
@@ -139,10 +155,11 @@ export default function ForgotPassword() {
                       className={inputClass}
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
-                      required
-                    />
+                        required
+                      />
+                      {codeError && <p className="mt-1 text-xs text-red-500">{codeError}</p>}
+                    </div>
                   </div>
-                </div>
                  <div>
                    <label htmlFor="newPassword" className={labelClass}>Nueva contraseña</label>
                    <div className="mt-1.5 relative">
@@ -154,9 +171,10 @@ export default function ForgotPassword() {
                        className={`${inputClass} pr-12`}
                        value={newPassword}
                        onChange={(e) => setNewPassword(e.target.value)}
-                       required
-                     />
-                     <button
+                        required
+                      />
+                      {newPasswordError && <p className="mt-1 text-xs text-red-500">{newPasswordError}</p>}
+                      <button
                        type="button"
                        onClick={() => setShowNewPassword((prev) => !prev)}
                        className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 transition ${isDark ? 'text-sky-200/80 hover:text-white' : 'text-[#4b5e71] hover:text-[#1f3f5f]'}`}
@@ -178,9 +196,10 @@ export default function ForgotPassword() {
                      </button>
                    </div>
                  </div>
-                <button
-                  className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
-                >
+                 <button
+                   disabled={Boolean(emailError || codeError || newPasswordError)}
+                   className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
+                 >
                   Cambiar contraseña
                 </button>
               </form>

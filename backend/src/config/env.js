@@ -10,6 +10,7 @@ export const env = {
   news: {
     gnewsApiKey: (process.env.GNEWS_API_KEY || process.env.GNEWS_TOKEN || '').trim(),
     gnewsLang: process.env.GNEWS_LANG || 'all',
+    newsApiKey: (process.env.NEWSAPI_KEY || '').trim(),
     translateUrl: process.env.NEWS_TRANSLATE_URL || 'https://libretranslate.de/translate',
     translateApiKey: process.env.NEWS_TRANSLATE_API_KEY || ''
   },

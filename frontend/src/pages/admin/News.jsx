@@ -7,10 +7,20 @@ import { RefreshCcw } from 'lucide-react';
 export default function AdminNews() {
     const [news, setNews] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const load = useCallback(async () => {
-        const res = await newsApi.list();
-        setNews(res.data.news || []);
+        setLoading(true);
+        setError('');
+        try {
+            const res = await newsApi.list();
+            setNews(res.data.news || []);
+        } catch (err) {
+            setError(err?.response?.data?.error || err?.response?.data?.message || 'No fue posible cargar noticias.');
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
@@ -22,6 +32,7 @@ export default function AdminNews() {
         try {
             await newsApi.refresh(true);
             await load();
+            setError('');
         } finally {
             setRefreshing(false);
         }
@@ -49,7 +60,17 @@ export default function AdminNews() {
                         </button>
                     </div>
                 </Card>
-                <NewsList items={news} limit={20} />
+                {loading ? (
+                    <div className="rounded-2xl border border-cyan-100 bg-white/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                        Cargando noticias...
+                    </div>
+                ) : error ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+                        {error}
+                    </div>
+                ) : (
+                    <NewsList items={news} limit={10} />
+                )}
             </div>
         </Card>
     );

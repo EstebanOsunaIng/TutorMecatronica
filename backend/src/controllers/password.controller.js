@@ -2,12 +2,16 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.model.js';
 import { generateOtp6, sha256 } from '../utils/otp.js';
 import { sendResetCodeEmail } from '../mail/mailer.js';
+import { isValidEmail, isValidPassword, normalizeText } from '../utils/validators.js';
 
 export async function forgotPassword(req, res) {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email requerido' });
+  if (!email) return res.status(400).json({ message: 'Correo requerido.' });
 
-  const normalizedEmail = String(email).toLowerCase();
+  const normalizedEmail = normalizeText(email).toLowerCase();
+  if (!isValidEmail(normalizedEmail)) {
+    return res.status(400).json({ message: 'Correo invalido.' });
+  }
   const user = await User.findOne({ email: normalizedEmail });
 
   const neutral = { message: 'Si el correo existe, enviaremos un codigo.' };
@@ -42,7 +46,11 @@ export async function forgotPassword(req, res) {
 export async function resetPassword(req, res) {
   const { email, code, newPassword } = req.body;
 
-  const normalizedEmail = String(email).toLowerCase();
+  const normalizedEmail = normalizeText(email).toLowerCase();
+  if (!isValidEmail(normalizedEmail)) return res.status(400).json({ message: 'Correo invalido.' });
+  if (!/^\d{6}$/.test(String(code || '').trim())) return res.status(400).json({ message: 'Codigo invalido.' });
+  if (!isValidPassword(newPassword)) return res.status(400).json({ message: 'Contrasena invalida: minimo 6 caracteres.' });
+
   const user = await User.findOne({ email: normalizedEmail });
   if (!user) return res.status(400).json({ message: 'Codigo invalido.' });
 
