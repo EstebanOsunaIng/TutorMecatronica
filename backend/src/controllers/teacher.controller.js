@@ -15,6 +15,13 @@ function initials(name = '', lastName = '') {
   return (a + b).toUpperCase();
 }
 
+function isOnlineByLastSeen(lastSeenAt, thresholdMs = 30000) {
+  if (!lastSeenAt) return false;
+  const t = new Date(lastSeenAt).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t <= thresholdMs;
+}
+
 export async function listStudents(req, res) {
   const q = String(req.query.q || '').trim();
   const filter = { role: 'STUDENT' };
@@ -24,7 +31,7 @@ export async function listStudents(req, res) {
 
   const students = await User.find(filter)
     .sort({ lastLoginAt: -1, createdAt: -1 })
-    .select('name lastName email profilePhotoUrl lastLoginAt badgesCount');
+    .select('name lastName email profilePhotoUrl lastLoginAt lastSeenAt badgesCount');
 
   // Aggregate progress summary per student: avg % across started modules
   const ids = students.map((s) => s._id);
@@ -52,6 +59,7 @@ export async function listStudents(req, res) {
       email: s.email,
       profilePhotoUrl: s.profilePhotoUrl || '',
       lastLoginAt: s.lastLoginAt || null,
+      isOnline: isOnlineByLastSeen(s.lastSeenAt),
       badgesCount: s.badgesCount || 0,
       initials: initials(s.name, s.lastName),
       progress: {
@@ -63,6 +71,69 @@ export async function listStudents(req, res) {
   });
 
   res.json({ students: result });
+}
+
+function csvEscape(value) {
+  const s = String(value ?? '');
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export async function exportStudentsCsv(_req, res) {
+  const students = await User.find({ role: 'STUDENT' })
+    .sort({ createdAt: 1 })
+    .select('name lastName email badgesCount createdAt');
+
+  const ids = students.map((s) => s._id);
+  const summary = await Progress.aggregate([
+    { $match: { userId: { $in: ids } } },
+    {
+      $group: {
+        _id: '$userId',
+        modulesStarted: { $sum: 1 },
+        modulesCompleted: { $sum: { $cond: [{ $ifNull: ['$completedAt', false] }, 1, 0] } },
+        avgProgress: { $avg: '$moduleProgressPercent' }
+      }
+    }
+  ]);
+  const byId = new Map(summary.map((s) => [String(s._id), s]));
+
+  const header = [
+    '#',
+    'Nombre estudiante',
+    'Correo del estudiante',
+    'Programa',
+    'Proceso (%)',
+    'Insignias',
+    'Modulos completados'
+  ];
+
+  const rows = students.map((s, idx) => {
+    const item = byId.get(String(s._id));
+    const overall = item?.avgProgress ? Math.round(item.avgProgress) : 0;
+    const modulesCompleted = item?.modulesCompleted || 0;
+    return [
+      String(idx + 1),
+      `${s.name} ${s.lastName}`.trim(),
+      s.email,
+      'Ingenieria Mecatronica',
+      String(overall),
+      String(s.badgesCount || 0),
+      String(modulesCompleted)
+    ];
+  });
+
+  const csv =
+    '\ufeff' +
+    [header, ...rows]
+      .map((line) => line.map(csvEscape).join(';'))
+      .join('\n');
+
+  const today = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="reporte-estudiantes-${today}.csv"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).send(csv);
 }
 
 export async function getStudentProgress(req, res) {
