@@ -19,6 +19,7 @@ import { modulesApi } from '../../api/modules.api.js';
 import { newsApi } from '../../api/news.api.js';
 import { teacherApi } from '../../api/teacher.api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getLatestRealNews } from '../../utils/news.js';
 
 const DEFAULT_MODULE_IMAGE = '/assets/campus-placeholder.svg';
 
@@ -60,6 +61,9 @@ export default function TeacherDashboard() {
         setModules(modulesRes.data.modules || []);
         setStudents(studentsRes.data.students || []);
         setNews(newsRes.data.news || []);
+      } catch {
+        if (!active) return;
+        setNews([]);
       } finally {
         if (active) setLoading(false);
       }
@@ -129,6 +133,8 @@ export default function TeacherDashboard() {
   const moduleImage = (moduleItem) => {
     return moduleItem.imageUrl || moduleItem.image || moduleItem.coverImage || DEFAULT_MODULE_IMAGE;
   };
+
+  const latestDashboardNews = useMemo(() => getLatestRealNews(news, 3), [news]);
 
   const greetingName = user?.name ? `${user.name}${user?.lastName ? ` ${user.lastName}` : ''}` : 'Docente';
 
@@ -319,26 +325,26 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
-          <button
-            type="button"
-            onClick={() => navigate('/teacher/news')}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-brand-200 dark:hover:text-brand-100"
-          >
-            Ver mas
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="mt-4">
-          <NewsFeed
-            items={[...(news || [])]
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .slice(0, 3)}
-          />
-        </div>
-      </Card>
+      {latestDashboardNews.length > 0 ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
+            <button
+              type="button"
+              onClick={() => navigate('/teacher/news')}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700 hover:text-sky-800 dark:text-brand-200 dark:hover:text-brand-100"
+            >
+              Ver mas
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4">
+            <NewsFeed items={latestDashboardNews} />
+          </div>
+        </Card>
+      ) : (
+        <p className="text-sm text-slate-500 dark:text-slate-400">Sin noticias hoy.</p>
+      )}
     </div>
   );
 }

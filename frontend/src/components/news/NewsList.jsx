@@ -31,7 +31,7 @@ function NewsImage({ item }) {
       onError={() => {
         if (src !== fallback) setSrc(fallback);
       }}
-      className="h-40 w-full rounded-2xl object-cover md:h-36 md:w-56"
+      className="h-48 w-full rounded-2xl object-cover md:h-44 md:w-64"
     />
   );
 }
@@ -84,7 +84,7 @@ export default function NewsList({ items, limit = 10 }) {
   return (
     <div className="space-y-4">
       {limited.map((item, idx) => (
-        <NewsCard key={item._id} item={item} inverted={idx % 2 === 1} />
+        <NewsCard key={item._id || `${item.url || item.title}-${item.date || item.publishedAt || idx}`} item={item} inverted={idx % 2 === 1} />
       ))}
     </div>
   );

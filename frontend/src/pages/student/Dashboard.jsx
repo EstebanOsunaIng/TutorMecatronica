@@ -13,6 +13,7 @@ import { modulesApi } from '../../api/modules.api.js';
 import { progressApi } from '../../api/progress.api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import { getLatestRealNews } from '../../utils/news.js';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -30,25 +31,29 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [b, t, r, n, m, p] = await Promise.all([
-        gamificationApi.badges(),
-        gamificationApi.top5(),
-        gamificationApi.myRank(),
-        newsApi.list(),
-        modulesApi.listPublished(),
-        progressApi.myProgress()
-      ]);
-      setBadges(b.data.badges || []);
-      setUnlocked(b.data.unlocked || []);
-      setTop(t.data.top || []);
-      setRank(r.data || {});
-      setNews(n.data.news || []);
+      try {
+        const [b, t, r, n, m, p] = await Promise.all([
+          gamificationApi.badges(),
+          gamificationApi.top5(),
+          gamificationApi.myRank(),
+          newsApi.list(),
+          modulesApi.listPublished(),
+          progressApi.myProgress()
+        ]);
+        setBadges(b.data.badges || []);
+        setUnlocked(b.data.unlocked || []);
+        setTop(t.data.top || []);
+        setRank(r.data || {});
+        setNews(n.data.news || []);
 
-      const modulesChronological = [...(m.data.modules || [])].sort(
-        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-      );
-      setModules(modulesChronological);
-      setProgressRows(p.data.progress || []);
+        const modulesChronological = [...(m.data.modules || [])].sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        );
+        setModules(modulesChronological);
+        setProgressRows(p.data.progress || []);
+      } catch {
+        setNews([]);
+      }
     }
     load();
   }, []);
@@ -100,6 +105,7 @@ export default function StudentDashboard() {
   }, [modules, progressByModuleId]);
 
   const firstModules = useMemo(() => modulesWithProgress.slice(0, 3), [modulesWithProgress]);
+  const latestDashboardNews = useMemo(() => getLatestRealNews(news, 3), [news]);
 
   const moduleImage = (moduleItem) => moduleItem.imageUrl || moduleItem.image || moduleItem.coverImage || '/assets/campus-placeholder.svg';
 
@@ -379,21 +385,21 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Ultimas 3
+        {latestDashboardNews.length > 0 ? (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Noticias y Tendencias</h3>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Ultimas 3
+              </div>
             </div>
-          </div>
-          <div className="mt-4">
-            <NewsFeed
-              items={[...(news || [])]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 3)}
-            />
-          </div>
-        </Card>
+            <div className="mt-4">
+              <NewsFeed items={latestDashboardNews} />
+            </div>
+          </Card>
+        ) : (
+          <p className="text-sm text-slate-500 dark:text-slate-400">Sin noticias hoy.</p>
+        )}
       </div>
     </div>
   );
