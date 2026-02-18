@@ -20,7 +20,7 @@ export default function AdminNews() {
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            await newsApi.refresh();
+            await newsApi.refresh(true);
             await load();
         } finally {
             setRefreshing(false);

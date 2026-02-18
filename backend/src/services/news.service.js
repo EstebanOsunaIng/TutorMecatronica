@@ -85,16 +85,15 @@ async function pickLatest(category) {
   const collected = [];
 
   for (const q of queries) {
-    const items = await fetchGnews(q);
-    collected.push(...items);
-    if (items.length > 0) break; // si ya hay resultados en ese idioma, no seguimos
+    try {
+      const items = await fetchGnews(q);
+      collected.push(...items);
+    } catch (err) {
+      console.error('[news] query failed', category, q, err?.message || err);
+    }
   }
 
-  const filtered = collected
-    .filter((x) => x.title && x.url)
-    .filter((x) => matchesCategory(x, category));
-
-  const sorted = filtered
+  const normalized = collected
     .filter((x) => x.title && x.url)
     .sort((a, b) => {
       const da = a.pubDate ? a.pubDate.getTime() : 0;
@@ -102,7 +101,11 @@ async function pickLatest(category) {
       return db - da;
     });
 
-  return sorted;
+  const filtered = normalized.filter((x) => matchesCategory(x, category));
+
+  if (filtered.length > 0) return filtered;
+
+  return normalized;
 }
 
 async function translateToSpanish(text) {
