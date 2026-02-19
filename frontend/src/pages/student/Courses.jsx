@@ -69,9 +69,15 @@ export default function Courses() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Cursos</h2>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {modulesWithProgress.map((m) => (
+      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Cursos</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Explora tus modulos publicados y continua tu progreso.</p>
+          </div>
+          <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {modulesWithProgress.map((m) => (
           <Card
             key={m._id}
             onClick={() => {
@@ -185,8 +191,11 @@ export default function Courses() {
               </div>
             </div>
           </Card>
-        ))}
-      </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </Card>
 
       <Modal open={Boolean(restartTarget)} onClose={() => setRestartTarget(null)}>
         <h3 className="text-lg font-bold">Reiniciar modulo</h3>

@@ -244,8 +244,8 @@ export default function TeacherDashboard() {
         </Card>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Modulos recientes</h3>
           <button
             type="button"
@@ -256,8 +256,7 @@ export default function TeacherDashboard() {
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {recentModules.map((m) => (
             <Card
               key={m._id}
@@ -317,7 +316,7 @@ export default function TeacherDashboard() {
             </Card>
           )}
         </div>
-      </div>
+      </Card>
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
