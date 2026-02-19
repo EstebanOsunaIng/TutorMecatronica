@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronLeft,
@@ -234,12 +234,17 @@ export default function ModuleStudentPreview({
   const [localCompletedOrders, setLocalCompletedOrders] = useState(completedLevelOrders || []);
   const [localCurrentOrder, setLocalCurrentOrder] = useState(currentLevelOrder || 1);
   const [processingNext, setProcessingNext] = useState(false);
+  const initSignatureRef = useRef('');
 
   const isStudent = role === 'student';
 
   const completedSet = new Set(localCompletedOrders || []);
 
   useEffect(() => {
+    const signature = groupedLevels.map((level) => `${level.levelNumber}:${level.sublevels.length}`).join('|');
+    if (!isStudent && initSignatureRef.current === signature) return;
+    initSignatureRef.current = signature;
+
     const nextExpanded = {};
     let nextLevelIndex = 0;
     let nextSublevelIndex = 0;
@@ -273,7 +278,7 @@ export default function ModuleStudentPreview({
       }
     } else {
       groupedLevels.forEach((_, idx) => {
-        nextExpanded[idx] = true;
+        nextExpanded[idx] = false;
       });
     }
 
@@ -351,9 +356,15 @@ export default function ModuleStudentPreview({
   const handleNext = async () => {
     if (!activeSublevel || activeFlatIndex < 0 || processingNext) return;
 
+    if (!isStudent) {
+      const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
+      if (!isLastSublevel) goToFlatIndex(activeFlatIndex + 1);
+      return;
+    }
+
     setProcessingNext(true);
     try {
-      if (isStudent && !completedSet.has(activeSublevel.order)) {
+      if (!completedSet.has(activeSublevel.order)) {
         if (onComplete) {
           await onComplete(activeSublevel.rawLevel);
         }
@@ -366,7 +377,7 @@ export default function ModuleStudentPreview({
 
       const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
       if (isLastSublevel) {
-        if (isStudent && onFinishModule) {
+        if (onFinishModule) {
           await onFinishModule();
         }
         return;
@@ -461,7 +472,7 @@ export default function ModuleStudentPreview({
                         <button
                           key={sublevel.id}
                           type="button"
-                          disabled={state.locked}
+                          disabled={isStudent ? state.locked : false}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveLevelIndex(levelIdx);
@@ -659,7 +670,7 @@ export default function ModuleStudentPreview({
                   <button
                     type="button"
                     onClick={handleNext}
-                    disabled={activeState.locked || processingNext}
+                  disabled={(isStudent && activeState.locked) || processingNext}
                     className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
                   >
                     {processingNext ? 'Guardando...' : isLastSublevel && isStudent ? 'Finalizar modulo' : 'Siguiente'} <ChevronRight className="h-4 w-4" />
