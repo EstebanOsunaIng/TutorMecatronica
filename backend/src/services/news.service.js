@@ -1,6 +1,8 @@
 import { News } from '../models/News.model.js';
+import { NewsRefreshState } from '../models/NewsRefreshState.model.js';
 import { env } from '../config/env.js';
 
+const REFRESH_KEY = 'global-news-refresh';
 const categories = ['Mecatrónica', 'Robótica', 'Humanoides', 'Ingeniería', 'Unitree'];
 
 const categoryKeywords = {
@@ -8,7 +10,7 @@ const categoryKeywords = {
   'Robótica': ['robotica', 'robótica', 'robotics', 'robot'],
   'Humanoides': ['humanoid', 'humanoide', 'humanoides'],
   'Ingeniería': ['ingenieria', 'ingeniería', 'engineering', 'automation', 'control'],
-  'Unitree': ['unitree']
+  Unitree: ['unitree']
 };
 
 const categoryQueries = {
@@ -20,7 +22,7 @@ const categoryQueries = {
     en: ['robotics', 'robot arm', 'autonomous robot', 'mobile robot'],
     es: ['robotica', 'robótica', 'robot autonomo', 'robot movil']
   },
-  'Humanoides': {
+  Humanoides: {
     en: ['humanoid robot', 'bipedal robot', 'humanoid robotics'],
     es: ['humanoide', 'robot humanoide', 'robot bipedo']
   },
@@ -28,11 +30,24 @@ const categoryQueries = {
     en: ['engineering', 'mechanical engineering', 'electrical engineering', 'mechatronics'],
     es: ['ingenieria', 'ingeniería', 'ingenieria mecanica', 'ingenieria electrica']
   },
-  'Unitree': {
+  Unitree: {
     en: ['unitree', 'unitree robot', 'unitree robotics'],
     es: ['unitree']
   }
 };
+
+let refreshPromise = null;
+let schedulerInterval = null;
+
+function utcDayKey(dateValue = new Date()) {
+  const d = new Date(dateValue);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function startOfUtcDay(dateValue = new Date()) {
+  const d = new Date(dateValue);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
 
 function buildQueries(category) {
   const def = categoryQueries[category];
@@ -48,24 +63,47 @@ function matchesCategory(item, category) {
   return keywords.some((k) => text.includes(k));
 }
 
+function normalizeItems(items = []) {
+  const seen = new Set();
+  const list = [];
+
+  for (const item of items) {
+    const title = String(item?.title || '').trim();
+    const url = String(item?.url || '').trim();
+    if (!title || !url) continue;
+    const key = `${url}|${title.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    list.push(item);
+  }
+
+  return list.sort((a, b) => {
+    const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return db - da;
+  });
+}
+
 async function fetchGnews(query) {
   const apiKey = env.news.gnewsApiKey;
   if (!apiKey) return [];
 
-  const url = new URL('https://gnews.io/api/v4/search');
-  url.searchParams.set('q', query);
-  url.searchParams.set('token', apiKey);
-  const lang = String(env.news.gnewsLang || '').trim().toLowerCase();
-  if (lang && lang !== 'all') {
-    url.searchParams.set('lang', lang);
-  }
-  url.searchParams.set('max', '10');
-  url.searchParams.set('topic', 'technology');
+  const endpoint = new URL('https://gnews.io/api/v4/search');
+  endpoint.searchParams.set('q', query);
+  endpoint.searchParams.set('token', apiKey);
+  endpoint.searchParams.set('max', '20');
+  endpoint.searchParams.set('topic', 'technology');
 
-  const res = await fetch(url.toString());
+  const lang = String(env.news.gnewsLang || '').trim().toLowerCase();
+  if (lang && lang !== 'all') endpoint.searchParams.set('lang', lang);
+
+  const startedAt = Date.now();
+  const res = await fetch(endpoint.toString());
+  const elapsed = Date.now() - startedAt;
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw Object.assign(new Error('GNews error'), { status: 502, details: body });
+    console.error('[news][gnews] failed', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
+    throw new Error('GNews request failed');
   }
 
   const data = await res.json();
@@ -84,23 +122,23 @@ async function fetchNewsApi(query) {
   const apiKey = env.news.newsApiKey;
   if (!apiKey) return [];
 
-  const url = new URL('https://newsapi.org/v2/everything');
-  url.searchParams.set('q', query);
-  url.searchParams.set('apiKey', apiKey);
-  url.searchParams.set('pageSize', '20');
-  url.searchParams.set('sortBy', 'publishedAt');
-  url.searchParams.set('searchIn', 'title,description');
+  const endpoint = new URL('https://newsapi.org/v2/everything');
+  endpoint.searchParams.set('q', query);
+  endpoint.searchParams.set('apiKey', apiKey);
+  endpoint.searchParams.set('pageSize', '20');
+  endpoint.searchParams.set('sortBy', 'publishedAt');
+  endpoint.searchParams.set('searchIn', 'title,description');
 
   const rawLang = String(env.news.gnewsLang || '').trim().toLowerCase();
-  if (rawLang && rawLang !== 'all') {
-    const lang = rawLang.slice(0, 2);
-    if (lang) url.searchParams.set('language', lang);
-  }
+  if (rawLang && rawLang !== 'all') endpoint.searchParams.set('language', rawLang.slice(0, 2));
 
-  const res = await fetch(url.toString());
+  const startedAt = Date.now();
+  const res = await fetch(endpoint.toString());
+  const elapsed = Date.now() - startedAt;
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw Object.assign(new Error('NewsAPI error'), { status: 502, details: body });
+    console.error('[news][newsapi] failed', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
+    throw new Error('NewsAPI request failed');
   }
 
   const data = await res.json();
@@ -119,166 +157,151 @@ async function fetchFromProviders(query) {
   try {
     const gnewsItems = await fetchGnews(query);
     if (gnewsItems.length > 0) return gnewsItems;
-  } catch (err) {
-    console.error('[news] gnews provider failed', err?.message || err);
-  }
+  } catch {}
 
   try {
     const newsApiItems = await fetchNewsApi(query);
     if (newsApiItems.length > 0) return newsApiItems;
-  } catch (err) {
-    console.error('[news] newsapi provider failed', err?.message || err);
-  }
+  } catch {}
 
   return [];
 }
 
-async function pickLatest(category) {
+async function pickCategoryNews(category) {
   const queries = buildQueries(category);
   const collected = [];
 
-  for (const q of queries) {
-    const items = await fetchFromProviders(q);
-    collected.push(...items);
+  for (const query of queries) {
+    const items = await fetchFromProviders(query);
+    if (!items.length) continue;
+
+    const normalized = normalizeItems(items);
+    const filtered = normalized.filter((item) => matchesCategory(item, category));
+    if (filtered.length > 0) return filtered;
+    collected.push(...normalized);
+
+    if (collected.length >= 5) break;
   }
 
-  const normalized = collected
-    .filter((x) => x.title && x.url)
-    .sort((a, b) => {
-      const da = a.pubDate ? a.pubDate.getTime() : 0;
-      const db = b.pubDate ? b.pubDate.getTime() : 0;
-      return db - da;
-    });
-
-  const filtered = normalized.filter((x) => matchesCategory(x, category));
-
-  if (filtered.length > 0) return filtered;
-
-  return normalized;
+  return normalizeItems(collected);
 }
 
-async function translateToSpanish(text) {
-  const apiKey = env.ai.openaiApiKey;
-  if (!apiKey || !text) return text;
+async function trimNewsPerCategory(limit = 10) {
+  for (const category of categories) {
+    const rows = await News.find({ category }).sort({ date: -1, createdAt: -1 }).select('_id');
+    if (rows.length <= limit) continue;
+    const staleIds = rows.slice(limit).map((x) => x._id);
+    await News.deleteMany({ _id: { $in: staleIds } });
+  }
+}
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: env.ai.openaiModel,
-      messages: [
-        {
-          role: 'system',
-          content: 'Traduce al español neutro. Mantén nombres propios y marcas. No agregues información.'
-        },
-        { role: 'user', content: text }
-      ],
-      temperature: 0.2
-    })
+async function updateRefreshState(patch) {
+  await NewsRefreshState.findOneAndUpdate({ key: REFRESH_KEY }, { $set: patch }, { upsert: true, new: true });
+}
+
+export async function refreshNewsNow({ force = false, trigger = 'manual' } = {}) {
+  const now = new Date();
+  const todayUtc = startOfUtcDay(now);
+
+  await updateRefreshState({ lastAttemptAt: now });
+
+  const staleCutoff = new Date(todayUtc.getTime() - 3 * 24 * 60 * 60 * 1000);
+  await News.deleteMany({ date: { $lt: staleCutoff } });
+
+  const fallbackByCategory = new Map();
+  const currentRows = await News.find({}).sort({ date: -1, createdAt: -1 });
+  currentRows.forEach((row) => {
+    if (!fallbackByCategory.has(row.category)) fallbackByCategory.set(row.category, row);
   });
 
-  if (res.ok) {
-    const data = await res.json();
-    const translated = data?.choices?.[0]?.message?.content?.trim();
-    if (translated) return translated;
-  }
+  const toInsert = [];
+  const touchedCategories = [];
 
-  return text;
-}
-
-async function translateWithLibre(text) {
-  const url = env.news.translateUrl;
-  if (!url || !text) return text;
-
-  const payload = {
-    q: text,
-    source: 'auto',
-    target: 'es',
-    format: 'text'
-  };
-  if (env.news.translateApiKey) payload.api_key = env.news.translateApiKey;
-
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) return text;
-    const data = await res.json();
-    return data?.translatedText || text;
-  } catch (err) {
-    return text;
-  }
-}
-
-async function translateToSpanishSafe(text) {
-  const first = await translateToSpanish(text);
-  if (first && first !== text) return first;
-  return translateWithLibre(text);
-}
-
-export async function ensureDailyNews() {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const cutoff = new Date(start.getTime() - 3 * 24 * 60 * 60 * 1000);
-  await News.deleteMany({ date: { $lt: cutoff } });
-
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  const todayCount = await News.countDocuments({ date: { $gte: start, $lt: end } });
-  if (todayCount > 0) return;
-
-  await News.deleteMany({ date: { $gte: start, $lt: end } });
-
-  const batch = [];
-  const usedUrls = new Set();
-  const usedTitles = new Set();
   for (const category of categories) {
     let picked = null;
-    try {
-      const candidates = await pickLatest(category);
-      picked =
-        candidates.find((item) => {
-          const normalizedTitle = String(item.title || '').trim().toLowerCase();
-          return !usedUrls.has(item.url) && !usedTitles.has(normalizedTitle);
-        }) || null;
-    } catch (err) {
-      console.error('[news] gnews failed', category, err?.message || err);
-    }
+    const candidates = await pickCategoryNews(category);
+    picked = candidates[0] || null;
+
     if (!picked) {
-      batch.push({
-        title: `${category}: sin fuente disponible`,
-        summary: 'No se encontraron noticias filtradas por tema hoy. Intenta refrescar mas tarde.',
-        category,
-        source: 'GNews',
-        url: '',
-        imageUrl: '',
-        date: start,
-        createdByAI: false,
-        createdAt: new Date()
-      });
-      continue;
+      const fallback = fallbackByCategory.get(category);
+      if (!fallback) continue;
+      picked = {
+        title: fallback.title,
+        summary: fallback.summary,
+        url: fallback.url,
+        imageUrl: fallback.imageUrl,
+        source: fallback.source || 'CACHE'
+      };
     }
 
-    usedUrls.add(picked.url);
-    usedTitles.add(String(picked.title || '').trim().toLowerCase());
-
-    batch.push({
-      title: picked.title,
+    touchedCategories.push(category);
+    toInsert.push({
+      title: picked.title || `${category}: noticia`,
       summary: picked.summary || 'Sin resumen.',
       category,
-      source: picked.source || 'GNews',
+      source: picked.source || 'AUTO',
       url: picked.url || '',
       imageUrl: picked.imageUrl || '',
-      date: start,
+      date: now,
       createdByAI: false,
-      createdAt: new Date()
+      createdAt: now
     });
   }
 
-  await News.insertMany(batch);
+  if (toInsert.length === 0) {
+    await updateRefreshState({
+      lastStatus: 'failed',
+      lastError: `[${trigger}] No se pudieron obtener noticias desde proveedores ni cache.`
+    });
+    throw new Error('News refresh failed: no records generated');
+  }
+
+  if (force) {
+    await News.deleteMany({});
+  } else {
+    await News.deleteMany({
+      category: { $in: touchedCategories },
+      date: { $gte: todayUtc }
+    });
+  }
+
+  await News.insertMany(toInsert);
+  await trimNewsPerCategory(10);
+
+  await updateRefreshState({
+    lastRefreshAt: now,
+    lastStatus: 'success',
+    lastError: ''
+  });
+}
+
+export async function ensureNewsFresh({ force = false, trigger = 'request' } = {}) {
+  const state = await NewsRefreshState.findOne({ key: REFRESH_KEY });
+  const isFreshToday = state?.lastRefreshAt && utcDayKey(state.lastRefreshAt) === utcDayKey(new Date());
+
+  if (!force && isFreshToday) return;
+
+  if (!refreshPromise) {
+    refreshPromise = refreshNewsNow({ force, trigger }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
+export function startNewsScheduler() {
+  if (schedulerInterval) return;
+
+  setTimeout(() => {
+    ensureNewsFresh({ trigger: 'startup' }).catch((err) => {
+      console.error('[news] startup refresh failed', err?.message || err);
+    });
+  }, 4000);
+
+  schedulerInterval = setInterval(() => {
+    ensureNewsFresh({ trigger: 'hourly-check' }).catch((err) => {
+      console.error('[news] scheduled refresh failed', err?.message || err);
+    });
+  }, 60 * 60 * 1000);
 }

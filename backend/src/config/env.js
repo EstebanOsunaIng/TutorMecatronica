@@ -1,3 +1,14 @@
+function sanitizeApiKey(value) {
+  let key = String(value || '').trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
+  }
+  while (key.startsWith('=')) {
+    key = key.slice(1).trim();
+  }
+  return key;
+}
+
 export const env = {
   port: Number(process.env.PORT || 3001),
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/tutormecatronica',
@@ -8,11 +19,11 @@ export const env = {
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini'
   },
   news: {
-    gnewsApiKey: (process.env.GNEWS_API_KEY || process.env.GNEWS_TOKEN || '').trim(),
+    gnewsApiKey: sanitizeApiKey(process.env.GNEWS_API_KEY || process.env.GNEWS_TOKEN || ''),
     gnewsLang: process.env.GNEWS_LANG || 'all',
-    newsApiKey: (process.env.NEWSAPI_KEY || '').trim(),
+    newsApiKey: sanitizeApiKey(process.env.NEWSAPI_KEY || ''),
     translateUrl: process.env.NEWS_TRANSLATE_URL || 'https://libretranslate.de/translate',
-    translateApiKey: process.env.NEWS_TRANSLATE_API_KEY || ''
+    translateApiKey: sanitizeApiKey(process.env.NEWS_TRANSLATE_API_KEY || '')
   },
   mail: {
     service: process.env.MAIL_SERVICE || '',
