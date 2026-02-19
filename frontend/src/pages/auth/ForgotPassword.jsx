@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth.api.js';
 import { useTheme } from '../../context/ThemeContext.jsx';
@@ -12,15 +12,40 @@ export default function ForgotPassword() {
   const [step, setStep] = useState(1);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isMobileVisual, setIsMobileVisual] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleViewport = () => {
+      setIsMobileVisual(window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches);
+    };
+    handleViewport();
+    window.addEventListener('resize', handleViewport);
+    window.addEventListener('orientationchange', handleViewport);
+    return () => {
+      window.removeEventListener('resize', handleViewport);
+      window.removeEventListener('orientationchange', handleViewport);
+    };
+  }, []);
 
   const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
   const codeError = step === 2 && code && !/^\d{6}$/.test(code.trim()) ? 'El codigo debe tener 6 digitos.' : '';
   const newPasswordError = step === 2 && newPassword && newPassword.trim().length < 6 ? 'Minimo 6 caracteres.' : '';
+  const authBackground = isDark
+    ? isMobileVisual
+      ? '/assets/modo-oscuro-C.png'
+      : '/assets/modo-oscuro-B.png'
+    : isMobileVisual
+      ? '/assets/modo-claro-C.png'
+      : '/assets/modo-claro-B.png';
 
   const inputClass = `block w-full rounded-xl px-4 py-2.5 text-[0.95rem] shadow-sm outline-none transition ${
     isDark
       ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25'
-      : 'border border-[#c8d1db] bg-[#ffffff] text-[#2c3b4a] placeholder:text-[#7c8998] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'
+      : 'border border-[#9ebbd4] bg-[#edf4fb] text-[#243447] placeholder:text-[#6d8094] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'
   }`;
 
   const labelClass = `block text-[11px] font-bold uppercase tracking-[0.16em] ${isDark ? 'text-sky-200/75' : 'text-[#647384]'}`;
@@ -58,12 +83,18 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className={`min-h-screen w-full ${isDark ? 'bg-[#020b1c] text-white' : 'bg-[#d4dee8] text-[#10253c]'}`} style={{ fontFamily: 'Roboto, sans-serif' }}>
+    <div
+      className={`min-h-screen w-full ${isDark ? 'text-white' : 'text-[#10253c]'}`}
+      style={{
+        fontFamily: 'Roboto, sans-serif',
+        backgroundImage: `url(${authBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
-        <section className="relative hidden md:block">
-          <img src={isDark ? '/assets/campus-placeholder.svg' : '/assets/fondoClaroLogin.png'} alt="Laboratorio de ingeniería mecatrónica" className="absolute inset-0 h-full w-full object-cover" />
-          <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]' : 'bg-gradient-to-r from-[#dbe3ec]/60 via-[#cad4e0]/45 to-[#8ea0b8]/28'}`} />
-          <div className="absolute inset-0 flex items-end p-10 lg:p-14">
+        <section className="hidden items-end p-10 md:flex lg:p-14">
             <div className={`max-w-lg ${isDark ? 'text-white' : 'text-[#0d2746]'}`}>
               <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ${isDark ? 'bg-sky-500/20 text-sky-100' : 'bg-[#eef4fb] text-[#2d5477]'}`}>
                 Soporte de acceso
@@ -75,11 +106,10 @@ export default function ForgotPassword() {
                 Te guiaremos en el proceso para restablecer tu contraseña de forma segura.
               </p>
             </div>
-          </div>
         </section>
 
         <section className="relative flex w-full items-center justify-center px-5 py-6 md:px-8 lg:px-12 lg:py-4">
-          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-5 md:p-6 ${isDark ? 'border border-sky-900/50 bg-[#071b31]/95 shadow-xl shadow-sky-950/30' : 'border border-[#c6d2df] bg-[#fcfdff] shadow-2xl shadow-slate-400/30'}`}>
+          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-5 backdrop-blur-xl md:p-6 ${isDark ? 'border border-sky-700/65 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
             <div className="absolute right-5 top-5">
               <button
                 onClick={toggleTheme}
@@ -100,11 +130,12 @@ export default function ForgotPassword() {
             </div>
 
             <div className="mb-5 pt-2 text-center">
-              <div className="mx-auto flex h-14 w-[250px] items-center justify-center md:h-16 md:w-[280px]">
+              <div className="mx-auto flex h-14 w-[260px] items-center justify-center overflow-hidden md:h-16 md:w-[280px]">
                 <img
                   src={isDark ? '/assets/universitaria-logo-on-dark.png' : '/assets/universitaria-logo-on-light.png'}
                   alt="Logo Universitaria de Colombia"
-                  className="max-h-full w-auto max-w-full object-contain"
+                  className="h-full w-full object-contain"
+                  style={{ transform: isDark ? 'scale(1.6)' : 'scale(0.82)' }}
                 />
               </div>
               <h2 className={`mt-3 text-[2.1rem] font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-[#092748]'}`}>Recuperar contraseña</h2>

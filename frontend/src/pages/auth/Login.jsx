@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
@@ -12,10 +12,35 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isMobileVisual, setIsMobileVisual] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleViewport = () => {
+      setIsMobileVisual(window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches);
+    };
+    handleViewport();
+    window.addEventListener('resize', handleViewport);
+    window.addEventListener('orientationchange', handleViewport);
+    return () => {
+      window.removeEventListener('resize', handleViewport);
+      window.removeEventListener('orientationchange', handleViewport);
+    };
+  }, []);
 
   const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
   const passwordError = password && password.trim().length < 6 ? 'Minimo 6 caracteres.' : '';
   const hasValidationErrors = Boolean(emailError || passwordError);
+  const authBackground = isDark
+    ? isMobileVisual
+      ? '/assets/modo-oscuro-C.png'
+      : '/assets/modo-oscuro-B.png'
+    : isMobileVisual
+      ? '/assets/modo-claro-C.png'
+      : '/assets/modo-claro-B.png';
 
   const submit = async (e) => {
     e.preventDefault();
@@ -42,12 +67,18 @@ export default function Login() {
   };
 
   return (
-    <div className={`min-h-screen w-full ${isDark ? 'bg-[#020b1c] text-white' : 'bg-[#e4e4f3] text-[#10253c]'}`} style={{ fontFamily: 'Roboto, sans-serif' }}>
+    <div
+      className={`min-h-screen w-full ${isDark ? 'text-white' : 'text-[#10253c]'}`}
+      style={{
+        fontFamily: 'Roboto, sans-serif',
+        backgroundImage: `url(${authBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
-        <section className="relative hidden md:block">
-          <img src={isDark ? '/assets/campus-placeholder.svg' : '/assets/campus-placeholder.svg'} alt="Laboratorio de ingeniería mecatrónica" className="absolute inset-0 h-full w-full object-cover" />
-          <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-r from-sky-900/80 via-slate-900/85 to-[#020b1c]' : 'bg-gradient-to-r from-[#d5dee8]/86 via-[#c8d4e2]/82 to-[#9aaec2]/68'}`} />
-          <div className="absolute inset-0 flex items-end p-10 lg:p-14">
+        <section className="hidden items-end p-10 md:flex lg:p-14">
             <div className={`max-w-lg ${isDark ? 'text-white' : 'text-[#0d2746]'}`}>
               <h1 className="text-3xl font-extrabold leading-tight md:text-4xl lg:text-[3rem] lg:leading-[1.03]">
                 Construyendo el futuro de la ingeniería mecatrónica.
@@ -56,11 +87,10 @@ export default function Login() {
                 Únete a la comunidad académica de la Universitaria de Colombia.
               </p>
             </div>
-          </div>
         </section>
 
         <section className="relative flex w-full items-center justify-center px-5 py-8 md:px-10 lg:px-14">
-          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-7 md:p-10 ${isDark ? 'border border-sky-900/50 bg-[#071b31]/95 shadow-xl shadow-sky-950/30' : 'border border-[#c6d2df] bg-[#fcfdff] shadow-2xl shadow-slate-400/30'}`}>
+          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-7 backdrop-blur-xl md:p-10 ${isDark ? 'border border-sky-700/65 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
             <div className="absolute right-5 top-5">
               <button
                 onClick={toggleTheme}
@@ -123,7 +153,7 @@ export default function Login() {
                     placeholder="usuario@universitaria.edu.co"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`block w-full rounded-xl px-4 py-3 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#c8d1db] bg-[#ffffff] text-[#2c3b4a] placeholder:text-[#7c8998] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
+                    className={`block w-full rounded-xl px-4 py-3 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#9ebbd4] bg-[#edf4fb] text-[#243447] placeholder:text-[#6d8094] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
                   />
                   {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
                 </div>
@@ -143,7 +173,7 @@ export default function Login() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`block w-full rounded-xl px-4 py-3 pr-12 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#c8d1db] bg-[#ffffff] text-[#2c3b4a] placeholder:text-[#7c8998] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
+                    className={`block w-full rounded-xl px-4 py-3 pr-12 text-[1.05rem] shadow-sm outline-none transition ${isDark ? 'border border-sky-900/60 bg-[#082447] text-white placeholder:text-sky-100/35 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25' : 'border border-[#9ebbd4] bg-[#edf4fb] text-[#243447] placeholder:text-[#6d8094] focus:border-[#2c8fd3] focus:ring-2 focus:ring-[#2c8fd3]/25'}`}
                   />
                   {passwordError && <p className="mt-1 text-xs text-red-500">{passwordError}</p>}
                   <button
