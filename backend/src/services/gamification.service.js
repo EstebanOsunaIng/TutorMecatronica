@@ -111,7 +111,7 @@ export async function getRankingTop5() {
   return User.find({ role: 'STUDENT' })
     .sort({ badgesCount: -1, completedModulesCount: -1, lastBadgeUnlockedAt: 1 })
     .limit(5)
-    .select('name lastName badgesCount');
+    .select('name lastName badgesCount completedModulesCount lastBadgeUnlockedAt');
 }
 
 export async function getRankingPosition(userId) {
