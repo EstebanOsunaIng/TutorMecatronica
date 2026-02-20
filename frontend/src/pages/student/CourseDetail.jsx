@@ -67,7 +67,9 @@ export default function CourseDetail() {
   const askHelp = (level) => {
     const context = `Modulo: ${moduleItem?.title}\nNivel: ${level.title}\nContexto: ${level.contextForAI}`;
     const message = `Estoy en el nivel ${level.title}. Explicame paso a paso y guiame sin darme la respuesta.`;
-    window.dispatchEvent(new CustomEvent('tuvir:chat:send', { detail: { message, context } }));
+    window.dispatchEvent(new CustomEvent('tuvir:chat:send', {
+      detail: { message, context, moduleId: id, levelId: level._id }
+    }));
   };
 
   return (

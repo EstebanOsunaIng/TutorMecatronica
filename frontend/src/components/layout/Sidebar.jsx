@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
   BookOpen,
+  FileText,
   Edit3,
   Home,
   LogOut,
@@ -24,6 +25,7 @@ const roleItems = {
     { to: '/teacher/dashboard', label: 'Inicio', icon: Home },
     { to: '/teacher/students', label: 'Estudiantes', icon: Users },
     { to: '/teacher/news', label: 'Noticias', icon: Newspaper },
+    { to: '/teacher/knowledge', label: 'Base IA', icon: FileText },
     { to: '/teacher/modules', label: 'Edicion de modulos', icon: Edit3 },
     { to: '/teacher/settings', label: 'Ajustes', icon: Settings }
   ],
@@ -32,6 +34,7 @@ const roleItems = {
     { to: '/admin/users', label: 'Registro de usuarios', icon: Users },
     { to: '/admin/modules', label: 'Gestion de modulos', icon: Edit3 },
     { to: '/admin/news', label: 'Noticias', icon: Newspaper },
+    { to: '/admin/knowledge', label: 'Base IA', icon: FileText },
     { to: '/admin/stats', label: 'Estadisticas', icon: BarChart3 },
     { to: '/admin/settings', label: 'Ajustes', icon: Settings }
   ]

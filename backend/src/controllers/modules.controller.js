@@ -2,8 +2,6 @@ import { Module } from '../models/Module.model.js';
 import { LessonLevel } from '../models/LessonLevel.model.js';
 import { Badge } from '../models/Badge.model.js';
 import fs from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
 import { parsePdfToModule } from '../services/pdfToModule.service.js';
 import { createNotification, createNotificationsForStudents } from '../services/notifications.service.js';
 
@@ -117,9 +115,7 @@ export async function deleteModule(req, res) {
 export async function importModuleFromPdf(req, res) {
   if (!req.file) return res.status(400).json({ error: 'Missing file' });
 
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tutormecatronica-'));
-  const filePath = path.join(tmpDir, req.file.originalname || 'module.pdf');
-  await fs.writeFile(filePath, req.file.buffer);
+  const filePath = req.file.path;
 
   try {
     const parsed = await parsePdfToModule(filePath);
@@ -178,7 +174,7 @@ export async function importModuleFromPdf(req, res) {
 
     res.status(201).json({ module: moduleItem, levels: created });
   } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(filePath, { force: true });
   }
 }
 
