@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronLeft,
@@ -7,7 +7,7 @@ import {
   Clock3,
   ExternalLink,
   FileText,
-  HelpCircle,
+  Bot,
   Image as ImageIcon,
   Lock,
   PlayCircle,
@@ -234,16 +234,59 @@ export default function ModuleStudentPreview({
   const [localCompletedOrders, setLocalCompletedOrders] = useState(completedLevelOrders || []);
   const [localCurrentOrder, setLocalCurrentOrder] = useState(currentLevelOrder || 1);
   const [processingNext, setProcessingNext] = useState(false);
+  const initSignatureRef = useRef('');
+
+  const isStudent = role === 'student';
+
+  const completedSet = new Set(localCompletedOrders || []);
 
   useEffect(() => {
+    const signature = groupedLevels.map((level) => `${level.levelNumber}:${level.sublevels.length}`).join('|');
+    if (!isStudent && initSignatureRef.current === signature) return;
+    initSignatureRef.current = signature;
+
     const nextExpanded = {};
-    groupedLevels.forEach((_, idx) => {
-      nextExpanded[idx] = true;
-    });
+    let nextLevelIndex = 0;
+    let nextSublevelIndex = 0;
+
+    if (isStudent && flatSublevels.length) {
+      const targetOrder = Math.max(localCurrentOrder || 1, 1);
+      let targetIndex = flatSublevels.findIndex((item) => item.order === targetOrder);
+
+      if (targetIndex < 0) {
+        const completedOrders = localCompletedOrders || [];
+        const completedSorted = [...completedOrders].sort((a, b) => a - b);
+        const lastCompleted = completedSorted[completedSorted.length - 1];
+        const nextAfterCompleted = Number.isFinite(lastCompleted) ? lastCompleted + 1 : 1;
+        targetIndex = flatSublevels.findIndex((item) => item.order === nextAfterCompleted);
+
+        if (targetIndex < 0 && completedSorted.length) {
+          targetIndex = flatSublevels.findIndex((item) => item.order === lastCompleted);
+        }
+
+        if (targetIndex < 0) {
+          const nextIndexByCount = Math.min(completedOrders.length, Math.max(flatSublevels.length - 1, 0));
+          targetIndex = nextIndexByCount;
+        }
+      }
+
+      const fallbackIndex = targetIndex >= 0 ? targetIndex : 0;
+      const target = flatSublevels[fallbackIndex];
+      if (target) {
+        nextLevelIndex = target.levelIdx;
+        nextSublevelIndex = target.subIdx;
+      }
+    } else {
+      groupedLevels.forEach((_, idx) => {
+        nextExpanded[idx] = false;
+      });
+    }
+
+    nextExpanded[nextLevelIndex] = true;
     setExpandedLevels(nextExpanded);
-    setActiveLevelIndex(0);
-    setActiveSublevelIndex(0);
-  }, [groupedLevels]);
+    setActiveLevelIndex(nextLevelIndex);
+    setActiveSublevelIndex(nextSublevelIndex);
+  }, [groupedLevels, flatSublevels, isStudent, localCurrentOrder, localCompletedOrders]);
 
   useEffect(() => {
     setLocalCompletedOrders(completedLevelOrders || []);
@@ -264,8 +307,6 @@ export default function ModuleStudentPreview({
   const contextLineBreaks = (activeLightboxContext.match(/\n/g) || []).length;
   const shouldAllowContextExpansion = activeLightboxContext.length > 260 || contextLineBreaks > 5;
 
-  const isStudent = role === 'student';
-  const completedSet = new Set(localCompletedOrders || []);
   const unlockedOrder = Math.max(localCurrentOrder || 1, 1);
 
   const getSublevelState = (sublevel) => {
@@ -315,9 +356,15 @@ export default function ModuleStudentPreview({
   const handleNext = async () => {
     if (!activeSublevel || activeFlatIndex < 0 || processingNext) return;
 
+    if (!isStudent) {
+      const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
+      if (!isLastSublevel) goToFlatIndex(activeFlatIndex + 1);
+      return;
+    }
+
     setProcessingNext(true);
     try {
-      if (isStudent && !completedSet.has(activeSublevel.order)) {
+      if (!completedSet.has(activeSublevel.order)) {
         if (onComplete) {
           await onComplete(activeSublevel.rawLevel);
         }
@@ -330,7 +377,7 @@ export default function ModuleStudentPreview({
 
       const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
       if (isLastSublevel) {
-        if (isStudent && onFinishModule) {
+        if (onFinishModule) {
           await onFinishModule();
         }
         return;
@@ -352,12 +399,20 @@ export default function ModuleStudentPreview({
   const activeXp = computeXpForOrder(activeOrder, totalSublevels);
   const activeState = activeSublevel ? getSublevelState(activeSublevel) : { completed: false, locked: false };
   const isLastSublevel = activeFlatIndex >= flatSublevels.length - 1;
+  const maxDots = 18;
+  const safeActiveIndex = activeFlatIndex >= 0 ? activeFlatIndex : 0;
+  const halfWindow = Math.floor(maxDots / 2);
+  const startIndex = Math.max(0, Math.min(safeActiveIndex - halfWindow, Math.max(totalSublevels - maxDots, 0)));
+  const endIndex = Math.min(startIndex + maxDots, totalSublevels);
+  const leadingHidden = startIndex;
+  const trailingHidden = totalSublevels - endIndex;
+  const visibleSublevels = flatSublevels.slice(startIndex, endIndex);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-      <aside className="rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+      <aside className="flex max-h-[calc(100vh-200px)] flex-col rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Contenido del modulo</p>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 flex-1 space-y-2 overflow-y-auto pr-1">
           {groupedLevels.map((levelItem, levelIdx) => {
             const isExpanded = !!expandedLevels[levelIdx];
             const isSelectedLevel = activeLevelIndex === levelIdx;
@@ -417,7 +472,7 @@ export default function ModuleStudentPreview({
                         <button
                           key={sublevel.id}
                           type="button"
-                          disabled={state.locked}
+                          disabled={isStudent ? state.locked : false}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveLevelIndex(levelIdx);
@@ -461,8 +516,8 @@ export default function ModuleStudentPreview({
         </section>
       ) : (
           <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900/35">
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                   <ImageIcon className="h-3.5 w-3.5" /> {activeSublevel.images.length} imagenes
                 </span>
@@ -558,60 +613,71 @@ export default function ModuleStudentPreview({
               </div>
               )}
 
-              <div className="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-700">
-              <button
-                type="button"
-                onClick={handlePrev}
-                disabled={activeFlatIndex <= 0}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200"
-              >
-                <ChevronLeft className="h-4 w-4" /> Anterior
-              </button>
-
-              <div className="flex items-center gap-1.5">
-                {flatSublevels.map((item, idx) => {
-                  const state = getSublevelState(item.sublevel);
-                  return (
-                    <span
-                      key={`dot-${item.sublevel.id}`}
-                      className={`h-2.5 rounded-full ${
-                        idx === activeFlatIndex
-                          ? 'w-7 bg-brand-500'
-                          : state.completed
-                            ? 'w-2.5 bg-emerald-500'
-                            : state.locked
-                              ? 'w-2.5 bg-slate-300 dark:bg-slate-700'
-                              : 'w-2.5 bg-cyan-500'
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={activeState.locked || processingNext}
-                className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                {processingNext ? 'Guardando...' : isLastSublevel && isStudent ? 'Finalizar modulo' : 'Siguiente'} <ChevronRight className="h-4 w-4" />
-              </button>
-              </div>
-
-              {showActions && (
-              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-                {onAskHelp && (
+              {showActions && onAskHelp && (
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => onAskHelp(activeSublevel.rawLevel)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500/15 px-3 py-2 text-xs font-semibold text-brand-700 dark:bg-brand-500/20 dark:text-brand-100"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-brand-500/25"
                   >
-                    <HelpCircle className="h-4 w-4" /> Pedir ayuda
+                    <Bot className="h-4 w-4" /> Pedir ayuda
                   </button>
-                )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={activeFlatIndex <= 0}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-600 dark:text-slate-200"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-center gap-2 py-1">
+                    {leadingHidden > 0 && (
+                      <ChevronLeft className="h-4 w-4 text-slate-400" />
+                    )}
+                    <div className="flex max-w-[260px] items-center gap-1.5 overflow-x-auto px-1" style={{ scrollbarWidth: 'none' }}>
+                      {visibleSublevels.map((item, idx) => {
+                        const state = getSublevelState(item.sublevel);
+                        const realIndex = startIndex + idx;
+                        return (
+                          <span
+                            key={`dot-${item.sublevel.id}`}
+                            className={`h-2.5 rounded-full ${
+                              realIndex === activeFlatIndex
+                                ? 'w-7 bg-brand-500'
+                                : state.completed
+                                  ? 'w-2.5 bg-emerald-500'
+                                  : state.locked
+                                    ? 'w-2.5 bg-slate-300 dark:bg-slate-700'
+                                    : 'w-2.5 bg-cyan-500'
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    {trailingHidden > 0 && (
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                  disabled={(isStudent && activeState.locked) || processingNext}
+                    className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-brand-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                  >
+                    {processingNext ? 'Guardando...' : isLastSublevel && isStudent ? 'Finalizar modulo' : 'Siguiente'} <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            )}
-            </div>
+          </div>
           </section>
       )}
 

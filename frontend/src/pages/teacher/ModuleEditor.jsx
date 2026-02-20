@@ -222,6 +222,16 @@ export default function ModuleEditor() {
   const draftLevelsRef = useRef(draftLevels);
   const instructionTextareaRef = useRef(null);
 
+  const handleCoverImageUpload = async (file) => {
+    if (!file) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setCoverForm((f) => ({ ...f, imageUrl: dataUrl }));
+    } catch {
+      // ignore invalid files
+    }
+  };
+
   const isEditingMode = editorMode === 'edit';
   const currentDraftSignature = serializeDraftState(coverForm, draftLevels);
   const createDefaultSignature = serializeDraftState(INITIAL_COVER_FORM, [createInitialDraftLevel()]);
@@ -842,6 +852,24 @@ export default function ModuleEditor() {
                     onChange={(e) => setCoverForm((f) => ({ ...f, imageUrl: e.target.value }))}
                   />
                 </label>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
+                    Subir imagen
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        await handleCoverImageUpload(e.target.files?.[0]);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                  {coverForm.imageUrl && (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Imagen cargada.</span>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
