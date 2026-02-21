@@ -3,11 +3,11 @@ import rateLimit from 'express-rate-limit';
 const jsonHandler = (message) => ({ message });
 
 export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 30 * 1000,
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
-  message: jsonHandler('Demasiados intentos de inicio de sesion. Intenta de nuevo en 15 minutos.')
+  message: jsonHandler('Demasiados intentos de inicio de sesion. Intenta de nuevo en 30 segundos.')
 });
 
 export const forgotLimiter = rateLimit({

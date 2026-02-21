@@ -232,7 +232,7 @@ export default function Register() {
         </section>
 
         <section className="relative flex w-full items-center justify-center px-5 py-6 md:px-8 lg:px-12 lg:py-4">
-          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-5 backdrop-blur-xl md:p-6 ${isDark ? 'border border-sky-700/65 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
+          <div className={`relative w-full max-w-[540px] rounded-[2rem] p-5 backdrop-blur-xl md:p-6 ${isDark ? 'border border-sky-800/80 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
             <div className="absolute right-5 top-5">
               <button
                 onClick={toggleTheme}
