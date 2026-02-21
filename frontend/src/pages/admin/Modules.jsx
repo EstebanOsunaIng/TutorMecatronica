@@ -133,14 +133,15 @@ export default function AdminModules() {
           )}
         </Card>
 
-        <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filteredModules.map((m) => {
-          return (
-          <Card
-            key={m._id}
-            onClick={() => openPreview(m)}
-            className="group overflow-hidden border border-cyan-100 bg-white/90 !p-0 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50"
-          >
+        <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filteredModules.map((m) => {
+            return (
+            <Card
+              key={m._id}
+              onClick={() => openPreview(m)}
+              className="group overflow-hidden border border-cyan-100 bg-white/90 !p-0 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50"
+            >
             <div className="flex h-full flex-col">
               <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-t-2xl bg-slate-800">
                 <img
@@ -236,16 +237,17 @@ export default function AdminModules() {
                 </div>
               </div>
             </div>
-          </Card>
-          );
-        })}
+            </Card>
+            );
+          })}
 
-        {!filteredModules.length && (
-          <Card className="bg-cyan-50/70 dark:bg-slate-900">
-            <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
-          </Card>
-        )}
-        </div>
+          {!filteredModules.length && (
+            <Card className="bg-cyan-50/70 dark:bg-slate-900">
+              <div className="text-sm text-slate-400">No hay modulos que coincidan con la busqueda.</div>
+            </Card>
+          )}
+          </div>
+        </Card>
 
       <Modal open={Boolean(moduleToDelete)} onClose={() => setModuleToDelete(null)}>
         <h3 className="text-lg font-bold">Confirmar eliminacion</h3>

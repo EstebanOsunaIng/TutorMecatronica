@@ -350,6 +350,17 @@ export default function ModuleEditor() {
   const activeFlatDraftIndex = flatDraftSublevels.findIndex(
     (item) => item.levelIndex === activeDraftLevelIndex && item.sublevelIndex === activeDraftSublevelIndex
   );
+  const maxDraftDots = 18;
+  const safeDraftIndex = activeFlatDraftIndex >= 0 ? activeFlatDraftIndex : 0;
+  const halfDraftWindow = Math.floor(maxDraftDots / 2);
+  const draftStartIndex = Math.max(
+    0,
+    Math.min(safeDraftIndex - halfDraftWindow, Math.max(flatDraftSublevels.length - maxDraftDots, 0))
+  );
+  const draftEndIndex = Math.min(draftStartIndex + maxDraftDots, flatDraftSublevels.length);
+  const draftLeadingHidden = draftStartIndex;
+  const draftTrailingHidden = flatDraftSublevels.length - draftEndIndex;
+  const visibleDraftSublevels = flatDraftSublevels.slice(draftStartIndex, draftEndIndex);
   const editingImage = draftLevels[imageEditorState.levelIndex]
     ?.sublevels?.[imageEditorState.sublevelIndex]
     ?.imageItems?.find((imageItem) => imageItem.id === imageEditorState.imageId);
@@ -778,22 +789,24 @@ export default function ModuleEditor() {
           ) : createStep === 1 ? (
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Titulo
                   <input
-                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-1.5 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.title ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     placeholder="Ej: Introduccion a Sensores"
                     value={coverForm.title}
                     onChange={(e) => setCoverForm((f) => ({ ...f, title: e.target.value }))}
                   />
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">Nombre claro y corto.</span>
-                  {coverTriedContinue && coverErrors.title && <span className="text-xs text-red-300">El titulo es obligatorio.</span>}
+                  <span className="min-h-[16px] text-xs text-red-300">
+                    {coverTriedContinue && coverErrors.title ? 'El titulo es obligatorio.' : ''}
+                  </span>
                 </label>
 
-                <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Categoria
                   <select
-                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
+                    className={`rounded-lg border bg-white px-3 py-1.5 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.category ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
                     value={coverForm.category}
                     onChange={(e) => setCoverForm((f) => ({ ...f, category: e.target.value }))}
                   >
@@ -803,20 +816,24 @@ export default function ModuleEditor() {
                     ))}
                   </select>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">Ayuda a organizar modulos.</span>
-                  {coverTriedContinue && coverErrors.category && <span className="text-xs text-red-300">La categoria es obligatoria.</span>}
+                  <span className="min-h-[16px] text-xs text-red-300">
+                    {coverTriedContinue && coverErrors.category ? 'La categoria es obligatoria.' : ''}
+                  </span>
                 </label>
 
-                <label className="md:col-span-2 grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label className="md:col-span-2 grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
                   Descripcion
                   <textarea
-                    className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
-                    rows={4}
+                    className={`min-h-[140px] rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-400/30 dark:bg-slate-900 dark:text-slate-100 ${coverTriedContinue && coverErrors.description ? 'border-red-400/70' : 'border-slate-300 dark:border-slate-700'}`}
+                    rows={5}
                     placeholder="Explica que aprendera el estudiante"
                     value={coverForm.description}
                     onChange={(e) => setCoverForm((f) => ({ ...f, description: e.target.value }))}
                   />
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">Resumen breve del objetivo del modulo.</span>
-                  {coverTriedContinue && coverErrors.description && <span className="text-xs text-red-300">La descripcion es obligatoria.</span>}
+                  <span className="min-h-[16px] text-xs text-red-300">
+                    {coverTriedContinue && coverErrors.description ? 'La descripcion es obligatoria.' : ''}
+                  </span>
                 </label>
               </div>
 
@@ -873,8 +890,9 @@ export default function ModuleEditor() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[360px_1fr] pb-4">
-              <aside className="rounded-2xl bg-slate-50 p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+            <div className="grid items-start gap-4 lg:grid-cols-[360px_1fr] pb-4">
+              <aside className="self-start max-h-[calc(100vh-140px)] overflow-hidden rounded-2xl bg-slate-50 p-4 shadow-lg ring-1 ring-slate-200 dark:bg-slate-900/85 dark:ring-slate-700/60">
+                <div className="flex flex-col">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Estructura del modulo</p>
                   <button
@@ -886,7 +904,7 @@ export default function ModuleEditor() {
                   </button>
                 </div>
 
-                <div className="mt-3 space-y-5">
+                <div className="mt-3 max-h-[calc(100vh-240px)] space-y-5 overflow-y-auto pr-1">
                   {draftLevels.map((levelItem, levelIndex) => {
                     const isExpanded = !!expandedLevels[levelIndex];
                     const isActiveLevel = activeDraftLevelIndex === levelIndex;
@@ -941,7 +959,7 @@ export default function ModuleEditor() {
                         </div>
 
                         <div className={`overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                          <div className="ml-9 mt-3.5 space-y-3 border-l-2 border-slate-200 pl-4 dark:border-slate-700">
+                           <div className="ml-9 mt-2 space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
                             {levelItem.sublevels.map((sublevel, sublevelIndex) => {
                               const isActiveSublevel =
                                 activeDraftLevelIndex === levelIndex && activeDraftSublevelIndex === sublevelIndex;
@@ -955,7 +973,7 @@ export default function ModuleEditor() {
                                     setActiveDraftLevelIndex(levelIndex);
                                     setActiveDraftSublevelIndex(sublevelIndex);
                                   }}
-                                  className={`flex w-full items-start gap-2 rounded-xl px-3.5 py-3.5 text-left text-[13px] transition ${isActiveSublevel ? 'bg-cyan-500 text-white ring-2 ring-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)] dark:bg-cyan-500 dark:text-white dark:ring-cyan-300' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900/60 dark:text-slate-300 dark:ring-slate-700/60 dark:hover:bg-slate-800/70'}`}
+                                  className={`flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-[12px] transition ${isActiveSublevel ? 'bg-cyan-500 text-white ring-2 ring-cyan-200 shadow-[0_0_0_3px_rgba(34,211,238,0.25)] dark:bg-cyan-500 dark:text-white dark:ring-cyan-300' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900/60 dark:text-slate-300 dark:ring-slate-700/60 dark:hover:bg-slate-800/70'}`}
                                 >
                                   {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? (
                                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -964,7 +982,7 @@ export default function ModuleEditor() {
                                   )}
                                   <div className="min-w-0 flex-1">
                                     <p className="whitespace-normal break-words font-semibold leading-snug">{levelIndex + 1}.{sublevelIndex + 1} {sublevel.title || `Subnivel ${levelIndex + 1}.${sublevelIndex + 1}`}</p>
-                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'}`}>
+                                    <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${isActiveSublevel ? 'bg-white/20 text-white' : isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'}`}>
                                       {isDraftSublevelValid(sublevel) && levelItem.title.trim() ? 'OK' : 'Falta'}
                                     </span>
                                   </div>
@@ -988,6 +1006,7 @@ export default function ModuleEditor() {
                       </div>
                     );
                   })}
+                </div>
                 </div>
               </aside>
 
@@ -1295,16 +1314,31 @@ export default function ModuleEditor() {
                         <ChevronLeft className="h-4 w-4" /> Anterior
                       </button>
 
-                      <div className="flex items-center gap-1.5">
-                        {flatDraftSublevels.map((item, idx) => {
-                          const complete = isDraftSublevelValid(item.sublevel) && item.levelItem.title.trim();
-                          return (
-                            <span
-                              key={`draft-dot-${item.levelIndex + 1}-${item.sublevelIndex + 1}`}
-                              className={`h-2.5 rounded-full ${idx === activeFlatDraftIndex ? 'w-7 bg-brand-500' : complete ? 'w-2.5 bg-emerald-500' : 'w-2.5 bg-sky-400'}`}
-                            />
-                          );
-                        })}
+                      <div className="flex items-center justify-center gap-2">
+                        {draftLeadingHidden > 0 && (
+                          <ChevronLeft className="h-4 w-4 text-slate-400" />
+                        )}
+                        <div className="flex max-w-[260px] items-center gap-1.5 px-1">
+                          {visibleDraftSublevels.map((item, idx) => {
+                            const complete = isDraftSublevelValid(item.sublevel) && item.levelItem.title.trim();
+                            const realIndex = draftStartIndex + idx;
+                            return (
+                              <span
+                                key={`draft-dot-${item.levelIndex + 1}-${item.sublevelIndex + 1}`}
+                                className={`h-2.5 rounded-full ${
+                                  realIndex === activeFlatDraftIndex
+                                    ? 'w-7 bg-brand-500'
+                                    : complete
+                                      ? 'w-2.5 bg-emerald-500'
+                                      : 'w-2.5 bg-sky-400'
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+                        {draftTrailingHidden > 0 && (
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        )}
                       </div>
 
                       <button
