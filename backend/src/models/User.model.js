@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     profilePhotoUrl: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
     lastLoginAt: { type: Date },
+    lastSeenAt: { type: Date },
     isActive: { type: Boolean, default: true },
     badgesUnlocked: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Badge' }],
     badgesCount: { type: Number, default: 0 },

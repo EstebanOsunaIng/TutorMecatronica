@@ -4,6 +4,7 @@ import { Menu, MessageCircle, X } from 'lucide-react';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import ChatDock from '../chatbot/ChatDock.jsx';
+import { presenceApi } from '../../api/presence.api.js';
 
 const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
 
@@ -20,6 +21,37 @@ export default function RoleLayout() {
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return undefined;
+
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        await presenceApi.ping();
+      } catch {
+        // ignore
+      }
+    };
+
+    ping();
+    const id = window.setInterval(() => {
+      if (!cancelled) ping();
+    }, 15000);
+
+    const onBeforeUnload = () => {
+      // best-effort
+      ping();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, []);
 
   const sidebarHandlers = useMemo(
     () => ({

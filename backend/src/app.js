@@ -13,6 +13,8 @@ import aiRoutes from './routes/ai.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import teacherRoutes from './routes/teacher.routes.js';
+import presenceRoutes from './routes/presence.routes.js';
+import knowledgeRoutes from './routes/knowledge.routes.js';
 
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -52,6 +54,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notificaciones', notificationsRoutes);
 app.use('/api/teacher', teacherRoutes);
+app.use('/api/presence', presenceRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
 
 app.use(errorHandler);
 

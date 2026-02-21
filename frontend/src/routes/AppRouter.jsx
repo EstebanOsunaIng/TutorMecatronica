@@ -22,6 +22,7 @@ import TeacherModules from '../pages/teacher/Modules.jsx';
 import TeacherModuleEditor from '../pages/teacher/ModuleEditor.jsx';
 import TeacherNews from '../pages/teacher/News.jsx';
 import TeacherSettings from '../pages/teacher/Settings.jsx';
+import TeacherKnowledge from '../pages/teacher/Knowledge.jsx';
 
 import AdminDashboard from '../pages/admin/Dashboard.jsx';
 import AdminUsers from '../pages/admin/Users.jsx';
@@ -29,6 +30,7 @@ import AdminModules from '../pages/admin/Modules.jsx';
 import AdminStats from '../pages/admin/Stats.jsx';
 import AdminSettings from '../pages/admin/Settings.jsx';
 import AdminNews from '../pages/admin/News.jsx';
+import AdminKnowledge from '../pages/admin/Knowledge.jsx';
 
 export default function AppRouter() {
   const { user } = useAuth();
@@ -79,6 +81,7 @@ export default function AppRouter() {
         <Route path="dashboard" element={<TeacherDashboard />} />
         <Route path="students" element={<TeacherStudents />} />
         <Route path="news" element={<TeacherNews />} />
+        <Route path="knowledge" element={<TeacherKnowledge />} />
         <Route path="modules" element={<TeacherModules />} />
         <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="settings" element={<TeacherSettings />} />
@@ -100,6 +103,7 @@ export default function AppRouter() {
         <Route path="modules" element={<AdminModules />} />
         <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="news" element={<AdminNews />} />
+        <Route path="knowledge" element={<AdminKnowledge />} />
         <Route path="stats" element={<AdminStats />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="settings/security" element={<AdminSettings />} />

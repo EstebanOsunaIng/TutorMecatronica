@@ -16,7 +16,8 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   ai: {
     openaiApiKey: process.env.OPENAI_API_KEY || '',
-    openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini'
+    openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    openaiEmbeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small'
   },
   news: {
     gnewsApiKey: sanitizeApiKey(process.env.GNEWS_API_KEY || process.env.GNEWS_TOKEN || ''),

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, PlayCircle } from 'lucide-react';
+import { Activity, ArrowRight, Clock3, Flame, Lock, PlayCircle, Target } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import BadgeGrid from '../../components/gamification/BadgeGrid.jsx';
 import RankingCard from '../../components/gamification/RankingCard.jsx';
@@ -123,8 +123,50 @@ export default function StudentDashboard() {
 
   const badgesCount = Number.isFinite(user?.badgesCount) ? user.badgesCount : (unlocked || []).length;
 
+  const activitySummary = useMemo(() => {
+    const rows = progressRows || [];
+    const dayKeys = new Set();
+    let lastActiveTs = null;
+
+    for (const row of rows) {
+      const raw = row?.updatedAt || row?.completedAt || row?.startedAt;
+      const ts = raw ? new Date(raw).getTime() : NaN;
+      if (!Number.isFinite(ts)) continue;
+      const d = new Date(ts);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dayKeys.add(key);
+      if (lastActiveTs === null || ts > lastActiveTs) lastActiveTs = ts;
+    }
+
+    const today = new Date();
+    let streak = 0;
+    for (let i = 0; i < 60; i += 1) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!dayKeys.has(key)) break;
+      streak += 1;
+    }
+
+    const lastActiveText = (() => {
+      if (!lastActiveTs) return 'Sin actividad reciente';
+      const mins = Math.floor((Date.now() - lastActiveTs) / 60000);
+      if (mins < 2) return 'Hace 1 min';
+      if (mins < 60) return `Hace ${mins} min`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 2) return 'Hace 1 h';
+      if (hours < 24) return `Hace ${hours} h`;
+      const days = Math.floor(hours / 24);
+      if (days < 2) return 'Hace 1 dia';
+      return `Hace ${days} dias`;
+    })();
+
+    return { streak, lastActiveText };
+  }, [progressRows]);
+
+
   const ringStyle = {
-    background: `conic-gradient(${isDark ? '#38bdf8' : '#1d4f91'} ${progressPercent * 3.6}deg, ${isDark ? '#12345a' : '#dbe4ef'} 0deg)`
+    background: `conic-gradient(from 0deg, ${isDark ? '#5eead4' : '#1d4f91'} ${progressPercent * 3.6}deg, ${isDark ? '#1e293b' : '#dbe4ef'} 0deg)`
   };
 
   const displayName = (user?.name || '').trim();
@@ -152,13 +194,23 @@ export default function StudentDashboard() {
         <Card className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
           <div className="grid gap-6 md:grid-cols-[150px_1fr_200px] md:items-center">
             <div className="flex justify-center md:justify-start">
-              <div className="relative h-28 w-28 rounded-full p-2" style={ringStyle}>
+              <div
+                className="relative h-36 w-36 rounded-full p-[12px] shadow-[0_20px_28px_-22px_rgba(29,79,145,0.95)] transition-transform duration-500 hover:scale-[1.03] dark:shadow-[0_20px_32px_-22px_rgba(34,211,238,0.85)]"
+                style={ringStyle}
+              >
+                <div className="pointer-events-none absolute inset-0 animate-[spin_8s_linear_infinite] rounded-full bg-[conic-gradient(from_90deg,transparent_0deg,rgba(255,255,255,0.34)_52deg,transparent_116deg)]" />
+                <div className="pointer-events-none absolute inset-[3px] rounded-full border border-white/55 dark:border-cyan-200/20" />
+                <div className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.38),transparent_42%)]" />
                 <div
-                  className={`flex h-full w-full flex-col items-center justify-center rounded-full ${
+                  className={`relative z-10 flex h-full w-full flex-col items-center justify-center rounded-full ${
                     isDark ? 'bg-slate-900/40' : 'bg-white'
                   }`}
                 >
-                  <div className={`text-4xl font-extrabold ${isDark ? 'text-white' : 'text-[#1d4f91]'}`}>{progressPercent}%</div>
+                  <div
+                    className={`text-[34px] font-extrabold leading-none tracking-tight tabular-nums ${isDark ? 'text-white' : 'text-[#1d4f91]'}`}
+                  >
+                    {progressPercent}%
+                  </div>
                   <div className={`text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
                     Completado
                   </div>
@@ -190,20 +242,21 @@ export default function StudentDashboard() {
                         aria-label={`Ir al modulo ${moduleItem.title}`}
                         title={moduleItem.title}
                         className={
-                          `flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60 ` +
+                          `flex h-11 w-11 items-center justify-center rounded-full border text-[15px] font-black transition-transform duration-300 hover:-translate-y-0.5 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60 ` +
                           (done
                             ? isDark
-                              ? 'border-sky-400/60 bg-sky-500 text-slate-950 hover:bg-sky-400'
-                              : 'border-[#1d4f91] bg-[#1d4f91] text-white hover:bg-[#173f74]'
+                              ? 'border-cyan-300/70 bg-gradient-to-br from-cyan-300 to-sky-500 text-slate-950 shadow-[0_8px_14px_-8px_rgba(34,211,238,0.9)] hover:brightness-105'
+                              : 'border-[#1d4f91] bg-gradient-to-br from-[#2f8fe8] to-[#1d4f91] text-white shadow-[0_8px_14px_-8px_rgba(29,79,145,0.9)] hover:brightness-105'
                             : current
                               ? isDark
-                                ? 'border-sky-400 bg-slate-900/30 text-sky-200 hover:bg-slate-900/50'
-                                : 'border-[#1d4f91] bg-white text-[#1d4f91] hover:bg-slate-50'
+                                ? 'border-cyan-300 bg-slate-900/50 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.35)] hover:bg-slate-900/70'
+                                : 'border-[#1d4f91] bg-white text-[#1d4f91] shadow-[inset_0_0_0_1px_rgba(29,79,145,0.2)] hover:bg-slate-50'
                               : upcoming
                                 ? isDark
                                   ? 'border-slate-600 bg-transparent text-slate-300 hover:border-slate-500'
                                   : 'border-slate-200 bg-transparent text-slate-500 hover:border-slate-300'
-                                : '')
+                                : '') +
+                          (current ? ' animate-pulse' : '')
                         }
                       >
                         {done ? (
@@ -217,11 +270,11 @@ export default function StudentDashboard() {
                       {idx < moduleTimeline.length - 1 && (
                         <div
                           className={
-                            `h-[2px] w-8 rounded-full ` +
+                            `h-[3px] w-10 rounded-full ` +
                             (lineActive
                               ? isDark
-                                ? 'bg-sky-400/60'
-                                : 'bg-[#1d4f91]'
+                                ? 'bg-gradient-to-r from-cyan-300/80 to-sky-500/80'
+                                : 'bg-gradient-to-r from-[#2f8fe8] to-[#1d4f91]'
                               : isDark
                                 ? 'bg-slate-700'
                                 : 'bg-slate-200')
@@ -247,44 +300,125 @@ export default function StudentDashboard() {
           </div>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
+        <div className="grid gap-4 lg:grid-cols-3 lg:items-stretch">
+          <div className="lg:col-span-3">
             <BadgeGrid badges={badges} unlocked={unlocked} />
+          </div>
 
-            <Card className="p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Card className="p-4 lg:col-span-2">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Actividad</div>
+                <div className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">Tu actividad</div>
+              </div>
+              <select
+                value={activityRange}
+                onChange={(e) => setActivityRange(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 md:w-auto"
+              >
+                <option value="day">Dia</option>
+                <option value="week">Semana</option>
+                <option value="month">Mes</option>
+              </select>
+            </div>
+
+            <div className="mt-4">
+              <ActivityChart progressRows={progressRows} range={activityRange} isDark={isDark} />
+            </div>
+
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Basado en tu actividad reciente en modulos.
+            </div>
+          </Card>
+
+          <RankingCard top={top} />
+
+          <Card className="relative h-full overflow-hidden border-cyan-100/70 bg-gradient-to-br from-sky-50/85 via-cyan-50/55 to-slate-50 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900/55 dark:bg-none dark:text-slate-100 lg:col-span-2">
+            <div className="pointer-events-none absolute inset-0 opacity-70">
+              <div className="absolute -left-20 -top-20 h-44 w-44 rounded-full bg-cyan-300/15 blur-2xl dark:bg-cyan-400/10" />
+              <div className="absolute -bottom-20 -right-20 h-44 w-44 rounded-full bg-sky-400/12 blur-2xl dark:bg-sky-500/10" />
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:24px_24px] opacity-25 dark:opacity-20" />
+            </div>
+
+            <div className="relative flex h-full flex-col">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Actividad</div>
-                  <div className="mt-0.5 text-base font-extrabold text-slate-900 dark:text-white">Tu actividad</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Centro de control</div>
+                  <div className="mt-1 text-base font-extrabold text-slate-900 dark:text-white">Mantente activo y sube en el ranking</div>
                 </div>
-                <select
-                  value={activityRange}
-                  onChange={(e) => setActivityRange(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 md:w-auto"
+                <button
+                  type="button"
+                  onClick={() => navigate('/student/courses')}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-xs font-extrabold text-slate-700 shadow-sm transition hover:brightness-105 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-200"
                 >
-                  <option value="day">Dia</option>
-                  <option value="week">Semana</option>
-                  <option value="month">Mes</option>
-                </select>
+                  Ver cursos <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="mt-4">
-                <ActivityChart progressRows={progressRows} range={activityRange} isDark={isDark} />
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-cyan-100 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/25">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Racha</div>
+                    <Flame className="h-4 w-4 text-orange-500 dark:text-orange-300" />
+                  </div>
+                  <div className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">{activitySummary.streak}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">dias seguidos</div>
+                </div>
+                <div className="rounded-2xl border border-cyan-100 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/25">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">En progreso</div>
+                    <Activity className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                  </div>
+                  <div className="mt-1 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">{inProgressModules}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">modulo(s)</div>
+                </div>
+                <div className="rounded-2xl border border-cyan-100 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/25">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">Ultima actividad</div>
+                    <Clock3 className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                  </div>
+                  <div className="mt-2 text-sm font-extrabold text-slate-900 dark:text-white">{activitySummary.lastActiveText}</div>
+                  <div className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-300">abre un modulo y suma XP</div>
+                </div>
               </div>
 
-              <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Basado en tu actividad reciente en modulos.
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <Target className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                  {continueModule ? (
+                    <span className="truncate">Siguiente paso: reanuda <span className="font-extrabold">{continueModule.title}</span></span>
+                  ) : (
+                    <span>Meta rapida: completa un modulo al 100% y gana 1 insignia</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (continueModule?.id) navigate(`/student/courses/${continueModule.id}`);
+                    else navigate('/student/courses');
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-200 bg-white/80 px-4 py-2 text-sm font-extrabold text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:brightness-105 focus:outline-none focus:ring-4 focus:ring-cyan-500/15 dark:border-cyan-300/25 dark:bg-slate-900/40 dark:text-cyan-200"
+                >
+                  {continueModule ? 'Continuar' : 'Empezar'}
+                  <PlayCircle className="h-4 w-4" />
+                </button>
               </div>
-            </Card>
-          </div>
-          <div className="space-y-4">
-            <RankingCard top={top} />
-            <MyRankCard position={rank.position} total={rank.total} badgesCount={user?.badgesCount} />
-          </div>
+            </div>
+          </Card>
+
+          <MyRankCard
+            position={rank.position}
+            total={rank.total}
+            badgesCount={badgesCount}
+            completedModules={completedModules}
+            totalModules={totalModules}
+            lastBadgeUnlockedAt={user?.lastBadgeUnlockedAt}
+            top={top}
+          />
         </div>
 
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <Card className="border-cyan-100/70 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-900/45">
+          <div className="flex items-center justify-between gap-3">
             <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Modulos</h3>
             <button
               type="button"
