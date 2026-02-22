@@ -36,6 +36,21 @@ const categoryQueries = {
   }
 };
 
+const providerState = {
+  gnewsBlockedUntil: 0,
+  newsApiBlockedUntil: 0,
+  lastGnewsLogAt: 0,
+  lastNewsApiLogAt: 0
+};
+
+function logProviderIssue(provider, payload) {
+  const now = Date.now();
+  const key = provider === 'gnews' ? 'lastGnewsLogAt' : 'lastNewsApiLogAt';
+  if (now - providerState[key] < 30000) return;
+  providerState[key] = now;
+  console.error(`[news][${provider}] failed`, payload);
+}
+
 let refreshPromise = null;
 let schedulerInterval = null;
 
@@ -87,6 +102,7 @@ function normalizeItems(items = []) {
 async function fetchGnews(query) {
   const apiKey = env.news.gnewsApiKey;
   if (!apiKey) return [];
+  if (Date.now() < providerState.gnewsBlockedUntil) return [];
 
   const endpoint = new URL('https://gnews.io/api/v4/search');
   endpoint.searchParams.set('q', query);
@@ -102,8 +118,11 @@ async function fetchGnews(query) {
   const elapsed = Date.now() - startedAt;
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.error('[news][gnews] failed', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
-    throw new Error('GNews request failed');
+    if (res.status === 429) {
+      providerState.gnewsBlockedUntil = Date.now() + 15 * 60 * 1000;
+    }
+    logProviderIssue('gnews', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
+    return [];
   }
 
   const data = await res.json();
@@ -121,6 +140,7 @@ async function fetchGnews(query) {
 async function fetchNewsApi(query) {
   const apiKey = env.news.newsApiKey;
   if (!apiKey) return [];
+  if (Date.now() < providerState.newsApiBlockedUntil) return [];
 
   const endpoint = new URL('https://newsapi.org/v2/everything');
   endpoint.searchParams.set('q', query);
@@ -137,8 +157,14 @@ async function fetchNewsApi(query) {
   const elapsed = Date.now() - startedAt;
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.error('[news][newsapi] failed', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
-    throw new Error('NewsAPI request failed');
+    if (res.status === 401 || res.status === 403) {
+      providerState.newsApiBlockedUntil = Date.now() + 6 * 60 * 60 * 1000;
+    }
+    if (res.status === 429) {
+      providerState.newsApiBlockedUntil = Date.now() + 15 * 60 * 1000;
+    }
+    logProviderIssue('newsapi', { status: res.status, elapsedMs: elapsed, endpoint: endpoint.toString(), query, body });
+    return [];
   }
 
   const data = await res.json();

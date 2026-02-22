@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
 
 export default function Login() {
   const { login } = useAuth();
+  const toast = useToast();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
@@ -46,10 +48,12 @@ export default function Login() {
     setError('');
     if (!email.trim() || !password.trim()) {
       setError('Correo y contrasena son obligatorios.');
+      toast.warning('Campos incompletos', 'Correo y contraseña son obligatorios.');
       return;
     }
     if (hasValidationErrors) {
       setError('Corrige los campos antes de continuar.');
+      toast.warning('Correo inválido', 'Verifica el formato del correo institucional.');
       return;
     }
     try {
@@ -59,8 +63,10 @@ export default function Login() {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       if (apiError) {
         setError(apiError);
+        toast.error('Inicio de sesión fallido', apiError);
       } else {
         setError('Credenciales invalidas');
+        toast.error('Inicio de sesión fallido', 'Verifica tu correo y contraseña.');
       }
     }
   };

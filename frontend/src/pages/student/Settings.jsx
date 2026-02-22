@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, ImagePlus, Link2, Shield, UserRound, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { authApi } from '../../api/auth.api.js';
 
@@ -16,6 +17,7 @@ function fileToDataUrl(file) {
 
 export default function StudentSettings() {
   const { user, setUser } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -23,7 +25,11 @@ export default function StudentSettings() {
   const [photo, setPhoto] = useState(user?.profilePhotoUrl || '');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState('');
+  const [phoneInputHint, setPhoneInputHint] = useState('');
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [photoDraft, setPhotoDraft] = useState('');
@@ -54,15 +60,26 @@ export default function StudentSettings() {
 
   const save = async (e) => {
     e.preventDefault();
-    const { data } = await usersApi.updateMe({ phone, profilePhotoUrl: photo });
-    syncUser(data.user);
-    alert('Perfil actualizado.');
+    try {
+      const { data } = await usersApi.updateMe({ phone, profilePhotoUrl: photo });
+      syncUser(data.user);
+      toast.success('Perfil actualizado', 'Los cambios se guardaron correctamente.');
+    } catch (err) {
+      toast.error('No se pudo actualizar', 'Intenta nuevamente en unos segundos.');
+    }
   };
+
+  useEffect(() => {
+    if (!phoneInputHint) return undefined;
+    const timer = setTimeout(() => setPhoneInputHint(''), 1600);
+    return () => clearTimeout(timer);
+  }, [phoneInputHint]);
 
   const changePassword = async (e) => {
     e.preventDefault();
+    setPasswordFeedback('');
     if (!oldPassword.trim() || !newPassword.trim()) {
-      alert('Completa la contraseña actual y la nueva contraseña.');
+      setPasswordFeedback('Completa la contraseña actual y la nueva contraseña.');
       return;
     }
     setIsSavingPassword(true);
@@ -70,9 +87,11 @@ export default function StudentSettings() {
       await authApi.changePassword({ currentPassword: oldPassword, newPassword });
       setOldPassword('');
       setNewPassword('');
-      alert('Contraseña actualizada.');
+      toast.success('Cambio de contraseña exitoso', 'Tu nueva contraseña ya fue guardada.');
     } catch (error) {
-      alert(error?.response?.data?.error || 'No se pudo actualizar la contraseña.');
+      const message = error?.response?.data?.error || 'No se pudo actualizar la contraseña.';
+      setPasswordFeedback(message);
+      toast.error('No se pudo actualizar', message);
     } finally {
       setIsSavingPassword(false);
     }
@@ -218,7 +237,42 @@ export default function StudentSettings() {
 
               <div>
                 <label className={labelClass}>Teléfono</label>
-                <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <div className="relative mt-1.5">
+                  <input
+                    className={`${inputClass} mt-0`}
+                    value={phone}
+                    onBeforeInput={(e) => {
+                      if (!e.data) return;
+                      if (!/^\d+$/.test(e.data)) {
+                        e.preventDefault();
+                        setPhoneInputHint('Solo se aceptan numeros');
+                        return;
+                      }
+                      if ((phone || '').length >= 10) {
+                        e.preventDefault();
+                        setPhoneInputHint('Maximo 10 digitos');
+                      }
+                    }}
+                    onPaste={(e) => {
+                      const pasted = e.clipboardData.getData('text') || '';
+                      const digits = pasted.replace(/\D/g, '');
+                      e.preventDefault();
+                      if (!digits) {
+                        setPhoneInputHint('Solo se aceptan numeros');
+                        return;
+                      }
+                      const next = `${phone || ''}${digits}`.slice(0, 10);
+                      setPhone(next);
+                      if (digits !== pasted) setPhoneInputHint('Solo se aceptan numeros');
+                    }}
+                    onChange={(e) => setPhone(String(e.target.value || '').replace(/\D/g, '').slice(0, 10))}
+                  />
+                  {phoneInputHint && (
+                    <div className="pointer-events-none absolute left-0 top-full z-20 mt-1 rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-sky-100 ring-1 ring-sky-500/30" role="status" aria-live="polite">
+                      {phoneInputHint}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Identificación</label>
@@ -247,23 +301,72 @@ export default function StudentSettings() {
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Cambiar Contraseña</h2>
 
             <div className="space-y-4">
+              {passwordFeedback && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+                  {passwordFeedback}
+                </div>
+              )}
               <div>
                 <label className={labelClass}>Contraseña Actual</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    type={showOldPassword ? 'text' : 'password'}
+                    className={`${inputClass} mt-0 pr-12`}
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+                    aria-label={showOldPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
+                  >
+                    {showOldPassword ? (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 3l18 18" />
+                        <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                        <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                        <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Nueva Contraseña</label>
-                <input
-                  type="password"
-                  className={inputClass}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    className={`${inputClass} mt-0 pr-12`}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+                    aria-label={showNewPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
+                  >
+                    {showNewPassword ? (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 3l18 18" />
+                        <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                        <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                        <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -365,6 +468,7 @@ export default function StudentSettings() {
           </div>
         </div>
       )}
+
     </>
   );
 }

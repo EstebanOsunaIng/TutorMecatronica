@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth.api.js';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
 
 export default function ForgotPassword() {
   const { theme, toggleTheme } = useTheme();
+  const toast = useToast();
   const isDark = theme === 'dark';
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -55,14 +57,17 @@ export default function ForgotPassword() {
     setError('');
     if (emailError) {
       setError(emailError);
+      toast.warning('Correo inválido', emailError);
       return;
     }
     try {
       await authApi.forgot({ email });
       setStep(2);
+      toast.info('Código enviado', 'Revisa tu correo para continuar con la recuperación.');
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo enviar el codigo. Verifica el correo e intentalo de nuevo.');
+      toast.error('No se pudo enviar el código', apiError || 'Inténtalo nuevamente.');
     }
   };
 
@@ -71,14 +76,17 @@ export default function ForgotPassword() {
     setError('');
     if (emailError || codeError || newPasswordError) {
       setError(emailError || codeError || newPasswordError);
+      toast.warning('Datos inválidos', emailError || codeError || newPasswordError);
       return;
     }
     try {
       await authApi.reset({ email, code, newPassword });
       setStep(3);
+      toast.success('Contraseña actualizada', 'Ya puedes iniciar sesión con tu nueva contraseña.');
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo cambiar la contrasena. Revisa el codigo e intentalo nuevamente.');
+      toast.error('No se pudo cambiar la contraseña', apiError || 'Revisa el código e inténtalo nuevamente.');
     }
   };
 
