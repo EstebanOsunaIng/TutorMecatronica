@@ -5,20 +5,27 @@ import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 import ModuleStudentPreview from '../../components/modules/ModuleStudentPreview.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 
 const DEFAULT_MODULE_IMAGE = '/assets/campus-placeholder.svg';
 
 export default function TeacherModules() {
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
   const [search, setSearch] = useState('');
   const [moduleToDelete, setModuleToDelete] = useState(null);
   const [previewState, setPreviewState] = useState({ open: false, moduleItem: null, levels: [], loading: false });
 
   const load = async () => {
-    const res = await modulesApi.list();
-    setModules(res.data.modules || []);
+    setLoading(true);
+    try {
+      const res = await modulesApi.list();
+      setModules(res.data.modules || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -97,6 +104,9 @@ export default function TeacherModules() {
         </Card>
 
         <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+          {loading ? (
+            <RobotLoader label="Cargando modulos..." scale={0.75} />
+          ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredModules.map((m) => (
             <Card
@@ -183,6 +193,7 @@ export default function TeacherModules() {
             </Card>
           )}
           </div>
+          )}
         </Card>
       </Card>
 
@@ -229,7 +240,9 @@ export default function TeacherModules() {
 
             <div className="h-[calc(100%-65px)] overflow-auto p-4">
               {previewState.loading ? (
-                <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-sm text-slate-300">Cargando vista previa...</div>
+                <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-6">
+                  <RobotLoader label="Cargando vista previa..." scale={0.75} />
+                </div>
               ) : (
                 <ModuleStudentPreview
                   role="admin"

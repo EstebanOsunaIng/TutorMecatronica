@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 
 export default function Login() {
@@ -12,6 +13,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [isMobileVisual, setIsMobileVisual] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
@@ -53,6 +55,7 @@ export default function Login() {
       return;
     }
     try {
+      setSubmitting(true);
       await login(email, password);
       navigate('/');
     } catch (err) {
@@ -62,6 +65,8 @@ export default function Login() {
       } else {
         setError('Credenciales invalidas');
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -90,6 +95,11 @@ export default function Login() {
 
         <section className="relative flex w-full items-center justify-center px-5 py-8 md:px-10 lg:px-14">
           <div className={`relative w-full max-w-[540px] rounded-[2rem] p-7 backdrop-blur-xl md:p-10 ${isDark ? 'border border-sky-800/80 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
+            {submitting && (
+              <div className={`absolute inset-0 z-20 grid place-items-center rounded-[2rem] ${isDark ? 'bg-slate-950/60' : 'bg-white/70'}`}>
+                <RobotLoader label="Ingresando..." scale={0.9} />
+              </div>
+            )}
             <div className="absolute right-5 top-5">
               <button
                 onClick={toggleTheme}

@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { ArrowRight, BookOpenCheck, ChartColumnBig, Pencil, UsersRound } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import NewsFeed from '../../components/news/NewsFeed.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 import { newsApi } from '../../api/news.api.js';
@@ -151,6 +152,12 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </Card>
+
+      {loading && (
+        <Card className="border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900">
+          <RobotLoader label="Cargando dashboard..." scale={0.75} />
+        </Card>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900">

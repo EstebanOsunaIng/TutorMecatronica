@@ -1,5 +1,6 @@
 import React from 'react';
 import ChatBubble from './ChatBubble.jsx';
+import RobotLoader from '../common/RobotLoader.jsx';
 
 export default function ChatMessages({ messages, loading }) {
   return (
@@ -7,7 +8,11 @@ export default function ChatMessages({ messages, loading }) {
       {messages.map((msg, idx) => (
         <ChatBubble key={idx} role={msg.role} text={msg.text} imageUrl={msg.imageUrl || ''} />
       ))}
-      {loading && <ChatBubble role="assistant" text="Pensando..." />}
+      {loading && (
+        <div className="flex justify-start">
+          <RobotLoader label="Pensando..." scale={0.55} />
+        </div>
+      )}
     </div>
   );
 }

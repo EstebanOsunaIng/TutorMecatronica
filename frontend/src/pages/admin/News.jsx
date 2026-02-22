@@ -3,6 +3,7 @@ import Card from '../../components/common/Card.jsx';
 import NewsList from '../../components/news/NewsList.jsx';
 import { newsApi } from '../../api/news.api.js';
 import { RefreshCcw } from 'lucide-react';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 
 export default function AdminNews() {
     const [news, setNews] = useState([]);
@@ -61,8 +62,8 @@ export default function AdminNews() {
                     </div>
                 </Card>
                 {loading ? (
-                    <div className="rounded-2xl border border-cyan-100 bg-white/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-                        Cargando noticias...
+                    <div className="rounded-2xl border border-cyan-100 bg-white/80 p-6 dark:border-slate-800 dark:bg-slate-900/40">
+                        <RobotLoader label="Cargando noticias..." scale={0.75} />
                     </div>
                 ) : error ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">

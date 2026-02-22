@@ -4,6 +4,7 @@ import { ArrowLeft, Camera, ImagePlus, Link2, Shield, UserRound, X } from 'lucid
 import { useAuth } from '../../context/AuthContext.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { authApi } from '../../api/auth.api.js';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -24,6 +25,7 @@ export default function StudentSettings() {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [photoDraft, setPhotoDraft] = useState('');
@@ -54,9 +56,14 @@ export default function StudentSettings() {
 
   const save = async (e) => {
     e.preventDefault();
-    const { data } = await usersApi.updateMe({ phone, profilePhotoUrl: photo });
-    syncUser(data.user);
-    alert('Perfil actualizado.');
+    setIsSavingProfile(true);
+    try {
+      const { data } = await usersApi.updateMe({ phone, profilePhotoUrl: photo });
+      syncUser(data.user);
+      alert('Perfil actualizado.');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const changePassword = async (e) => {
@@ -125,6 +132,8 @@ export default function StudentSettings() {
     }
   };
 
+  const isSavingAny = isSavingProfile || isSavingPassword || isSavingPhoto;
+
   return (
     <>
       <div className="mx-auto max-w-4xl space-y-4 pb-3">
@@ -173,8 +182,13 @@ export default function StudentSettings() {
         {!isSecurityView ? (
           <form
             onSubmit={save}
-            className={settingsPanelClass}
+            className={`relative ${settingsPanelClass}`}
           >
+            {isSavingAny && (
+              <div className="absolute inset-0 z-20 grid place-items-center rounded-3xl bg-white/70 dark:bg-slate-950/60">
+                <RobotLoader label="Guardando..." scale={0.85} />
+              </div>
+            )}
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Información Personal</h2>
 
             <div className="flex flex-wrap items-center gap-4 border-b border-cyan-100 pb-4 dark:border-slate-700">
@@ -242,8 +256,13 @@ export default function StudentSettings() {
         ) : (
           <form
             onSubmit={changePassword}
-            className={settingsPanelClass}
+            className={`relative ${settingsPanelClass}`}
           >
+            {isSavingAny && (
+              <div className="absolute inset-0 z-20 grid place-items-center rounded-3xl bg-white/70 dark:bg-slate-950/60">
+                <RobotLoader label="Guardando..." scale={0.85} />
+              </div>
+            )}
             <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">Cambiar Contraseña</h2>
 
             <div className="space-y-4">

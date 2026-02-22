@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Activity, ArrowRight, Clock3, Flame, Lock, PlayCircle, Target } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import BadgeGrid from '../../components/gamification/BadgeGrid.jsx';
 import RankingCard from '../../components/gamification/RankingCard.jsx';
 import MyRankCard from '../../components/gamification/MyRankCard.jsx';
@@ -27,10 +28,12 @@ export default function StudentDashboard() {
   const [news, setNews] = useState([]);
   const [modules, setModules] = useState([]);
   const [progressRows, setProgressRows] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activityRange, setActivityRange] = useState('week');
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       try {
         const [b, t, r, n, m, p] = await Promise.all([
           gamificationApi.badges(),
@@ -53,6 +56,8 @@ export default function StudentDashboard() {
         setProgressRows(p.data.progress || []);
       } catch {
         setNews([]);
+      } finally {
+        setLoading(false);
       }
     }
     load();
@@ -190,6 +195,12 @@ export default function StudentDashboard() {
           </div>
           <div className={`mt-3 h-1 w-16 rounded-full ${isDark ? 'bg-sky-500/60' : 'bg-[#1d4f91]'}`} />
         </div>
+
+        {loading && (
+          <Card className="border-cyan-100/80 bg-white/90 p-6 dark:border-slate-700 dark:bg-slate-900/60">
+            <RobotLoader label="Cargando dashboard..." scale={0.75} />
+          </Card>
+        )}
 
         <Card className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
           <div className="grid gap-6 md:grid-cols-[150px_1fr_200px] md:items-center">

@@ -23,6 +23,7 @@ import {
   UserCog,
   UsersRound
 } from 'lucide-react';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { adminApi } from '../../api/admin.api.js';
 
 const ROLE_COLORS = {
@@ -162,6 +163,12 @@ export default function AdminDashboard() {
           Ultima actualizacion: {formatLastUpdate(dashboard.overview.updatedAt)}
         </p>
       </div>
+
+      {loading && (
+        <div className="rounded-2xl border border-cyan-100/70 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <RobotLoader label="Cargando dashboard..." scale={0.75} />
+        </div>
+      )}
 
       <div className="grid gap-3 md:grid-cols-3">
         {kpiCards.map((card) => {

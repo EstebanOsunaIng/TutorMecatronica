@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Lock, PlayCircle } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Modal from '../../components/common/Modal.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 import { progressApi } from '../../api/progress.api.js';
 
@@ -12,16 +13,22 @@ export default function Courses() {
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
   const [progressRows, setProgressRows] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [restartingModuleId, setRestartingModuleId] = useState('');
   const [restartTarget, setRestartTarget] = useState(null);
 
   const load = useCallback(async () => {
-    const [modulesRes, progressRes] = await Promise.all([modulesApi.listPublished(), progressApi.myProgress()]);
-    const sortedModules = [...(modulesRes.data.modules || [])].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    setModules(sortedModules);
-    setProgressRows(progressRes.data.progress || []);
+    setLoading(true);
+    try {
+      const [modulesRes, progressRes] = await Promise.all([modulesApi.listPublished(), progressApi.myProgress()]);
+      const sortedModules = [...(modulesRes.data.modules || [])].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      setModules(sortedModules);
+      setProgressRows(progressRes.data.progress || []);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -76,8 +83,13 @@ export default function Courses() {
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Explora tus modulos publicados y continua tu progreso.</p>
           </div>
           <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {modulesWithProgress.map((m) => (
+          {loading ? (
+            <div className="rounded-2xl border border-cyan-100 bg-white/80 p-6 dark:border-slate-700 dark:bg-slate-900/60">
+              <RobotLoader label="Cargando modulos..." scale={0.75} />
+            </div>
+          ) : (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {modulesWithProgress.map((m) => (
           <Card
             key={m._id}
             onClick={() => {
@@ -132,7 +144,8 @@ export default function Courses() {
                     </span>
                   </>
                 )}
-              </div>
+          </div>
+          )}
 
               <div className="flex flex-1 flex-col p-4">
                 <div className="h-[112px] space-y-2 overflow-hidden">

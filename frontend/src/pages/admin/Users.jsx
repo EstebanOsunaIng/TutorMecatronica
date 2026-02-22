@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { adminApi } from '../../api/admin.api.js';
 
@@ -315,8 +316,8 @@ export default function AdminUsers() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-300">
-                    Cargando usuarios...
+                  <td colSpan={5} className="px-4 py-8 text-center">
+                    <RobotLoader label="Cargando usuarios..." scale={0.7} />
                   </td>
                 </tr>
               ) : (

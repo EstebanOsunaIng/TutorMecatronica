@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, FileText, Link2, Loader2, Pencil, Plus, Upload, Video } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 
@@ -775,7 +776,12 @@ export default function ModuleEditor() {
         </div>
       </div>
 
-      <Card className="border-cyan-100 bg-white/95 dark:border-slate-800 dark:bg-slate-900/45">
+      <Card className="relative border-cyan-100 bg-white/95 dark:border-slate-800 dark:bg-slate-900/45">
+        {publishingDraft && (
+          <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-slate-950/40">
+            <RobotLoader label="Guardando modulo..." scale={0.8} />
+          </div>
+        )}
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -785,7 +791,9 @@ export default function ModuleEditor() {
           </div>
 
           {editorLoading ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-300">Cargando datos del modulo...</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/35">
+              <RobotLoader label="Cargando datos del modulo..." scale={0.75} />
+            </div>
           ) : createStep === 1 ? (
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="grid gap-4 md:grid-cols-2">

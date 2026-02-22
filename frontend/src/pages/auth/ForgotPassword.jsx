@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth.api.js';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 
 export default function ForgotPassword() {
@@ -12,6 +13,7 @@ export default function ForgotPassword() {
   const [step, setStep] = useState(1);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [isMobileVisual, setIsMobileVisual] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
@@ -58,11 +60,14 @@ export default function ForgotPassword() {
       return;
     }
     try {
+      setSubmitting(true);
       await authApi.forgot({ email });
       setStep(2);
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo enviar el codigo. Verifica el correo e intentalo de nuevo.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -74,11 +79,14 @@ export default function ForgotPassword() {
       return;
     }
     try {
+      setSubmitting(true);
       await authApi.reset({ email, code, newPassword });
       setStep(3);
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo cambiar la contrasena. Revisa el codigo e intentalo nuevamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -110,6 +118,11 @@ export default function ForgotPassword() {
 
         <section className="relative flex w-full items-center justify-center px-5 py-6 md:px-8 lg:px-12 lg:py-4">
           <div className={`relative w-full max-w-[540px] rounded-[2rem] p-5 backdrop-blur-xl md:p-6 ${isDark ? 'border border-sky-800/80 bg-[#0a2746]/78 shadow-xl shadow-sky-950/30' : 'border border-[#9fc0da]/92 bg-[#e9f2fb]/86 shadow-2xl shadow-cyan-700/20'}`}>
+            {submitting && (
+              <div className={`absolute inset-0 z-20 grid place-items-center rounded-[2rem] ${isDark ? 'bg-slate-950/60' : 'bg-white/70'}`}>
+                <RobotLoader label="Procesando..." scale={0.9} />
+              </div>
+            )}
             <div className="absolute right-5 top-5">
               <button
                 onClick={toggleTheme}

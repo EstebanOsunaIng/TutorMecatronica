@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { modulesApi } from '../../api/modules.api.js';
 import { progressApi } from '../../api/progress.api.js';
 import ModuleStudentPreview from '../../components/modules/ModuleStudentPreview.jsx';
@@ -97,11 +98,8 @@ export default function CourseDetail() {
         </Card>
 
         {loading ? (
-          <Card className="border-slate-200 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-            <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-transparent dark:border-slate-600" />
-              Cargando contenido del modulo...
-            </div>
+          <Card className="border-slate-200 bg-white/80 p-6 dark:border-slate-700 dark:bg-slate-900/60">
+            <RobotLoader label="Cargando contenido del modulo..." scale={0.8} />
           </Card>
         ) : lockedBySequence ? (
           <Card className="border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-200">
