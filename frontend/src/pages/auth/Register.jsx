@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
 
 export default function Register() {
   const { register } = useAuth();
+  const toast = useToast();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
@@ -33,6 +35,19 @@ export default function Register() {
   const hintCooldownRef = useRef({});
 
   const LETTERS_REGEX = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s]+$/;
+
+  const isValidEmailStrict = (value) => {
+    const email = String(value || '').trim();
+    if (!email || email.includes(' ')) return false;
+    const parts = email.split('@');
+    if (parts.length !== 2) return false;
+    const [local, domain] = parts;
+    if (!local || !domain || !domain.includes('.')) return false;
+    const domainParts = domain.split('.').filter(Boolean);
+    if (domainParts.length < 2) return false;
+    const tld = domainParts[domainParts.length - 1];
+    return tld.length >= 2;
+  };
 
   useEffect(() => {
     return () => {
@@ -159,7 +174,7 @@ export default function Register() {
     if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
     if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Identificacion invalida: 10 digitos.';
     if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Celular invalido: 10 digitos.';
-    if ((strict || form.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim().toLowerCase())) nextErrors.email = 'Correo invalido.';
+    if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'El correo debe incluir @ y un dominio valido';
     if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Contrasena invalida: minimo 6 caracteres.';
     if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
     if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
@@ -189,7 +204,13 @@ export default function Register() {
     setError('');
     const nextErrors = validateForm(true);
     if (Object.keys(nextErrors).length > 0) {
-      setError(Object.values(nextErrors)[0]);
+      if (nextErrors.email) {
+        showInputHint('email', 'El correo debe incluir @ y un dominio valido');
+        toast.warning('Correo inválido', 'El correo debe incluir @ y un dominio válido.');
+      } else {
+        setError(Object.values(nextErrors)[0]);
+        toast.warning('Revisa el formulario', Object.values(nextErrors)[0]);
+      }
       return;
     }
     try {
@@ -204,10 +225,12 @@ export default function Register() {
         password: form.password,
         teacherCode: form.role === 'DOCENTE' ? form.teacherCode : undefined
       });
+      toast.success('Registro exitoso', 'Tu cuenta fue creada correctamente.');
       navigate('/login');
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo registrar');
+      toast.error('No se pudo registrar', apiError || 'Intenta nuevamente en unos segundos.');
     } finally {
       setSubmitting(false);
     }
@@ -367,7 +390,29 @@ export default function Register() {
                 <div className="md:col-span-2">
                   <label htmlFor="email" className={labelClass}>Correo institucional</label>
                   <div className="mt-1.5">
-                    <input id="email" type="email" autoComplete="username" placeholder="usuario@universitaria.edu.co" className={inputClass} value={form.email} onChange={(e) => update('email', e.target.value)} required />
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="username"
+                      placeholder="usuario@universitaria.edu.co"
+                      className={inputClass}
+                      value={form.email}
+                      onBlur={() => {
+                        if (!isValidEmailStrict(form.email)) {
+                          showInputHint('email', 'El correo debe incluir @ y un dominio valido');
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        if (!isValidEmailStrict(form.email)) {
+                          e.preventDefault();
+                          showInputHint('email', 'El correo debe incluir @ y un dominio valido');
+                        }
+                      }}
+                      onChange={(e) => update('email', e.target.value)}
+                      required
+                    />
+                    {renderHint('email')}
                   </div>
                 </div>
 
