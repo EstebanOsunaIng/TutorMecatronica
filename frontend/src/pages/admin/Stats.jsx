@@ -249,7 +249,7 @@ export default function AdminStats() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Analitica Avanzada</p>
-            <h2 className="text-3xl font-bold tracking-tight">Estadisticas de la plataforma</h2>
+            <h2 className="text-[1.875rem] font-bold tracking-tight">Estadisticas de la plataforma</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
               Vista completa de comportamiento, adopcion y rendimiento para decision administrativa.
             </p>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../../components/common/Card.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { teacherApi } from '../../api/teacher.api.js';
 
 function clamp(n, min, max) {
@@ -131,15 +132,18 @@ export default function TeacherStudents() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <Card className="relative space-y-4 border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900/50">
+      {loading && <RobotLoader label="Cargando auditoría..." scale={0.9} overlay />}
+
+      <Card className="space-y-4 border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Auditoría de Progreso</h2>
+          <h2 className="text-[1.875rem] font-extrabold tracking-tight text-slate-900 dark:text-white">Auditoría de Progreso</h2>
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             Reporte institucional, detallado
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-end">
+
+        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -147,9 +151,9 @@ export default function TeacherStudents() {
               if (e.key === 'Enter') load();
             }}
             placeholder="Buscar estudiante"
-            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:flex-1 md:min-w-[520px] md:max-w-[680px]"
+            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:min-w-[520px] md:max-w-[680px]"
           />
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end md:ml-auto">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
             <button
               onClick={load}
               className="w-full rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-white hover:bg-brand-600 md:w-auto"
@@ -165,12 +169,12 @@ export default function TeacherStudents() {
             </button>
           </div>
         </div>
-      </div>
+      </Card>
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <div className="min-w-0">
-            <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+            <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-bold uppercase tracking-[0.08em] text-slate-900 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100">
               <div>Estudiante</div>
               <div>Programa</div>
               <div className="text-center">Proceso</div>
@@ -211,14 +215,14 @@ export default function TeacherStudents() {
                             />
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate font-extrabold text-slate-900 dark:text-white">
+                            <div className="truncate font-semibold text-slate-900 dark:text-white">
                               {s.name} {s.lastName}
                             </div>
                             <div className="truncate text-xs text-slate-600 dark:text-slate-400">{s.email}</div>
                           </div>
                         </div>
 
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
                           Ingeniería Mecatrónica
                           <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Último acceso: {formatDate(s.lastLoginAt)}</div>
                         </div>
@@ -310,6 +314,6 @@ export default function TeacherStudents() {
           </div>
         </div>
       </Card>
-    </div>
+    </Card>
   );
 }

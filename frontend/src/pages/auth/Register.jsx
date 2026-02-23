@@ -35,6 +35,16 @@ export default function Register() {
   const hintCooldownRef = useRef({});
 
   const LETTERS_REGEX = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s]+$/;
+  const FIELD_LABELS = {
+    name: 'Nombre',
+    lastName: 'Apellido',
+    document: 'Identificación',
+    phone: 'Celular',
+    email: 'Correo institucional',
+    password: 'Contraseña',
+    confirm: 'Confirmar contraseña',
+    teacherCode: 'Código docente'
+  };
 
   const isValidEmailStrict = (value) => {
     const email = String(value || '').trim();
@@ -170,19 +180,33 @@ export default function Register() {
 
   const validateForm = (strict = false) => {
     const nextErrors = {};
-    if ((strict || form.name.trim()) && !LETTERS_REGEX.test(form.name.trim())) nextErrors.name = 'Solo letras y espacios.';
-    if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
-    if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Identificacion invalida: 10 digitos.';
-    if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Celular invalido: 10 digitos.';
-    if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'El correo debe incluir @ y un dominio valido';
-    if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Contrasena invalida: minimo 6 caracteres.';
-    if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
-    if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
+    if (strict && !form.name.trim()) nextErrors.name = 'Campo obligatorio.';
+    else if ((strict || form.name.trim()) && !LETTERS_REGEX.test(form.name.trim())) nextErrors.name = 'Solo letras y espacios.';
+
+    if (strict && !form.lastName.trim()) nextErrors.lastName = 'Campo obligatorio.';
+    else if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
+
+    if (strict && !form.document.trim()) nextErrors.document = 'Campo obligatorio.';
+    else if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Debe tener 10 digitos.';
+
+    if (strict && !form.phone.trim()) nextErrors.phone = 'Campo obligatorio.';
+    else if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Debe tener 10 digitos.';
+
+    if (strict && !form.email.trim()) nextErrors.email = 'Campo obligatorio.';
+    else if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'Debe incluir @ y un dominio valido.';
+
+    if (strict && !(form.password || '').trim()) nextErrors.password = 'Campo obligatorio.';
+    else if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Minimo 6 caracteres.';
+
+    if (strict && !(form.confirm || '').trim()) nextErrors.confirm = 'Campo obligatorio.';
+    else if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
+
+    if (form.role === 'DOCENTE' && strict && !form.teacherCode.trim()) nextErrors.teacherCode = 'Campo obligatorio.';
+    else if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
+
     return nextErrors;
   };
 
-  const validationErrors = validateForm(false);
-  const hasValidationErrors = Object.keys(validationErrors).length > 0;
   const authBackground = isDark
     ? isMobileVisual
       ? '/assets/modo-oscuro-C.png'
@@ -204,13 +228,15 @@ export default function Register() {
     setError('');
     const nextErrors = validateForm(true);
     if (Object.keys(nextErrors).length > 0) {
-      if (nextErrors.email) {
-        showInputHint('email', 'El correo debe incluir @ y un dominio valido');
-        toast.warning('Correo inválido', 'El correo debe incluir @ y un dominio válido.');
-      } else {
-        setError(Object.values(nextErrors)[0]);
-        toast.warning('Revisa el formulario', Object.values(nextErrors)[0]);
-      }
+      const [firstField, firstMessage] = Object.entries(nextErrors)[0] || [];
+      if (firstField && firstMessage) showInputHint(firstField, firstMessage);
+
+      const detail = Object.entries(nextErrors)
+        .map(([field, message]) => `• ${FIELD_LABELS[field] || field}: ${message}`)
+        .join('\n');
+
+      setError(`Revisa estos campos:\n${detail}`);
+      toast.warning('Revisa el formulario', `${FIELD_LABELS[firstField] || 'Formulario'}: ${firstMessage || 'Datos incompletos.'}`);
       return;
     }
     try {
@@ -299,7 +325,7 @@ export default function Register() {
             </div>
 
             <form onSubmit={submit} className="space-y-3">
-              {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{error}</div>}
+              {error && <div className="whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{error}</div>}
 
               <div className={`grid grid-cols-2 gap-1.5 rounded-xl border p-1.5 ${isDark ? 'border-sky-900/40 bg-[#082447]' : 'border-[#a8c3da] bg-[#dfeaf6]'}`}>
                 <button
@@ -500,7 +526,7 @@ export default function Register() {
 
               <button
                 type="submit"
-                disabled={hasValidationErrors}
+                disabled={submitting}
                 className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
               >
                 Crear mi cuenta

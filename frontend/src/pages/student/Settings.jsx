@@ -37,6 +37,7 @@ export default function StudentSettings() {
   const [photoDraft, setPhotoDraft] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
   const roleBase = useMemo(() => {
     if (user?.role === 'ADMIN') return '/admin/settings';
@@ -59,6 +60,29 @@ export default function StudentSettings() {
     localStorage.setItem('user', JSON.stringify(nextUser));
     setUser(nextUser);
   };
+
+  useEffect(() => {
+    let active = true;
+    const loadMe = async () => {
+      setIsPageLoading(true);
+      try {
+        const { data } = await usersApi.me();
+        if (!active) return;
+        const nextUser = data?.user;
+        if (nextUser) {
+          setPhone(nextUser.phone || '');
+          setPhoto(nextUser.profilePhotoUrl || '');
+          syncUser(nextUser);
+        }
+      } finally {
+        if (active) setIsPageLoading(false);
+      }
+    };
+    loadMe();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const save = async (e) => {
     e.preventDefault();
@@ -153,6 +177,7 @@ export default function StudentSettings() {
 
   return (
     <>
+      {isPageLoading && <RobotLoader label="Cargando configuración..." scale={0.9} overlay />}
       <div className="mx-auto max-w-4xl space-y-4 pb-3">
         <div className="flex items-start gap-3">
           <button
@@ -164,7 +189,7 @@ export default function StudentSettings() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100">Configuración de Cuenta</h1>
+            <h1 className="text-[1.875rem] font-black tracking-tight text-slate-900 dark:text-slate-100">Configuración de Cuenta</h1>
             <p className="text-base text-slate-600 dark:text-slate-300">Administra tu información personal y seguridad</p>
           </div>
         </div>
@@ -175,7 +200,7 @@ export default function StudentSettings() {
               to={roleBase}
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
                 !isSecurityView
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                  ? 'bg-sky-100 text-sky-900 shadow-sm ring-1 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-100 dark:ring-sky-400/30'
                   : 'text-slate-600 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-800/70'
               }`}
             >
@@ -186,7 +211,7 @@ export default function StudentSettings() {
               to={`${roleBase}/security`}
               className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
                 isSecurityView
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100'
+                  ? 'bg-sky-100 text-sky-900 shadow-sm ring-1 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-100 dark:ring-sky-400/30'
                   : 'text-slate-600 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:bg-slate-800/70'
               }`}
             >

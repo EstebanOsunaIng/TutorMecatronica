@@ -188,7 +188,7 @@ export default function StudentDashboard() {
         >
           <div className={`text-sm font-semibold ${isDark ? 'text-sky-200' : 'text-[#1d4f91]'}`}>Bienvenido de vuelta</div>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h1 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-[#0f2b53]'}`}>
+            <h1 className={`text-[1.875rem] font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-[#0f2b53]'}`}>
               {displayName ? `¡Hola, ${displayName}!` : '¡Hola!'}
             </h1>
             <span className={`text-2xl ${isDark ? 'text-sky-200' : 'text-[#1d4f91]'}`} aria-hidden="true">👋</span>
@@ -197,9 +197,7 @@ export default function StudentDashboard() {
         </div>
 
         {loading && (
-          <Card className="border-cyan-100/80 bg-white/90 p-6 dark:border-slate-700 dark:bg-slate-900/60">
-            <RobotLoader label="Cargando dashboard..." scale={0.75} />
-          </Card>
+          <RobotLoader label="Cargando dashboard..." scale={0.9} overlay />
         )}
 
         <Card className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">

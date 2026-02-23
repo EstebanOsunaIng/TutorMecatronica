@@ -785,15 +785,13 @@ export default function ModuleEditor() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
+              <h2 className="text-[1.875rem] font-bold text-slate-900 dark:text-white">{isEditingMode ? 'Editar modulo' : 'Crear nuevo modulo'}</h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Completa la portada y luego configura niveles con sus subniveles.</p>
             </div>
           </div>
 
           {editorLoading ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/35">
-              <RobotLoader label="Cargando datos del modulo..." scale={0.75} />
-            </div>
+            <RobotLoader label="Cargando datos del modulo..." scale={0.9} overlay />
           ) : createStep === 1 ? (
             <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="grid gap-4 md:grid-cols-2">
