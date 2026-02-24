@@ -24,8 +24,8 @@ export default function ChatDock() {
   const [history, setHistory] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [imageError, setImageError] = useState('');
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -39,12 +39,16 @@ export default function ChatDock() {
   const recognitionRef = useRef(null);
   const dictationBaseRef = useRef('');
   const dictationFinalRef = useRef('');
+  const imagePreviewsRef = useRef([]);
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+  useEffect(() => {
+    imagePreviewsRef.current = imagePreviews;
+  }, [imagePreviews]);
 
   const greeting = `Hola, ${user?.name || 'Usuario'}, soy TuVir. ¿En que puedo ayudarte?`;
 
@@ -57,10 +61,10 @@ export default function ChatDock() {
     }
   };
 
-  const clearSelectedImage = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview('');
-    setImageFile(null);
+  const clearSelectedImages = () => {
+    imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    setImagePreviews([]);
+    setImageFiles([]);
     setImageError('');
     if (imageInputRef.current) imageInputRef.current.value = '';
   };
@@ -146,44 +150,62 @@ export default function ChatDock() {
     return '';
   };
 
-  const selectImageFile = (file) => {
-    const error = validateImage(file);
-    if (error) {
-      clearSelectedImage();
-      setImageError(error);
+  const selectImageFiles = (incomingFiles) => {
+    const nextFiles = Array.from(incomingFiles || []).filter(Boolean);
+    if (!nextFiles.length) return false;
+
+    for (const file of nextFiles) {
+      const error = validateImage(file);
+      if (error) {
+        setImageError(error);
+        return false;
+      }
+    }
+
+    const availableSlots = Math.max(0, 4 - imageFiles.length);
+    if (!availableSlots) {
+      setImageError('Maximo 4 imagenes por mensaje.');
       return false;
     }
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    const preview = URL.createObjectURL(file);
-    setImageFile(file);
-    setImagePreview(preview);
-    setImageError('');
+
+    const limited = nextFiles.slice(0, availableSlots);
+    if (limited.length < nextFiles.length) {
+      setImageError('Maximo 4 imagenes por mensaje.');
+    } else {
+      setImageError('');
+    }
+
+    const previews = limited.map((file) => URL.createObjectURL(file));
+    setImageFiles((prev) => [...prev, ...limited]);
+    setImagePreviews((prev) => [...prev, ...previews]);
     return true;
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    if (!file) return;
-    selectImageFile(file);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    selectImageFiles(files);
+    e.currentTarget.value = '';
   };
 
   const handlePaste = (e) => {
     const items = Array.from(e?.clipboardData?.items || []);
-    const imageItem = items.find((item) => String(item?.type || '').startsWith('image/'));
-    if (!imageItem) return;
-    const file = imageItem.getAsFile();
-    if (!file) return;
+    const pastedFiles = items
+      .filter((item) => String(item?.type || '').startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    if (!pastedFiles.length) return;
     e.preventDefault();
-    selectImageFile(file);
+    selectImageFiles(pastedFiles);
   };
 
   const sendMessage = async (text, context = '', sessionIdOverride = undefined, meta = {}, media = null) => {
     const content = String(text || '').trim();
-    const hasImage = Boolean(media?.file);
+    const hasImage = Array.isArray(media?.files) && media.files.length > 0;
     if ((!content && !hasImage) || loadingRef.current) return;
 
     const userText = content || 'Analiza esta imagen y guiame paso a paso.';
-    setMessages((prev) => [...prev, { role: 'user', text: userText, imageUrl: media?.messageImageUrl || '' }]);
+    setMessages((prev) => [...prev, { role: 'user', text: userText, imageUrls: media?.messageImageUrls || [] }]);
     setLoading(true);
     try {
       const sid = sessionIdOverride !== undefined ? sessionIdOverride : activeSessionIdRef.current;
@@ -193,7 +215,7 @@ export default function ChatDock() {
         sessionId: sid,
         moduleId: meta?.moduleId,
         levelId: meta?.levelId,
-        imageFile: media?.file || null
+        imageFiles: media?.files || []
       });
       if (data?.sessionId) setActiveSessionId(String(data.sessionId));
       setMessages((prev) => [...prev, { role: 'assistant', text: data.text }]);
@@ -223,7 +245,7 @@ export default function ChatDock() {
     setActiveSessionId(null);
     setMessages([{ role: 'assistant', text: greeting }]);
     setShowHistory(false);
-    clearSelectedImage();
+    clearSelectedImages();
   };
 
   const deleteConversation = async (sessionId) => {
@@ -239,13 +261,15 @@ export default function ChatDock() {
   };
 
   const send = async () => {
-    if ((!input.trim() && !imageFile) || loading) return;
+    if ((!input.trim() && imageFiles.length === 0) || loading) return;
     if (isRecording) stopVoiceRecognition();
     const text = input.trim();
-    const messageImageUrl = imageFile ? await fileToDataUrl(imageFile).catch(() => '') : '';
-    const media = imageFile ? { file: imageFile, messageImageUrl } : null;
+    const messageImageUrls = imageFiles.length
+      ? (await Promise.all(imageFiles.map((file) => fileToDataUrl(file).catch(() => '')))).filter(Boolean)
+      : [];
+    const media = imageFiles.length ? { files: [...imageFiles], messageImageUrls } : null;
     setInput('');
-    clearSelectedImage();
+    clearSelectedImages();
     await sendMessage(text, '', undefined, {}, media);
   };
 
@@ -253,7 +277,7 @@ export default function ChatDock() {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    const next = Math.min(el.scrollHeight, 160);
+    const next = Math.min(Math.max(el.scrollHeight, 44), 160);
     el.style.height = `${next}px`;
     el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden';
   }, [input]);
@@ -288,15 +312,15 @@ export default function ChatDock() {
   }, []);
 
   useEffect(() => () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-  }, [imagePreview]);
+    imagePreviewsRef.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   useEffect(() => () => {
     stopVoiceRecognition();
   }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[color:var(--light-divider)] bg-white/95 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
+    <div data-tour="chat-panel" className="flex h-full flex-col overflow-hidden rounded-2xl border border-[color:var(--light-divider)] bg-white/95 shadow-lg dark:border-slate-700 dark:bg-slate-900/95">
       <div className="border-b border-[color:var(--light-divider)] p-4 dark:border-slate-800">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-brand-700 dark:text-brand-300">Chat TuVir</h3>
@@ -304,14 +328,15 @@ export default function ChatDock() {
             <button
               type="button"
               onClick={startNewConversation}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Nuevo
             </button>
             <button
               type="button"
               onClick={() => setShowHistory((prev) => !prev)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              data-tour="chat-history"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Historial
             </button>
@@ -349,9 +374,10 @@ export default function ChatDock() {
                       e.stopPropagation();
                       deleteConversation(session._id);
                     }}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    aria-label="Eliminar conversacion"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white text-[11px] font-bold text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
-                    Eliminar
+                    X
                   </button>
                 </span>
               </div>
@@ -361,13 +387,31 @@ export default function ChatDock() {
       )}
       <ChatMessages messages={messages} loading={loading} />
       <div className="border-t border-[color:var(--light-divider)] px-4 pb-5 pt-3 dark:border-slate-800">
-        {imagePreview && (
+        {imagePreviews.length > 0 && (
           <div className="mb-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900/60">
             <div className="mb-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-300">
-              <span>Imagen adjunta</span>
-              <button type="button" onClick={clearSelectedImage} className="font-bold text-red-600 dark:text-red-300">Quitar</button>
+              <span>{imagePreviews.length} imagen(es) adjunta(s)</span>
+              <button type="button" onClick={clearSelectedImages} className="font-bold text-red-600 dark:text-red-300">Quitar todas</button>
             </div>
-            <img src={imagePreview} alt="Vista previa" className="max-h-40 rounded-lg object-contain" />
+            <div className="grid grid-cols-2 gap-2">
+              {imagePreviews.map((preview, idx) => (
+                <div key={`${preview}-${idx}`} className="relative overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                  <img src={preview} alt={`Vista previa ${idx + 1}`} className="h-24 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const urlToRemove = imagePreviews[idx];
+                      if (urlToRemove) URL.revokeObjectURL(urlToRemove);
+                      setImagePreviews((prev) => prev.filter((_, i) => i !== idx));
+                      setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+                    }}
+                    className="absolute right-1 top-1 rounded-md bg-slate-900/70 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -379,15 +423,17 @@ export default function ChatDock() {
           <input
             ref={imageInputRef}
             type="file"
+            multiple
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
             onChange={handleImageChange}
           />
           <textarea
             ref={inputRef}
+            data-tour="chat-input"
             rows={1}
             wrap="hard"
-            className="max-h-44 min-h-[92px] w-full resize-none overflow-x-hidden whitespace-pre-wrap break-all bg-transparent px-3 pb-3 pr-3 pt-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 dark:text-white"
+            className="max-h-44 min-h-[44px] w-full resize-none overflow-x-hidden whitespace-pre-wrap break-all bg-transparent px-3 pb-2 pr-3 pt-2 text-sm text-slate-800 outline-none transition-[height] duration-150 placeholder:text-slate-400 dark:text-white"
             placeholder="Pregunta sobre robotica, humanoides, etc..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -404,7 +450,8 @@ export default function ChatDock() {
               <button
                 type="button"
                 onClick={() => setAttachMenuOpen((prev) => !prev)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-lg leading-none text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                data-tour="chat-attach"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-base leading-none text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 title="Adjuntar"
               >
                 +
@@ -427,22 +474,24 @@ export default function ChatDock() {
             <button
               type="button"
               onClick={toggleVoiceRecognition}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border ${
+              data-tour="chat-mic"
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${
                 isRecording
                   ? 'border-emerald-500 bg-emerald-500 text-white'
                   : 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
               }`}
               title={isRecording ? 'Detener microfono' : 'Usar microfono'}
             >
-              <Mic className="h-4 w-4" />
+              <Mic className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={send}
-              disabled={loading || (!input.trim() && !imageFile)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500 text-white disabled:opacity-60"
+              data-tour="chat-send"
+              disabled={loading || (!input.trim() && imageFiles.length === 0)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-white disabled:opacity-60"
               title="Enviar"
             >
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

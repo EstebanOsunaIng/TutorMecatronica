@@ -254,7 +254,7 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/70">
+        <div data-tour="admin-users-toolbar" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/70">
           <button
             type="button"
             onClick={() => {

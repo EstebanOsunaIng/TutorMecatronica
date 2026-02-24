@@ -200,7 +200,7 @@ export default function StudentDashboard() {
           <RobotLoader label="Cargando dashboard..." scale={0.9} overlay />
         )}
 
-        <Card className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
+        <Card data-tour="student-dashboard-overview" className="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/40">
           <div className="grid gap-6 md:grid-cols-[150px_1fr_200px] md:items-center">
             <div className="flex justify-center md:justify-start">
               <div

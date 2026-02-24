@@ -179,7 +179,7 @@ export default function KnowledgeManager() {
   return (
     <div className="space-y-4">
       {loading && <RobotLoader label="Cargando base de conocimiento..." scale={0.9} overlay />}
-      <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
+      <Card data-tour="knowledge-overview" className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-[1.875rem] font-bold tracking-tight text-slate-900 dark:text-white">Base de conocimiento IA</h2>

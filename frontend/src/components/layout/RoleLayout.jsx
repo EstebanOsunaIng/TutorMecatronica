@@ -5,22 +5,46 @@ import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import ChatDock from '../chatbot/ChatDock.jsx';
 import { presenceApi } from '../../api/presence.api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { usersApi } from '../../api/users.api.js';
+import OnboardingTour from '../onboarding/OnboardingTour.jsx';
 
 const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
 
 export default function RoleLayout() {
+  const { user, setUser } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [onboardingRunSeed, setOnboardingRunSeed] = useState(0);
+  const [onboardingMode, setOnboardingMode] = useState('auto');
 
   const handleToggleSidebar = () => setIsCollapsed((prev) => !prev);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!user) return;
+    setOnboardingMode('auto');
+    setIsOnboardingOpen(user.onboardingCompleted === false);
+  }, [user]);
+
+  useEffect(() => {
+    const handler = () => {
+      setOnboardingMode('manual');
+      setOnboardingRunSeed((prev) => prev + 1);
+      setIsOnboardingOpen(true);
+    };
+
+    window.addEventListener('tuvir:onboarding:restart', handler);
+    return () => window.removeEventListener('tuvir:onboarding:restart', handler);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -65,9 +89,41 @@ export default function RoleLayout() {
 
   const { onOpenMobile } = sidebarHandlers;
 
+  const completeOnboarding = async () => {
+    setIsOnboardingOpen(false);
+    if (onboardingMode === 'manual' && user?.onboardingCompleted) {
+      setOnboardingMode('auto');
+      return;
+    }
+    try {
+      const payload = {
+        onboardingCompleted: true,
+        onboardingVersion: 1,
+        onboardingSeenAt: new Date().toISOString()
+      };
+      const res = await usersApi.updateMe(payload);
+      const nextUser = res?.data?.user || (user ? { ...user, ...payload } : null);
+      if (nextUser) {
+        localStorage.setItem('user', JSON.stringify(nextUser));
+        setUser(nextUser);
+      }
+    } catch {
+      // ignore persistence error; tutorial already closed in UI
+    } finally {
+      setOnboardingMode('auto');
+    }
+  };
+
   return (
 
     <div className="flex min-h-screen bg-gradient-to-br from-sky-50/90 via-cyan-50/70 to-slate-50 text-slate-900 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
+      <OnboardingTour
+        role={user?.role || 'STUDENT'}
+        open={isOnboardingOpen}
+        onFinish={completeOnboarding}
+        userId={user?._id || ''}
+        runSeed={onboardingRunSeed}
+      />
       <div className="fixed left-0 top-0 z-50 hidden md:flex md:h-[72px] md:w-20 md:items-center md:justify-center">
         <button
           onClick={handleToggleSidebar}

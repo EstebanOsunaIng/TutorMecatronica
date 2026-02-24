@@ -132,7 +132,7 @@ export default function TeacherStudents() {
   };
 
   return (
-    <Card className="relative space-y-4 border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900/50">
+    <Card data-tour="teacher-students-overview" className="relative space-y-4 border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900/50">
       {loading && <RobotLoader label="Cargando auditoría..." scale={0.9} overlay />}
 
       <Card className="space-y-4 border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">

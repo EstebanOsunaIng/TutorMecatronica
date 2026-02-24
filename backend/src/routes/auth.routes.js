@@ -15,7 +15,13 @@ import {
 import { validate } from '../middleware/validate.js';
 import { authJWT } from '../middleware/authJWT.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
-import { changePasswordRequestLimiter, emailVerifyRequestIpLimiter, loginLimiter, registerLimiter, verifyCodeLimiter } from '../middleware/rateLimit.js';
+import {
+  loginLimiter,
+  registerLimiter,
+  changePasswordRequestLimiter,
+  emailVerifyRequestIpLimiter,
+  verifyCodeLimiter
+} from '../middleware/rateLimit.js';
 
 const router = Router();
 

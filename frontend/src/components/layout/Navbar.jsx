@@ -177,7 +177,6 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
         </div>
 
         <div className="flex items-center justify-end gap-2 sm:gap-3">
-
           <div className="relative" ref={notificationsMenuRef}>
             <button
               type="button"

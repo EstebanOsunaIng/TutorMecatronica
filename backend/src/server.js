@@ -6,6 +6,9 @@ import { startNewsScheduler } from './services/news.service.js';
 import { startPasswordChangeExpirySweep } from './services/passwordChange.service.js';
 
 async function start() {
+  if (!env.jwtSecret || env.jwtSecret.length < 24) {
+    throw new Error('JWT_SECRET is required and must be at least 24 characters');
+  }
   await connectDb();
   startNewsScheduler();
   startPasswordChangeExpirySweep();

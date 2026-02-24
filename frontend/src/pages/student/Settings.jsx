@@ -265,6 +265,11 @@ export default function StudentSettings() {
     isCheckingStatus;
   const showPasswordMismatch = confirmPassword.length >= 2 && newPassword !== confirmPassword;
 
+  const restartTutorial = () => {
+    window.dispatchEvent(new CustomEvent('tuvir:onboarding:restart'));
+    toast.info('Tutorial iniciado', 'Se abrió nuevamente el recorrido guiado.');
+  };
+
   return (
     <>
       {isPageLoading && <RobotLoader label="Cargando configuración..." scale={0.9} overlay />}
@@ -281,6 +286,13 @@ export default function StudentSettings() {
           <div>
             <h1 className="text-[1.875rem] font-black tracking-tight text-slate-900 dark:text-slate-100">Configuración de Cuenta</h1>
             <p className="text-base text-slate-600 dark:text-slate-300">Administra tu información personal y seguridad</p>
+            <button
+              type="button"
+              onClick={restartTutorial}
+              className="mt-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-bold text-cyan-800 transition hover:bg-cyan-100 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:text-cyan-200 dark:hover:bg-cyan-500/20"
+            >
+              Ver tutorial nuevamente
+            </button>
           </div>
         </div>
 
@@ -313,6 +325,7 @@ export default function StudentSettings() {
 
         {!isSecurityView ? (
           <form
+            data-tour="student-settings-profile"
             onSubmit={save}
             className={`relative ${settingsPanelClass}`}
           >

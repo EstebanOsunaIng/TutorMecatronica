@@ -26,7 +26,7 @@ export async function register(req, res) {
   const { role, name, lastName, document, email, phone, password, teacherCode } = req.body;
 
   if (!['STUDENT', 'TEACHER'].includes(role)) {
-    return res.status(400).json({ error: 'Rol invalido para registro publico.' });
+    return res.status(400).json({ error: 'Role not allowed for public registration' });
   }
 
   const safeName = normalizeText(name);
