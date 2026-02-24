@@ -12,11 +12,22 @@ export async function completeLevel(req, res) {
   const totalLevels = await LessonLevel.countDocuments({ moduleId });
   if (!totalLevels) return res.status(400).json({ error: 'Module has no levels' });
 
-  const progress = await Progress.findOneAndUpdate(
-    { userId: req.user.id, moduleId },
-    { $setOnInsert: { userId: req.user.id, moduleId } },
-    { new: true, upsert: true }
-  );
+  let progress = await Progress.findOne({ userId: req.user.id, moduleId });
+  if (!progress) {
+    progress = await Progress.create({ userId: req.user.id, moduleId });
+  }
+
+  const now = new Date();
+  const previousActivityTs = progress.updatedAt
+    ? new Date(progress.updatedAt).getTime()
+    : new Date(progress.startedAt || now).getTime();
+  if (Number.isFinite(previousActivityTs)) {
+    const deltaSeconds = Math.round((now.getTime() - previousActivityTs) / 1000);
+    // Count only realistic active time windows between level actions.
+    if (deltaSeconds > 0 && deltaSeconds <= 3600) {
+      progress.timeSpentSeconds = Number(progress.timeSpentSeconds || 0) + deltaSeconds;
+    }
+  }
 
   if (!progress.levelsCompleted.includes(levelOrder)) {
     progress.levelsCompleted.push(levelOrder);
@@ -26,7 +37,7 @@ export async function completeLevel(req, res) {
 
   let badge = null;
   if (progress.moduleProgressPercent === 100 && !progress.completedAt) {
-    progress.completedAt = new Date();
+    progress.completedAt = now;
     const unlocked = await unlockBadgeForModule({ userId: req.user.id, moduleId });
     badge = unlocked.unlocked ? unlocked.badgeId : null;
   }
@@ -47,7 +58,8 @@ export async function restartModule(req, res) {
         levelsCompleted: [],
         moduleProgressPercent: 0,
         completedAt: null,
-        startedAt: new Date()
+        startedAt: new Date(),
+        timeSpentSeconds: 0
       }
     },
     { new: true }

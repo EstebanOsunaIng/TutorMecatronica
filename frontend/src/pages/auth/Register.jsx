@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { authApi } from '../../api/auth.api.js';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -24,6 +25,7 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [inputHint, setInputHint] = useState({ field: '', message: '', visible: false });
+  const [emailCheck, setEmailCheck] = useState({ status: 'idle', message: '', checkedEmail: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -32,9 +34,20 @@ export default function Register() {
     return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
   });
   const hintTimeoutRef = useRef(null);
+  const emailCheckTimeoutRef = useRef(null);
   const hintCooldownRef = useRef({});
 
   const LETTERS_REGEX = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s]+$/;
+  const FIELD_LABELS = {
+    name: 'Nombre',
+    lastName: 'Apellido',
+    document: 'Identificación',
+    phone: 'Celular',
+    email: 'Correo electrónico',
+    password: 'Contraseña',
+    confirm: 'Confirmar contraseña',
+    teacherCode: 'Código docente'
+  };
 
   const isValidEmailStrict = (value) => {
     const email = String(value || '').trim();
@@ -52,8 +65,60 @@ export default function Register() {
   useEffect(() => {
     return () => {
       if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
+      if (emailCheckTimeoutRef.current) clearTimeout(emailCheckTimeoutRef.current);
     };
   }, []);
+
+
+  const verifyInstitutionalEmail = async (rawEmail) => {
+    const email = String(rawEmail || '').trim().toLowerCase();
+    if (!email) {
+      setEmailCheck({ status: 'idle', message: '', checkedEmail: '' });
+      return false;
+    }
+    if (!isValidEmailStrict(email)) {
+      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email });
+      return false;
+    }
+
+    setEmailCheck((prev) => ({ ...prev, status: 'checking', message: 'Verificando correo...' }));
+    try {
+      const { data } = await authApi.verifyEmail(email);
+      if (data?.available) {
+        setEmailCheck({ status: 'valid', message: data.message || 'Correo valido. Verifica con codigo.', checkedEmail: email });
+        return true;
+      }
+      setEmailCheck({ status: 'invalid', message: data?.message || 'El correo ingresado no existe.', checkedEmail: email });
+      return false;
+    } catch (_err) {
+      setEmailCheck({ status: 'invalid', message: 'No se pudo verificar el correo.', checkedEmail: email });
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const email = String(form.email || '').trim().toLowerCase();
+    if (!email) {
+      setEmailCheck({ status: 'idle', message: '', checkedEmail: '' });
+      return;
+    }
+    if (!isValidEmailStrict(email)) {
+      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email });
+      return;
+    }
+    if (emailCheck.checkedEmail === email && (emailCheck.status === 'valid' || emailCheck.status === 'invalid')) {
+      return;
+    }
+
+    if (emailCheckTimeoutRef.current) clearTimeout(emailCheckTimeoutRef.current);
+    emailCheckTimeoutRef.current = setTimeout(() => {
+      verifyInstitutionalEmail(email);
+    }, 500);
+
+    return () => {
+      if (emailCheckTimeoutRef.current) clearTimeout(emailCheckTimeoutRef.current);
+    };
+  }, [form.email]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -170,19 +235,33 @@ export default function Register() {
 
   const validateForm = (strict = false) => {
     const nextErrors = {};
-    if ((strict || form.name.trim()) && !LETTERS_REGEX.test(form.name.trim())) nextErrors.name = 'Solo letras y espacios.';
-    if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
-    if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Identificacion invalida: 10 digitos.';
-    if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Celular invalido: 10 digitos.';
-    if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'El correo debe incluir @ y un dominio valido';
-    if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Contrasena invalida: minimo 6 caracteres.';
-    if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
-    if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
+    if (strict && !form.name.trim()) nextErrors.name = 'Campo obligatorio.';
+    else if ((strict || form.name.trim()) && !LETTERS_REGEX.test(form.name.trim())) nextErrors.name = 'Solo letras y espacios.';
+
+    if (strict && !form.lastName.trim()) nextErrors.lastName = 'Campo obligatorio.';
+    else if ((strict || form.lastName.trim()) && !LETTERS_REGEX.test(form.lastName.trim())) nextErrors.lastName = 'Solo letras y espacios.';
+
+    if (strict && !form.document.trim()) nextErrors.document = 'Campo obligatorio.';
+    else if ((strict || form.document.trim()) && !/^\d{10}$/.test(form.document.trim())) nextErrors.document = 'Debe tener 10 digitos.';
+
+    if (strict && !form.phone.trim()) nextErrors.phone = 'Campo obligatorio.';
+    else if ((strict || form.phone.trim()) && !/^\d{10}$/.test(form.phone.trim())) nextErrors.phone = 'Debe tener 10 digitos.';
+
+    if (strict && !form.email.trim()) nextErrors.email = 'Campo obligatorio.';
+    else if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'Debe incluir @ y un dominio valido.';
+
+    if (strict && !(form.password || '').trim()) nextErrors.password = 'Campo obligatorio.';
+    else if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Minimo 6 caracteres.';
+
+    if (strict && !(form.confirm || '').trim()) nextErrors.confirm = 'Campo obligatorio.';
+    else if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
+
+    if (form.role === 'DOCENTE' && strict && !form.teacherCode.trim()) nextErrors.teacherCode = 'Campo obligatorio.';
+    else if (form.role === 'DOCENTE' && (strict || form.teacherCode.trim()) && !form.teacherCode.trim()) nextErrors.teacherCode = 'Codigo docente requerido.';
+
     return nextErrors;
   };
 
-  const validationErrors = validateForm(false);
-  const hasValidationErrors = Object.keys(validationErrors).length > 0;
   const authBackground = isDark
     ? isMobileVisual
       ? '/assets/modo-oscuro-C.png'
@@ -202,20 +281,37 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const normalizedEmail = String(form.email || '').trim().toLowerCase();
+    if (emailCheck.status === 'checking') {
+      toast.info('Verificando correo', 'Espera un momento mientras validamos tu correo.');
+      return;
+    }
+
+    if (emailCheck.status !== 'valid' || emailCheck.checkedEmail !== normalizedEmail) {
+      const ok = await verifyInstitutionalEmail(normalizedEmail);
+      if (!ok) {
+        setError('Debes usar un correo valido.');
+        return;
+      }
+    }
+
     const nextErrors = validateForm(true);
     if (Object.keys(nextErrors).length > 0) {
-      if (nextErrors.email) {
-        showInputHint('email', 'El correo debe incluir @ y un dominio valido');
-        toast.warning('Correo inválido', 'El correo debe incluir @ y un dominio válido.');
-      } else {
-        setError(Object.values(nextErrors)[0]);
-        toast.warning('Revisa el formulario', Object.values(nextErrors)[0]);
-      }
+      const [firstField, firstMessage] = Object.entries(nextErrors)[0] || [];
+      if (firstField && firstMessage) showInputHint(firstField, firstMessage);
+
+      const detail = Object.entries(nextErrors)
+        .map(([field, message]) => `• ${FIELD_LABELS[field] || field}: ${message}`)
+        .join('\n');
+
+      setError(`Revisa estos campos:\n${detail}`);
+      toast.warning('Revisa el formulario', `${FIELD_LABELS[firstField] || 'Formulario'}: ${firstMessage || 'Datos incompletos.'}`);
       return;
     }
     try {
       setSubmitting(true);
-      await register({
+      const data = await register({
         role: form.role === 'DOCENTE' ? 'TEACHER' : form.role,
         name: form.name,
         lastName: form.lastName,
@@ -225,6 +321,14 @@ export default function Register() {
         password: form.password,
         teacherCode: form.role === 'DOCENTE' ? form.teacherCode : undefined
       });
+      if (data?.verificationRequired) {
+        localStorage.setItem('pendingEmail', String(data.email || form.email || '').trim().toLowerCase());
+        localStorage.setItem('pendingUserId', String(data.userId || ''));
+        localStorage.setItem('verificationFlowActive', 'true');
+        toast.info('Verificacion requerida', 'Te enviamos un codigo OTP para activar tu cuenta.');
+        navigate('/verify-email');
+        return;
+      }
       toast.success('Registro exitoso', 'Tu cuenta fue creada correctamente.');
       navigate('/login');
     } catch (err) {
@@ -299,7 +403,7 @@ export default function Register() {
             </div>
 
             <form onSubmit={submit} className="space-y-3">
-              {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{error}</div>}
+              {error && <div className="whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">{error}</div>}
 
               <div className={`grid grid-cols-2 gap-1.5 rounded-xl border p-1.5 ${isDark ? 'border-sky-900/40 bg-[#082447]' : 'border-[#a8c3da] bg-[#dfeaf6]'}`}>
                 <button
@@ -388,31 +492,41 @@ export default function Register() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label htmlFor="email" className={labelClass}>Correo institucional</label>
+                  <label htmlFor="email" className={labelClass}>Correo electrónico</label>
                   <div className="mt-1.5">
                     <input
                       id="email"
                       type="email"
                       autoComplete="username"
-                      placeholder="usuario@universitaria.edu.co"
+                      placeholder="usuario@gmail.com"
                       className={inputClass}
-                      value={form.email}
-                      onBlur={() => {
-                        if (!isValidEmailStrict(form.email)) {
-                          showInputHint('email', 'El correo debe incluir @ y un dominio valido');
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        if (!isValidEmailStrict(form.email)) {
-                          e.preventDefault();
-                          showInputHint('email', 'El correo debe incluir @ y un dominio valido');
-                        }
-                      }}
-                      onChange={(e) => update('email', e.target.value)}
-                      required
-                    />
-                    {renderHint('email')}
+                        value={form.email}
+                        onBlur={() => {
+                        verifyInstitutionalEmail(form.email);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== 'Enter') return;
+                          if (!isValidEmailStrict(form.email)) {
+                            e.preventDefault();
+                          setEmailCheck({
+                            status: 'invalid',
+                            message: 'El correo debe incluir @ y un dominio valido.',
+                            checkedEmail: String(form.email || '').trim().toLowerCase()
+                          });
+                          }
+                        }}
+                        onChange={(e) => update('email', e.target.value)}
+                        required
+                      />
+                    {emailCheck.status !== 'idle' && (
+                      <div className={`mt-1.5 flex items-center gap-1.5 text-xs font-semibold ${emailCheck.status === 'valid' ? 'text-emerald-600 dark:text-emerald-300' : emailCheck.status === 'checking' ? 'text-sky-600 dark:text-sky-300' : 'text-rose-600 dark:text-rose-300'}`}>
+                        <span aria-hidden="true">
+                          {emailCheck.status === 'valid' ? '✓' : emailCheck.status === 'checking' ? '...' : '✗'}
+                        </span>
+                        <span>{emailCheck.message}</span>
+                      </div>
+                    )}
+
                   </div>
                 </div>
 
@@ -433,11 +547,11 @@ export default function Register() {
                        type={showPassword ? 'text' : 'password'}
                        autoComplete="new-password"
                        placeholder="••••••••"
-                       className={`${inputClass} pr-12`}
-                       value={form.password}
-                       onChange={(e) => update('password', e.target.value)}
-                       required
-                      />
+                        className={`${inputClass} pr-12`}
+                        value={form.password}
+                        onChange={(e) => update('password', e.target.value)}
+                        required
+                       />
                      <button
                        type="button"
                        onClick={() => setShowPassword((prev) => !prev)}
@@ -469,11 +583,11 @@ export default function Register() {
                        type={showConfirm ? 'text' : 'password'}
                        autoComplete="new-password"
                        placeholder="••••••••"
-                       className={`${inputClass} pr-12`}
-                       value={form.confirm}
-                       onChange={(e) => update('confirm', e.target.value)}
-                       required
-                      />
+                        className={`${inputClass} pr-12`}
+                        value={form.confirm}
+                        onChange={(e) => update('confirm', e.target.value)}
+                        required
+                       />
                      <button
                        type="button"
                        onClick={() => setShowConfirm((prev) => !prev)}
@@ -500,7 +614,11 @@ export default function Register() {
 
               <button
                 type="submit"
-                disabled={hasValidationErrors}
+                disabled={
+                  submitting ||
+                  emailCheck.status !== 'valid' ||
+                  String(form.email || '').trim().toLowerCase() !== emailCheck.checkedEmail
+                }
                 className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
               >
                 Crear mi cuenta

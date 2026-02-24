@@ -12,6 +12,8 @@ const passwordChangeRequestSchema = new mongoose.Schema(
       index: true
     },
     requestIp: { type: String, default: '' },
+    redirectOrigin: { type: String, default: '' },
+    redirectPath: { type: String, default: '' },
     expiresAt: { type: Date, required: true, index: true },
     confirmedAt: { type: Date },
     confirmedUntil: { type: Date },

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 import Login from '../pages/auth/Login.jsx';
 import Register from '../pages/auth/Register.jsx';
+import VerifyEmail from '../pages/auth/VerifyEmail.jsx';
 import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
 
 import RoleLayout from '../components/layout/RoleLayout.jsx';
@@ -47,6 +48,7 @@ export default function AppRouter() {
       <Route path="/" element={defaultRoute()} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 

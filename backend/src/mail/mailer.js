@@ -176,3 +176,53 @@ export async function sendPasswordChangeExpiredAlertEmail({ to }) {
     `
   });
 }
+
+export async function sendRegisterOtpEmail({ to, otp, expiresMinutes = 15 }) {
+  const transporter = createTransporter();
+  const codeDigits = String(otp || '')
+    .split('')
+    .map(
+      (digit) => `
+        <td style="padding:0 4px;">
+          <div style="width:44px;height:54px;line-height:54px;text-align:center;border-radius:12px;background:#ffffff;border:1px solid #bfdbfe;font-size:28px;font-weight:800;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,0.08);">${digit}</div>
+        </td>
+      `
+    )
+    .join('');
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to,
+    subject: 'Verificacion de correo',
+    text: `Estas intentando crear una cuenta.\nCodigo OTP: ${otp}\nValido por ${expiresMinutes} minutos.\n\nSi no fuiste tu, ignora este mensaje.`,
+    html: `
+      <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
+          <tr><td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border:1px solid #dbe6f5;border-radius:24px;box-shadow:0 20px 45px rgba(15,23,42,0.1);overflow:hidden;">
+              <tr><td style="padding:0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0b2f59 0%,#0ea5e9 100%);">
+                  <tr><td style="padding:24px 28px 20px 28px;">
+                    <div style="font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#dbeafe;font-weight:700;margin-bottom:12px;">TuVir | Tutor Mecatronica</div>
+                    <h1 style="margin:0 0 8px 0;font-size:30px;line-height:1.2;color:#ffffff;">Verificacion de correo</h1>
+                    <p style="margin:0;font-size:15px;line-height:1.6;color:#e0f2fe;max-width:500px;">Estas intentando crear una cuenta. Ingresa este codigo para confirmar tu correo.</p>
+                  </td></tr>
+                </table>
+              </td></tr>
+              <tr><td style="padding:24px;">
+                <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155;">Usa este codigo para verificar <strong>${to}</strong>.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#eff6ff 0%,#f8fbff 100%);border:1px solid #dbeafe;border-radius:16px;padding:18px 8px;margin:0 0 14px 0;">
+                  <tr><td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;"><tr>${codeDigits}</tr></table>
+                  </td></tr>
+                </table>
+                <p style="margin:0 0 10px 0;font-size:13px;color:#334155;"><strong>Vigencia:</strong> ${expiresMinutes} minutos.</p>
+                <p style="margin:0;font-size:13px;color:#64748b;">Si no solicitaste este mensaje, ignora este correo.</p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+    `
+  });
+}

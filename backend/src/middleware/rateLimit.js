@@ -10,6 +10,14 @@ export const loginLimiter = rateLimit({
   message: jsonHandler('Demasiados intentos de inicio de sesion. Intenta de nuevo en 30 segundos.')
 });
 
+export const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonHandler('Demasiados intentos de registro. Espera unos minutos.')
+});
+
 export const forgotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -32,4 +40,20 @@ export const changePasswordRequestLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: jsonHandler('Demasiadas solicitudes de confirmacion. Espera unos minutos.')
+});
+
+export const emailVerifyRequestIpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonHandler('Espera un momento antes de solicitar otra verificacion.')
+});
+
+export const verifyCodeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonHandler('Demasiados intentos de verificacion. Espera unos minutos.')
 });

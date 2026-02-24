@@ -37,13 +37,11 @@ export default function StudentNews() {
         <Card className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/30">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Mantente al dia</p>
-            <h2 className="text-2xl font-bold">Noticias y Tendencias</h2>
+            <h2 className="text-[1.875rem] font-bold">Noticias y Tendencias</h2>
           </div>
         </Card>
         {loading ? (
-          <div className="rounded-2xl border border-cyan-100 bg-white/80 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-            <RobotLoader label="Cargando noticias..." scale={0.75} />
-          </div>
+          <RobotLoader label="Cargando noticias..." scale={0.85} overlay />
         ) : error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
             {error}

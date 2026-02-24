@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
 
   const register = async (payload) => {
     const { data } = await authApi.register(payload);
-    return data.user;
+    return data;
   };
 
   const value = useMemo(() => ({ user, setUser, login, logout, register }), [user]);

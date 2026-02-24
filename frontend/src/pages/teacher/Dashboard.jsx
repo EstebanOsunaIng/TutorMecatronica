@@ -145,7 +145,7 @@ export default function TeacherDashboard() {
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Panel docente</p>
-            <h2 className="text-3xl font-bold tracking-tight">Bienvenido, {greetingName}</h2>
+            <h2 className="text-[1.875rem] font-bold tracking-tight">Bienvenido, {greetingName}</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
               Aqui tienes un resumen de modulos y actividad de tus estudiantes para tomar decisiones rapidas.
             </p>
@@ -154,9 +154,7 @@ export default function TeacherDashboard() {
       </Card>
 
       {loading && (
-        <Card className="border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900">
-          <RobotLoader label="Cargando dashboard..." scale={0.75} />
-        </Card>
+        <RobotLoader label="Cargando dashboard..." scale={0.9} overlay />
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

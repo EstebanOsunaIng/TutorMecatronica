@@ -97,6 +97,8 @@ export async function createUserByAdmin(req, res) {
     phone: safePhone,
     profilePhotoUrl: String(profilePhotoUrl).trim(),
     isActive: Boolean(isActive),
+    emailVerified: Boolean(isActive),
+    status: Boolean(isActive) ? 'ACTIVE' : 'SUSPENDED',
     passwordHash
   });
 

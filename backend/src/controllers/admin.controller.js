@@ -148,13 +148,21 @@ export async function getDashboardMetrics(req, res) {
     ).lean()
     : [];
 
-  const progressWithTime = progressRows.filter((p) => Number(p.timeSpentSeconds) > 0);
-  const averageTimeMinutes = progressWithTime.length
-    ? Math.round(
-      progressWithTime.reduce((sum, p) => sum + Number(p.timeSpentSeconds || 0), 0) /
-          progressWithTime.length /
-          60
-    )
+  const completionDurationsSeconds = progressRows
+    .map((p) => {
+      const tracked = Number(p.timeSpentSeconds || 0);
+      if (tracked > 0) return tracked;
+
+      if (!p.startedAt || !p.completedAt) return 0;
+      const started = new Date(p.startedAt).getTime();
+      const completed = new Date(p.completedAt).getTime();
+      if (!Number.isFinite(started) || !Number.isFinite(completed) || completed <= started) return 0;
+      return Math.round((completed - started) / 1000);
+    })
+    .filter((seconds) => seconds > 0);
+
+  const averageTimeMinutes = completionDurationsSeconds.length
+    ? Math.max(1, Math.round(completionDurationsSeconds.reduce((sum, value) => sum + value, 0) / completionDurationsSeconds.length / 60))
     : 0;
 
   const registrations = buildRegistrationSeries({

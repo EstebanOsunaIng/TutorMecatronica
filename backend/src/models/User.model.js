@@ -7,6 +7,13 @@ const userSchema = new mongoose.Schema(
     lastName: { type: String, required: true },
     document: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
+    emailVerified: { type: Boolean, default: false, index: true },
+    status: {
+      type: String,
+      enum: ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED'],
+      default: 'PENDING_VERIFICATION',
+      index: true
+    },
     phone: { type: String, default: '' },
     passwordHash: { type: String, required: true },
     profilePhotoUrl: { type: String, default: '' },

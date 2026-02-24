@@ -80,7 +80,7 @@ export default function TeacherModules() {
         <Card className="rounded-3xl border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-bold">Gestion de modulos</h2>
+              <h2 className="text-[1.875rem] font-bold">Gestion de modulos</h2>
               <p className="mt-1 text-sm text-slate-400">Edita tus modulos y revisa como los vera el estudiante.</p>
             </div>
             <button
@@ -105,7 +105,7 @@ export default function TeacherModules() {
 
         <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
           {loading ? (
-            <RobotLoader label="Cargando modulos..." scale={0.75} />
+            <RobotLoader label="Cargando modulos..." scale={0.9} overlay />
           ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filteredModules.map((m) => (

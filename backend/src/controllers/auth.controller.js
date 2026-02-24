@@ -1,13 +1,21 @@
 import { User } from '../models/User.model.js';
 import { TeacherCode } from '../models/TeacherCode.model.js';
 import { PasswordChangeRequest } from '../models/PasswordChangeRequest.model.js';
+import { RegisterEmailVerification } from '../models/RegisterEmailVerification.model.js';
 import { hashPassword, comparePassword } from '../utils/hash.js';
 import { signToken } from '../utils/tokens.js';
 import { isValidDocument, isValidEmail, isValidName, isValidPassword, isValidPhone, normalizeText } from '../utils/validators.js';
-import { sendPasswordChangeConfirmationEmail } from '../mail/mailer.js';
+import { sendPasswordChangeConfirmationEmail, sendRegisterOtpEmail } from '../mail/mailer.js';
 import { expirePendingPasswordChangeRequests } from '../services/passwordChange.service.js';
-import { sha256 } from '../utils/otp.js';
+import { generateOtp6, hashOtp, sha256 } from '../utils/otp.js';
+import { domainHasMailRecords } from '../utils/emailDns.js';
 import crypto from 'crypto';
+
+const OTP_EXPIRES_MS = 15 * 60 * 1000;
+const OTP_COOLDOWN_MS = 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_MAX_RESEND = 3;
+const OTP_RESEND_WINDOW_MS = 10 * 60 * 1000;
 
 function sanitizeUser(user) {
   const { passwordHash, ...safe } = user.toObject();
@@ -17,8 +25,8 @@ function sanitizeUser(user) {
 export async function register(req, res) {
   const { role, name, lastName, document, email, phone, password, teacherCode } = req.body;
 
-  if (!['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
+  if (!['STUDENT', 'TEACHER'].includes(role)) {
+    return res.status(400).json({ error: 'Rol invalido para registro publico.' });
   }
 
   const safeName = normalizeText(name);
@@ -34,14 +42,47 @@ export async function register(req, res) {
   if (!isValidEmail(safeEmail)) return res.status(400).json({ error: 'Correo invalido.' });
   if (!isValidPassword(password)) return res.status(400).json({ error: 'Contrasena invalida: minimo 6 caracteres.' });
 
-  const exists = await User.findOne({ email: safeEmail });
-  if (exists) return res.status(409).json({ error: 'Email already registered' });
+  const domain = safeEmail.split('@')[1] || '';
+  const hasMailRecords = await domainHasMailRecords(domain);
+  if (!hasMailRecords) {
+    return res.status(400).json({ error: 'Dominio no valido o no puede recibir correos.' });
+  }
+
+  const existsByEmail = await User.findOne({ email: safeEmail });
+  if (existsByEmail) {
+    if (existsByEmail.status === 'PENDING_VERIFICATION' || existsByEmail.emailVerified === false) {
+      let verification;
+      try {
+        verification = await issueEmailVerificationOtp({
+          user: existsByEmail,
+          email: safeEmail,
+          ip: req.ip,
+          userAgent: String(req.get('user-agent') || '')
+        });
+      } catch (error) {
+        return res.status(error.status || 500).json({
+          error: error.message || 'No se pudo enviar el codigo de verificacion.',
+          cooldownSeconds: error.cooldownSeconds || 0
+        });
+      }
+      return res.status(200).json({
+        verificationRequired: true,
+        userId: String(existsByEmail._id),
+        email: safeEmail,
+        expiresInMinutes: 15,
+        cooldownSeconds: Math.max(0, Math.ceil((new Date(verification.nextResendAt).getTime() - Date.now()) / 1000))
+      });
+    }
+    return res.status(409).json({ error: 'El correo ya esta registrado.' });
+  }
+  const existsByDocument = await User.findOne({ document: safeDocument }).select('_id').lean();
+  if (existsByDocument) return res.status(409).json({ error: 'La identificacion ya esta registrada.' });
 
   if (role === 'TEACHER') {
-    if (!teacherCode) return res.status(400).json({ error: 'Teacher code required' });
+    if (!teacherCode) return res.status(400).json({ error: 'Codigo docente requerido.' });
     const code = await TeacherCode.findOne({ code: teacherCode, isUsed: false });
-    if (!code) return res.status(400).json({ error: 'Invalid teacher code' });
-    if (code.expiresAt < new Date()) return res.status(400).json({ error: 'Teacher code expired' });
+    if (!code) return res.status(400).json({ error: 'Codigo docente invalido.' });
+    if (code.expiresAt < new Date()) return res.status(400).json({ error: 'Codigo docente expirado.' });
   }
 
   const passwordHash = await hashPassword(password);
@@ -52,7 +93,9 @@ export async function register(req, res) {
     document: safeDocument,
     email: safeEmail,
     phone: safePhone,
-    passwordHash
+    passwordHash,
+    emailVerified: false,
+    status: 'PENDING_VERIFICATION'
   });
 
   if (role === 'TEACHER' && teacherCode) {
@@ -63,7 +106,28 @@ export async function register(req, res) {
     );
   }
 
-  return res.status(201).json({ user: sanitizeUser(user) });
+  let verification;
+  try {
+    verification = await issueEmailVerificationOtp({
+      user,
+      email: safeEmail,
+      ip: req.ip,
+      userAgent: String(req.get('user-agent') || '')
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'No se pudo enviar el codigo de verificacion.',
+      cooldownSeconds: error.cooldownSeconds || 0
+    });
+  }
+
+  return res.status(201).json({
+    verificationRequired: true,
+    userId: String(user._id),
+    email: safeEmail,
+    expiresInMinutes: 15,
+    cooldownSeconds: Math.max(0, Math.ceil((new Date(verification.nextResendAt).getTime() - Date.now()) / 1000))
+  });
 }
 
 export async function login(req, res) {
@@ -74,6 +138,14 @@ export async function login(req, res) {
 
   const user = await User.findOne({ email: safeEmail });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+  if (user.status === 'PENDING_VERIFICATION' || user.emailVerified === false) {
+    return res.status(403).json({ error: 'Debes verificar tu correo antes de iniciar sesion.' });
+  }
+
+  if (user.status === 'SUSPENDED') {
+    return res.status(403).json({ error: 'Perfil suspendido. Contacta al administrador.' });
+  }
 
   if (!user.isActive) {
     return res.status(403).json({ error: 'Perfil inactivo. No puedes ingresar.' });
@@ -111,6 +183,100 @@ function backendPublicUrl(req) {
   return process.env.BACKEND_PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
 }
 
+function frontendPublicUrl(req) {
+  if (process.env.FRONTEND_PUBLIC_URL) {
+    return String(process.env.FRONTEND_PUBLIC_URL).replace(/\/$/, '');
+  }
+  return '';
+}
+
+function normalizeRedirectPath(value, fallback = '') {
+  const raw = String(value || '').trim();
+  if (!raw.startsWith('/')) return fallback;
+  if (raw.startsWith('//')) return fallback;
+  return raw;
+}
+
+function normalizeOrigin(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    return parsed.origin;
+  } catch (_err) {
+    return '';
+  }
+}
+
+async function expirePendingRegisterEmailVerifications(email = null) {
+  const now = new Date();
+  const filter = {
+    status: 'PENDING',
+    expiresAt: { $lt: now }
+  };
+  if (email) filter.email = email;
+  await RegisterEmailVerification.updateMany(filter, { $set: { status: 'EXPIRED' } });
+}
+
+async function cleanupOldRegisterEmailVerifications() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await RegisterEmailVerification.deleteMany({ updatedAt: { $lt: sevenDaysAgo } });
+}
+
+async function issueEmailVerificationOtp({ user, email, ip, userAgent, force = false }) {
+  await expirePendingRegisterEmailVerifications(email);
+
+  const existing = await RegisterEmailVerification.findOne({ email });
+  const now = Date.now();
+  const nowDate = new Date(now);
+
+  if (!force && existing?.nextResendAt && existing.nextResendAt > nowDate) {
+    const error = new Error('Espera un momento antes de reenviar el codigo.');
+    error.status = 429;
+    error.cooldownSeconds = Math.max(1, Math.ceil((new Date(existing.nextResendAt).getTime() - now) / 1000));
+    throw error;
+  }
+
+  const resendWindowActive = existing?.lastSentAt && now - new Date(existing.lastSentAt).getTime() < OTP_RESEND_WINDOW_MS;
+  const resendCount = resendWindowActive ? (existing?.resendCount || 0) + 1 : 1;
+  if (resendCount > OTP_MAX_RESEND) {
+    const error = new Error('Has alcanzado el limite de reenvios. Intenta mas tarde.');
+    error.status = 429;
+    throw error;
+  }
+
+  const otp = generateOtp6();
+  const otpHash = hashOtp(email, otp);
+  const expiresAt = new Date(now + OTP_EXPIRES_MS);
+  const nextResendAt = new Date(now + OTP_COOLDOWN_MS);
+
+  const verification = await RegisterEmailVerification.findOneAndUpdate(
+    { email },
+    {
+      $set: {
+        userId: user?._id,
+        email,
+        otpHash,
+        status: 'PENDING',
+        expiresAt,
+        verifiedAt: null,
+        attemptCount: 0,
+        maxAttempts: OTP_MAX_ATTEMPTS,
+        resendCount,
+        nextResendAt,
+        lastSentAt: nowDate,
+        ip,
+        userAgent
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  await sendRegisterOtpEmail({ to: email, otp, expiresMinutes: 15 });
+  return verification;
+}
+
 export async function requestPasswordChangeConfirmation(req, res) {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
@@ -131,16 +297,23 @@ export async function requestPasswordChangeConfirmation(req, res) {
   const tokenHash = sha256(rawToken);
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
+  const redirectPath = normalizeRedirectPath(req.body?.redirectPath, '/');
+  const redirectOrigin = normalizeOrigin(req.body?.clientOrigin);
+
   const requestRow = await PasswordChangeRequest.create({
     userId: user._id,
     email,
     tokenHash,
     status: 'pending',
     requestIp: req.ip,
+    redirectPath,
+    redirectOrigin,
     expiresAt
   });
 
-  const confirmUrl = `${backendPublicUrl(req)}/api/auth/change-password/confirm?token=${encodeURIComponent(rawToken)}`;
+  const query = new URLSearchParams({ token: rawToken });
+  if (redirectPath) query.set('redirect', redirectPath);
+  const confirmUrl = `${backendPublicUrl(req)}/api/auth/change-password/confirm?${query.toString()}`;
   await sendPasswordChangeConfirmationEmail({ to: email, confirmUrl });
 
   console.info('[password-change]', {
@@ -160,6 +333,7 @@ export async function requestPasswordChangeConfirmation(req, res) {
 export async function confirmPasswordChangeRequest(req, res) {
   const token = String(req.query?.token || '').trim();
   if (!token) return res.status(400).send('Token invalido.');
+  const redirectPathFromQuery = normalizeRedirectPath(req.query?.redirect, '');
 
   await expirePendingPasswordChangeRequests();
 
@@ -175,6 +349,7 @@ export async function confirmPasswordChangeRequest(req, res) {
   requestRow.status = 'confirmed';
   requestRow.confirmedAt = new Date();
   requestRow.confirmedUntil = new Date(Date.now() + 10 * 60 * 1000);
+  requestRow.alertSent = true;
   await requestRow.save();
 
   console.info('[password-change]', {
@@ -184,7 +359,176 @@ export async function confirmPasswordChangeRequest(req, res) {
     status: 'confirmado'
   });
 
-  return res.send('Confirmacion exitosa. Regresa a la plataforma para cambiar tu contraseña.');
+  const frontendUrl = requestRow.redirectOrigin || frontendPublicUrl(req);
+  const redirectPath = requestRow.redirectPath || redirectPathFromQuery;
+  if (frontendUrl && redirectPath) {
+    const query = new URLSearchParams({ passwordChange: 'confirmed', requestId: String(requestRow._id) });
+    return res.redirect(302, `${frontendUrl}${redirectPath}?${query.toString()}`);
+  }
+
+  return res.send('Confirmacion exitosa. Regresa a la plataforma para cambiar tu contrasena.');
+}
+
+export async function verifyRegistrationEmail(req, res) {
+  const email = normalizeText(req.query?.email).toLowerCase();
+  if (!isValidEmail(email)) {
+    return res.json({
+      exists: false,
+      verified: false,
+      available: false,
+      message: 'Correo no valido.'
+    });
+  }
+
+  const domain = email.split('@')[1] || '';
+  const hasMailRecords = await domainHasMailRecords(domain);
+  if (!hasMailRecords) {
+    return res.json({
+      exists: false,
+      verified: false,
+      available: false,
+      message: 'Dominio no valido o no puede recibir correos.'
+    });
+  }
+
+  const existing = await User.findOne({ email }).select('_id').lean();
+  if (existing) {
+    return res.json({
+      exists: true,
+      verified: false,
+      available: false,
+      message: 'El correo ya esta registrado.'
+    });
+  }
+
+  return res.json({
+    exists: true,
+    verified: false,
+    available: true,
+    message: 'Correo valido para registro.'
+  });
+}
+
+export async function requestRegisterEmailVerification(req, res) {
+  const email = normalizeText(req.body?.email).toLowerCase();
+  const userId = String(req.body?.userId || '').trim();
+  if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo no valido.' });
+
+  const domain = email.split('@')[1] || '';
+  const hasMailRecords = await domainHasMailRecords(domain);
+  if (!hasMailRecords) return res.status(400).json({ error: 'Dominio no valido o no puede recibir correos.' });
+
+  const userFilter = userId ? { _id: userId, email } : { email };
+  const user = await User.findOne(userFilter);
+  if (!user) return res.status(404).json({ error: 'Usuario pendiente no encontrado.' });
+  if (user.status === 'ACTIVE' && user.emailVerified) {
+    return res.json({ ok: true, message: 'El correo ya fue verificado.', expiresInMinutes: 0, cooldownSeconds: 0 });
+  }
+
+  try {
+    const verification = await issueEmailVerificationOtp({
+      user,
+      email,
+      ip: req.ip,
+      userAgent: String(req.get('user-agent') || '')
+    });
+    return res.json({
+      ok: true,
+      message: 'Correo de verificacion enviado.',
+      expiresInMinutes: 15,
+      cooldownSeconds: Math.max(0, Math.ceil((new Date(verification.nextResendAt).getTime() - Date.now()) / 1000))
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'No se pudo enviar la verificacion.',
+      cooldownSeconds: error.cooldownSeconds || 0
+    });
+  }
+}
+
+export async function getRegisterEmailVerificationStatus(req, res) {
+  const email = normalizeText(req.query?.email).toLowerCase();
+  if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo no valido.' });
+
+  await cleanupOldRegisterEmailVerifications();
+  await expirePendingRegisterEmailVerifications(email);
+  const record = await RegisterEmailVerification.findOne({ email });
+  if (!record) {
+    return res.json({ status: 'NONE', expiresAt: null, remainingSeconds: 0, nextResendSeconds: 0 });
+  }
+
+  if (record.status === 'VERIFIED' && record.verifiedAt) {
+    const user = await User.findById(record.userId).select('status emailVerified').lean();
+    if (!user || user.status !== 'ACTIVE' || !user.emailVerified) {
+      record.status = 'EXPIRED';
+      await record.save();
+    }
+  }
+
+  const remainingSeconds =
+    record.status === 'PENDING' ? Math.max(0, Math.ceil((new Date(record.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+  const nextResendSeconds =
+    record.nextResendAt && record.nextResendAt > new Date()
+      ? Math.max(0, Math.ceil((new Date(record.nextResendAt).getTime() - Date.now()) / 1000))
+      : 0;
+
+  return res.json({
+    status: record.status,
+    expiresAt: record.expiresAt,
+    remainingSeconds,
+    nextResendSeconds
+  });
+}
+
+export async function verifyRegisterEmailCode(req, res) {
+  const email = normalizeText(req.body?.email).toLowerCase();
+  const otp = String(req.body?.otp || '').trim();
+  if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo invalido.' });
+  if (!/^\d{6}$/.test(otp)) return res.status(400).json({ error: 'Codigo incorrecto.' });
+
+  await expirePendingRegisterEmailVerifications(email);
+
+  const record = await RegisterEmailVerification.findOne({ email });
+  if (!record || record.status !== 'PENDING') {
+    return res.status(400).json({ error: 'Codigo expirado. Solicita un nuevo codigo.' });
+  }
+
+  if (record.expiresAt < new Date()) {
+    record.status = 'EXPIRED';
+    await record.save();
+    return res.status(400).json({ error: 'Codigo expirado. Solicita un nuevo codigo.' });
+  }
+
+  if ((record.attemptCount || 0) >= (record.maxAttempts || OTP_MAX_ATTEMPTS)) {
+    record.status = 'EXPIRED';
+    await record.save();
+    return res.status(429).json({ error: 'Demasiados intentos, solicita un nuevo codigo.' });
+  }
+
+  const incomingHash = hashOtp(email, otp);
+  if (incomingHash !== record.otpHash) {
+    record.attemptCount = (record.attemptCount || 0) + 1;
+    if (record.attemptCount >= (record.maxAttempts || OTP_MAX_ATTEMPTS)) {
+      record.status = 'EXPIRED';
+      await record.save();
+      return res.status(429).json({ error: 'Demasiados intentos, solicita un nuevo codigo.' });
+    }
+    await record.save();
+    return res.status(400).json({ error: 'Codigo incorrecto.' });
+  }
+
+  record.status = 'VERIFIED';
+  record.verifiedAt = new Date();
+  record.otpHash = '';
+  await record.save();
+
+  const user = await User.findById(record.userId);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
+  user.emailVerified = true;
+  user.status = 'ACTIVE';
+  await user.save();
+
+  return res.json({ ok: true, message: 'Correo verificado exitosamente.' });
 }
 
 export async function getPasswordChangeStatus(req, res) {

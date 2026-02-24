@@ -7,8 +7,13 @@ let expirySweepInterval = null;
 export async function expirePendingPasswordChangeRequests() {
   const now = new Date();
   const expiredPending = await PasswordChangeRequest.find({
-    status: { $in: ['pending', 'confirmed'] },
-    $or: [{ expiresAt: { $lt: now } }, { confirmedUntil: { $lt: now } }]
+    status: 'pending',
+    expiresAt: { $lt: now }
+  });
+
+  const expiredConfirmed = await PasswordChangeRequest.find({
+    status: 'confirmed',
+    confirmedUntil: { $lt: now }
   });
 
   for (const req of expiredPending) {
@@ -32,6 +37,18 @@ export async function expirePendingPasswordChangeRequests() {
     console.info('[password-change]', {
       userId: String(req.userId),
       status: 'expired',
+      date: new Date().toISOString()
+    });
+  }
+
+  for (const req of expiredConfirmed) {
+    req.status = 'expired';
+    req.alertSent = true;
+    await req.save();
+
+    console.info('[password-change]', {
+      userId: String(req.userId),
+      status: 'expired-confirmed-window',
       date: new Date().toISOString()
     });
   }

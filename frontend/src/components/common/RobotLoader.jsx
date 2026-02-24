@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-export default function RobotLoader({ label = 'Cargando...', className = '', scale = 1, full = false }) {
+export default function RobotLoader({ label = 'Cargando...', className = '', scale = 1, full = false, overlay = false }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -24,10 +24,10 @@ export default function RobotLoader({ label = 'Cargando...', className = '', sca
     };
   }, []);
 
-  return (
+  const content = (
     <div
       ref={containerRef}
-      className={`robot-loader ${full ? 'robot-loader--full' : ''} ${className}`.trim()}
+      className={`robot-loader ${full ? 'robot-loader--full' : ''} ${overlay ? 'robot-loader--spotlight' : ''} ${className}`.trim()}
       style={{ '--robot-scale': scale }}
     >
       <div className="robot">
@@ -44,6 +44,17 @@ export default function RobotLoader({ label = 'Cargando...', className = '', sca
         </div>
       </div>
       {label && <div className="robot-loader__label">{label}</div>}
+      {overlay && <div className="robot-loader__hint">Por favor espera un momento</div>}
     </div>
   );
+
+  if (overlay) {
+    return (
+      <div className="robot-loader-overlay" role="status" aria-live="polite" aria-busy="true">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

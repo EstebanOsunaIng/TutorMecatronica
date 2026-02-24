@@ -46,7 +46,7 @@ export default function AdminNews() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Administracion</p>
-                            <h2 className="text-2xl font-bold">Noticias y Tendencias</h2>
+                            <h2 className="text-[1.875rem] font-bold">Noticias y Tendencias</h2>
                             <p className="mt-1 text-sm text-slate-400">
                                 Las noticias se actualizan automaticamente cada dia. Tambien puedes refrescar manualmente.
                             </p>
@@ -62,9 +62,7 @@ export default function AdminNews() {
                     </div>
                 </Card>
                 {loading ? (
-                    <div className="rounded-2xl border border-cyan-100 bg-white/80 p-6 dark:border-slate-800 dark:bg-slate-900/40">
-                        <RobotLoader label="Cargando noticias..." scale={0.75} />
-                    </div>
+                    <RobotLoader label="Cargando noticias..." scale={0.85} overlay />
                 ) : error ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
                         {error}

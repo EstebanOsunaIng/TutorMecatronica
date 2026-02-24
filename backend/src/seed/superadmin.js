@@ -36,7 +36,9 @@ async function run() {
     document,
     email,
     phone,
-    passwordHash
+    passwordHash,
+    emailVerified: true,
+    status: 'ACTIVE'
   });
 
   console.log(`[seed] admin created: ${email}`);

@@ -85,7 +85,7 @@ export default function CourseDetail() {
       <div className="space-y-4">
         <Card className="border-cyan-100/80 bg-white/90 p-5 dark:border-slate-700 dark:bg-slate-900/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{moduleItem?.title || 'Cargando modulo...'}</h2>
+            <h2 className="text-[1.875rem] font-bold text-slate-900 dark:text-white">{moduleItem?.title || 'Cargando modulo...'}</h2>
             <button
               type="button"
               onClick={() => navigate('/student/courses')}
@@ -98,9 +98,7 @@ export default function CourseDetail() {
         </Card>
 
         {loading ? (
-          <Card className="border-slate-200 bg-white/80 p-6 dark:border-slate-700 dark:bg-slate-900/60">
-            <RobotLoader label="Cargando contenido del modulo..." scale={0.8} />
-          </Card>
+          <RobotLoader label="Cargando contenido del modulo..." scale={0.9} overlay />
         ) : lockedBySequence ? (
           <Card className="border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-200">
             <p className="text-sm font-semibold">Modulo bloqueado</p>

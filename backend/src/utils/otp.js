@@ -7,3 +7,8 @@ export function generateOtp6() {
 export function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
+
+export function hashOtp(email, otp) {
+  const secret = process.env.OTP_SECRET || process.env.JWT_SECRET || 'otp-fallback-secret';
+  return crypto.createHmac('sha256', secret).update(`${String(email || '').toLowerCase()}:${String(otp || '')}`).digest('hex');
+}

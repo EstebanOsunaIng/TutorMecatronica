@@ -230,7 +230,7 @@ export default function AdminUsers() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Panel de Usuarios</p>
-            <h2 className="text-2xl font-bold tracking-tight">Gestion de perfiles</h2>
+            <h2 className="text-[1.875rem] font-bold tracking-tight">Gestion de perfiles</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Edita datos personales, roles y estado de cada usuario.</p>
           </div>
 
@@ -294,6 +294,7 @@ export default function AdminUsers() {
 
         {error && <p className="mt-4 rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/20 dark:text-red-100">{error}</p>}
         {success && <p className="mt-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">{success}</p>}
+        {loading && <RobotLoader label="Cargando usuarios..." scale={0.9} overlay />}
 
         <div className="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 dark:border-slate-700">
           <table className="min-w-[720px] w-full table-fixed text-left text-sm">
@@ -314,13 +315,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center">
-                    <RobotLoader label="Cargando usuarios..." scale={0.7} />
-                  </td>
-                </tr>
-              ) : (
+              {!loading ? (
                 users.map((u) => (
                   <tr key={u._id} className="border-t border-cyan-100 bg-white/60 dark:border-slate-700 dark:bg-slate-900/50">
                     <td className="px-4 py-3">
@@ -378,7 +373,7 @@ export default function AdminUsers() {
                     </td>
                   </tr>
                 ))
-              )}
+              ) : null}
 
               {!loading && !users.length && (
                 <tr>
