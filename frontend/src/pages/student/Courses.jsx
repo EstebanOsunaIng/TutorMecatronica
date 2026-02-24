@@ -87,7 +87,7 @@ export default function Courses() {
               {loading ? (
                 <RobotLoader label="Cargando modulos..." scale={0.9} overlay />
               ) : (
-                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div data-tour="student-courses-grid" className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                   {modulesWithProgress.map((m) => (
                     <Card
                       key={m._id}

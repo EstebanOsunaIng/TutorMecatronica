@@ -31,7 +31,7 @@ const imageUpload = multer({
   }
 });
 
-router.post('/chat', authJWT, imageUpload.single('image'), asyncHandler(chat));
+router.post('/chat', authJWT, imageUpload.array('images', 4), asyncHandler(chat));
 router.get('/history', authJWT, asyncHandler(listHistory));
 router.get('/history/:id', authJWT, asyncHandler(getHistoryById));
 router.delete('/history/:id', authJWT, asyncHandler(deleteHistory));

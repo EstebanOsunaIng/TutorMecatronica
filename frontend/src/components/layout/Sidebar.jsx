@@ -40,6 +40,21 @@ const roleItems = {
   ]
 };
 
+const tourByPath = {
+  '/student/dashboard': 'student-nav-dashboard',
+  '/student/courses': 'student-nav-courses',
+  '/student/news': 'student-nav-news',
+  '/student/settings': 'student-nav-settings',
+  '/teacher/dashboard': 'teacher-nav-dashboard',
+  '/teacher/students': 'teacher-nav-students',
+  '/teacher/modules': 'teacher-nav-modules',
+  '/teacher/knowledge': 'teacher-nav-knowledge',
+  '/admin/dashboard': 'admin-nav-dashboard',
+  '/admin/users': 'admin-nav-users',
+  '/admin/modules': 'admin-nav-modules',
+  '/admin/stats': 'admin-nav-stats'
+};
+
 export default function Sidebar({
   isCollapsed,
   isMobileOpen,
@@ -88,6 +103,7 @@ export default function Sidebar({
               <NavLink
                 key={item.to}
                 to={item.to}
+                data-tour={tourByPath[item.to] || undefined}
                 onClick={onCloseMobile}
                 title={showLabels ? undefined : item.label}
                 className={({ isActive }) =>

@@ -34,14 +34,72 @@ export async function updateMe(req, res) {
   }
   if (typeof req.body.profilePhotoUrl === 'string') updates.profilePhotoUrl = req.body.profilePhotoUrl;
   if (typeof req.body.notificationsMuted === 'boolean') updates.notificationsMuted = req.body.notificationsMuted;
+  if (typeof req.body.onboardingCompleted === 'boolean') updates.onboardingCompleted = req.body.onboardingCompleted;
+  if (typeof req.body.onboardingVersion === 'number' && Number.isFinite(req.body.onboardingVersion)) {
+    updates.onboardingVersion = Math.max(1, Math.floor(req.body.onboardingVersion));
+  }
+  if (typeof req.body.onboardingSeenAt === 'string' || req.body.onboardingSeenAt instanceof Date) {
+    const value = new Date(req.body.onboardingSeenAt);
+    if (!Number.isNaN(value.getTime())) updates.onboardingSeenAt = value;
+  }
   const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
   res.json({ user });
 }
 
 export async function updateUser(req, res) {
   const { id } = req.params;
-  const updates = req.body || {};
-  delete updates.passwordHash;
+  const payload = req.body || {};
+  const updates = {};
+
+  if (typeof payload.role === 'string') {
+    if (!['STUDENT', 'TEACHER', 'ADMIN'].includes(payload.role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    updates.role = payload.role;
+  }
+
+  if (typeof payload.name === 'string') {
+    const safeName = normalizeText(payload.name);
+    if (!isValidName(safeName)) return res.status(400).json({ error: 'Nombre invalido: solo letras y espacios.' });
+    updates.name = safeName;
+  }
+
+  if (typeof payload.lastName === 'string') {
+    const safeLastName = normalizeText(payload.lastName);
+    if (!isValidName(safeLastName)) return res.status(400).json({ error: 'Apellido invalido: solo letras y espacios.' });
+    updates.lastName = safeLastName;
+  }
+
+  if (typeof payload.document === 'string') {
+    const safeDocument = normalizeText(payload.document);
+    if (!isValidDocument(safeDocument)) return res.status(400).json({ error: 'Identificacion invalida: debe tener 10 digitos numericos.' });
+    updates.document = safeDocument;
+  }
+
+  if (typeof payload.email === 'string') {
+    const normalizedEmail = normalizeText(payload.email).toLowerCase();
+    if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Correo invalido.' });
+
+    const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: id } }).select('_id');
+    if (existing) return res.status(409).json({ error: 'Email already registered' });
+    updates.email = normalizedEmail;
+  }
+
+  if (typeof payload.phone === 'string') {
+    const safePhone = normalizeText(payload.phone);
+    if (safePhone && !isValidPhone(safePhone)) {
+      return res.status(400).json({ error: 'Celular invalido: debe tener 10 digitos numericos.' });
+    }
+    updates.phone = safePhone;
+  }
+
+  if (typeof payload.profilePhotoUrl === 'string') updates.profilePhotoUrl = String(payload.profilePhotoUrl).trim();
+  if (typeof payload.isActive === 'boolean') updates.isActive = payload.isActive;
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
   const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-passwordHash');
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json({ user });

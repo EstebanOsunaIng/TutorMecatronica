@@ -10,7 +10,7 @@ export default function ChatMessages({ messages, loading }) {
           key={idx}
           role={msg.role}
           text={msg.text}
-          imageUrl={msg.imageUrl || ''}
+          imageUrls={Array.isArray(msg.imageUrls) ? msg.imageUrls : msg.imageUrl ? [msg.imageUrl] : []}
         />
       ))}
       {loading && (

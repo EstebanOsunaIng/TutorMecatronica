@@ -10,6 +10,14 @@ export const loginLimiter = rateLimit({
   message: jsonHandler('Demasiados intentos de inicio de sesion. Intenta de nuevo en 30 segundos.')
 });
 
+export const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonHandler('Demasiados registros desde esta red. Intenta mas tarde.')
+});
+
 export const forgotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

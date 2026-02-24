@@ -1,8 +1,9 @@
-import { chatWithTutorWithHistory, summarizeConversation } from '../services/ai.service.js';
+import { chatWithTutorWithHistory, summarizeConversation, generateConversationTitle } from '../services/ai.service.js';
 import { ChatSession } from '../models/ChatSession.model.js';
 import { retrieveKnowledgeContext } from '../services/knowledge.service.js';
 import { retrieveModuleContext } from '../services/moduleContext.service.js';
 import fs from 'node:fs/promises';
+import { assertImageFile } from '../utils/fileValidation.js';
 
 function buildSessionTitle(message) {
   const text = String(message || '').trim();
@@ -50,20 +51,23 @@ export async function chat(req, res) {
   const sessionId = req.body.sessionId;
   const moduleId = req.body.moduleId;
   const levelId = req.body.levelId;
-  const hasImage = Boolean(req.file);
+  const uploadedImages = Array.isArray(req.files) ? req.files : [];
+  const hasImages = uploadedImages.length > 0;
 
-  if (!rawMessage && !hasImage) return res.status(400).json({ error: 'Missing message or image' });
+  if (!rawMessage && !hasImages) return res.status(400).json({ error: 'Missing message or image' });
 
-  const message = rawMessage || 'Analiza esta imagen y guiame paso a paso.';
+  const message = rawMessage || 'Analiza estas imagenes y guiame paso a paso.';
 
   const userId = req.user.id;
 
   let session = null;
+  let isNewSession = false;
   if (sessionId) {
     session = await ChatSession.findOne({ _id: sessionId, userId });
   }
 
   if (!session) {
+    isNewSession = true;
     session = await ChatSession.create({
       userId,
       title: buildSessionTitle(message),
@@ -126,14 +130,18 @@ export async function chat(req, res) {
     .filter(Boolean)
     .join('\n\n');
 
-  let imageDataUrl = '';
-  let imagePath = '';
+  const imageDataUrls = [];
+  const imagePaths = [];
   try {
-    if (hasImage) {
-      imagePath = req.file.path;
-      const bytes = await fs.readFile(imagePath);
-      const mime = req.file.mimetype || 'image/jpeg';
-      imageDataUrl = `data:${mime};base64,${bytes.toString('base64')}`;
+    if (hasImages) {
+      for (const file of uploadedImages) {
+        if (!file?.path) continue;
+        imagePaths.push(file.path);
+        await assertImageFile(file.path);
+        const bytes = await fs.readFile(file.path);
+        const mime = file.mimetype || 'image/jpeg';
+        imageDataUrls.push(`data:${mime};base64,${bytes.toString('base64')}`);
+      }
     }
 
     const historyForModel = session.messages.slice(0, -1);
@@ -142,12 +150,22 @@ export async function chat(req, res) {
       message,
       context: mergedContext,
       summary: session.summary || '',
-      imageDataUrl,
-      hasImage
+      imageDataUrls,
+      hasImage: hasImages
     });
 
     const assistantRaw = result?.text || 'No pude generar respuesta en este momento.';
     const assistantText = teachingMode === 'guided' ? enforceGuidedResponse(assistantRaw) : assistantRaw;
+
+    if (isNewSession) {
+      const smartTitle = await generateConversationTitle({
+        firstUserMessage: message,
+        firstAssistantMessage: assistantText,
+        context: mergedContext
+      });
+      if (smartTitle) session.title = smartTitle;
+    }
+
     session.messages.push({ role: 'assistant', text: assistantText });
     if (teachingMode === 'guided') session.awaitingConfirmation = true;
     session.updatedAt = new Date();
@@ -164,7 +182,7 @@ export async function chat(req, res) {
 
     return res.json({ text: assistantText, sessionId: session._id });
   } finally {
-    if (imagePath) {
+    for (const imagePath of imagePaths) {
       await fs.rm(imagePath, { force: true }).catch(() => {});
     }
   }

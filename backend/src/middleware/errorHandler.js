@@ -9,6 +9,13 @@ export function errorHandler(err, _req, res, _next) {
     });
   }
 
+  if (err?.name === 'MulterError' && err?.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({
+      error: 'Maximo 4 imagenes por mensaje',
+      code: err.code
+    });
+  }
+
   const status = err.status || 500;
   return res.status(status).json({
     error: err.message || 'Server error',

@@ -4,6 +4,40 @@ function toOpenAiRole(role) {
   return role === 'assistant' ? 'assistant' : 'user';
 }
 
+function normalizeTitle(value = '') {
+  const cleaned = String(value || '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/["'`*#:_!?¿¡]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return '';
+  return cleaned.length > 64 ? `${cleaned.slice(0, 61).trim()}...` : cleaned;
+}
+
+function fallbackConversationTitle(userText = '', assistantText = '') {
+  const raw = `${userText} ${assistantText}`.toLowerCase();
+  const stopWords = new Set([
+    'que', 'como', 'para', 'con', 'sin', 'sobre', 'esta', 'este', 'estas', 'estos', 'aqui', 'hola', 'ayuda',
+    'puedes', 'puedo', 'quiero', 'necesito', 'porque', 'donde', 'cuando', 'cual', 'tengo', 'tiene', 'usar', 'uso',
+    'modulo', 'modulos', 'chat', 'tutor', 'imagen', 'imagenes'
+  ]);
+
+  const tokens = raw
+    .split(/[^a-z0-9]+/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 4 && !stopWords.has(t));
+
+  const unique = Array.from(new Set(tokens)).slice(0, 4);
+  if (!unique.length) return 'Consulta academica';
+
+  const title = unique
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  return normalizeTitle(title) || 'Consulta academica';
+}
+
 function normalizeHistory(messages = []) {
   return (Array.isArray(messages) ? messages : [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
@@ -11,7 +45,7 @@ function normalizeHistory(messages = []) {
     .filter((m) => m.content);
 }
 
-async function openaiChat({ message, context, messages, summary, imageDataUrl }) {
+async function openaiChat({ message, context, messages, summary, imageDataUrls = [] }) {
   const apiKey = env.ai.openaiApiKey;
   if (!apiKey) return null;
 
@@ -31,10 +65,12 @@ async function openaiChat({ message, context, messages, summary, imageDataUrl })
 
   const systemContext = context ? `Contexto:\n${context}` : '';
 
-  const userContent = imageDataUrl
+  const validImageDataUrls = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : [];
+
+  const userContent = validImageDataUrls.length
     ? [
-      { type: 'text', text: userPrompt || 'Analiza esta imagen y guiame paso a paso.' },
-      { type: 'image_url', image_url: { url: imageDataUrl } }
+      { type: 'text', text: userPrompt || 'Analiza estas imagenes y guiame paso a paso.' },
+      ...validImageDataUrls.map((url) => ({ type: 'image_url', image_url: { url } }))
     ]
     : userPrompt;
 
@@ -96,9 +132,9 @@ export async function chatWithTutor({ message, context }) {
   return fallbackTutor({ message, context });
 }
 
-export async function chatWithTutorWithHistory({ messages, message = '', context, summary, imageDataUrl = '', hasImage = false }) {
+export async function chatWithTutorWithHistory({ messages, message = '', context, summary, imageDataUrls = [], hasImage = false }) {
   try {
-    const result = await openaiChat({ messages, message, context, summary, imageDataUrl });
+    const result = await openaiChat({ messages, message, context, summary, imageDataUrls });
     if (result) return result;
   } catch (err) {
     console.error('[ai] failed:', err);
@@ -142,4 +178,47 @@ export async function summarizeConversation({ messages, previousSummary = '' }) 
   const data = await res.json().catch(() => null);
   const summary = data?.choices?.[0]?.message?.content;
   return summary ? String(summary).trim() : null;
+}
+
+export async function generateConversationTitle({ firstUserMessage = '', firstAssistantMessage = '', context = '' }) {
+  const apiKey = env.ai.openaiApiKey;
+  const fallback = fallbackConversationTitle(firstUserMessage, firstAssistantMessage);
+  if (!apiKey) return fallback;
+
+  const prompt =
+    'Genera un titulo corto para una conversacion educativa. '
+    + 'Debe tener entre 3 y 7 palabras, sonar profesional y describir el tema central. '
+    + 'No uses signos de pregunta ni comillas. Solo devuelve el titulo.';
+
+  const content = [
+    context ? `Contexto:\n${String(context).slice(0, 1200)}` : '',
+    `Mensaje del usuario:\n${String(firstUserMessage).slice(0, 600)}`,
+    `Primera respuesta del tutor:\n${String(firstAssistantMessage).slice(0, 600)}`
+  ].filter(Boolean).join('\n\n');
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: env.ai.openaiModel,
+        messages: [
+          { role: 'system', content: 'Eres un asistente que crea titulos breves.' },
+          { role: 'user', content: `${prompt}\n\n${content}` }
+        ],
+        temperature: 0.2,
+        max_tokens: 24
+      })
+    });
+
+    if (!res.ok) return fallback;
+    const data = await res.json().catch(() => null);
+    const title = normalizeTitle(data?.choices?.[0]?.message?.content || '');
+    return title || fallback;
+  } catch {
+    return fallback;
+  }
 }

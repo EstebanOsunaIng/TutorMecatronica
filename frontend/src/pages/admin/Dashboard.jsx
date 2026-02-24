@@ -200,7 +200,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-5 rounded-3xl border border-[color:var(--light-divider)] bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-4 text-slate-900 shadow-inner md:p-6 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100">
+    <div data-tour="admin-dashboard-overview" className="space-y-5 rounded-3xl border border-[color:var(--light-divider)] bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 p-4 text-slate-900 shadow-inner md:p-6 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none dark:text-slate-100">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Panel de Administración</p>

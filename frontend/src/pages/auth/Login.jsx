@@ -22,6 +22,16 @@ export default function Login() {
   });
 
   useEffect(() => {
+    const reason = sessionStorage.getItem('auth:logout-reason');
+    if (reason === 'inactive') {
+      const msg = 'Por inactividad se requiere volver a iniciar sesión.';
+      setError(msg);
+      toast.warning('Sesión finalizada', msg);
+      sessionStorage.removeItem('auth:logout-reason');
+    }
+  }, [toast]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handleViewport = () => {
       setIsMobileVisual(window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches);

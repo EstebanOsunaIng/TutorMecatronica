@@ -103,7 +103,7 @@ export default function TeacherModules() {
           </div>
         </Card>
 
-        <Card className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+        <Card data-tour="teacher-modules-list" className="border-cyan-100/80 bg-white/90 p-4 dark:border-slate-700 dark:bg-slate-900/60">
           {loading ? (
             <RobotLoader label="Cargando modulos..." scale={0.9} overlay />
           ) : (
