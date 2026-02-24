@@ -25,3 +25,11 @@ export const resetLimiter = rateLimit({
   legacyHeaders: false,
   message: jsonHandler('Demasiados intentos de cambio de contrasena. Intenta mas tarde.')
 });
+
+export const changePasswordRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: jsonHandler('Demasiadas solicitudes de confirmacion. Espera unos minutos.')
+});

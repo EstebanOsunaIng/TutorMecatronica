@@ -24,10 +24,15 @@ export default function StudentSettings() {
 
   const [phone, setPhone] = useState(user?.phone || '');
   const [photo, setPhoto] = useState(user?.profilePhotoUrl || '');
-  const [oldPassword, setOldPassword] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState(user?.email || '');
+  const [requestId, setRequestId] = useState('');
+  const [confirmationStatus, setConfirmationStatus] = useState('idle');
   const [newPassword, setNewPassword] = useState('');
-  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isRequestingConfirmation, setIsRequestingConfirmation] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState('');
@@ -80,18 +85,77 @@ export default function StudentSettings() {
     return () => clearTimeout(timer);
   }, [phoneInputHint]);
 
+  const requestConfirmation = async (e) => {
+    e.preventDefault();
+    setPasswordFeedback('');
+    if (!confirmEmail.trim()) {
+      setPasswordFeedback('Escribe el correo de tu cuenta para continuar.');
+      return;
+    }
+    setIsRequestingConfirmation(true);
+    try {
+      const { data } = await authApi.requestPasswordChangeConfirmation({ email: confirmEmail.trim() });
+      setRequestId(data.requestId);
+      setConfirmationStatus('pending');
+      toast.info('Confirmación enviada', 'Revisa tu correo y pulsa el botón de confirmación.');
+    } catch (error) {
+      const message = error?.response?.data?.error || 'No se pudo actualizar la contraseña.';
+      setPasswordFeedback(message);
+      toast.error('No se pudo actualizar', message);
+    } finally {
+      setIsRequestingConfirmation(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!requestId || confirmationStatus !== 'pending') return undefined;
+
+    const timer = setInterval(async () => {
+      setIsCheckingStatus(true);
+      try {
+        const { data } = await authApi.getPasswordChangeStatus(requestId);
+        if (data.status === 'confirmed') {
+          setConfirmationStatus('confirmed');
+          toast.success('Correo confirmado', 'Ya puedes establecer tu nueva contraseña.');
+        }
+        if (data.status === 'expired') {
+          setConfirmationStatus('expired');
+          setPasswordFeedback('La confirmación expiró. Solicita una nueva.');
+          toast.warning('Confirmación expirada', 'Debes solicitar una nueva confirmación por correo.');
+        }
+      } catch (err) {
+        // silencio: mantener polling
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    }, 4500);
+
+    return () => clearInterval(timer);
+  }, [requestId, confirmationStatus, toast]);
+
   const changePassword = async (e) => {
     e.preventDefault();
     setPasswordFeedback('');
-    if (!oldPassword.trim() || !newPassword.trim()) {
-      setPasswordFeedback('Completa la contraseña actual y la nueva contraseña.');
+    if (confirmationStatus !== 'confirmed') {
+      setPasswordFeedback('Primero confirma el cambio desde tu correo.');
       return;
     }
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      setPasswordFeedback('Completa ambos campos de contraseña.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordFeedback('Las contraseñas no coinciden.');
+      return;
+    }
+
     setIsSavingPassword(true);
     try {
-      await authApi.changePassword({ currentPassword: oldPassword, newPassword });
-      setOldPassword('');
+      await authApi.completePasswordChange({ requestId, newPassword, confirmPassword });
       setNewPassword('');
+      setConfirmPassword('');
+      setRequestId('');
+      setConfirmationStatus('idle');
       toast.success('Cambio de contraseña exitoso', 'Tu nueva contraseña ya fue guardada.');
     } catch (error) {
       const message = error?.response?.data?.error || 'No se pudo actualizar la contraseña.';
@@ -149,7 +213,12 @@ export default function StudentSettings() {
     }
   };
 
-  const isSavingAny = isSavingProfile || isSavingPassword || isSavingPhoto;
+  const isSavingAny =
+    isSavingProfile ||
+    isSavingPhoto ||
+    isSavingPassword ||
+    isRequestingConfirmation ||
+    isCheckingStatus;
 
   return (
     <>
@@ -323,66 +392,101 @@ export default function StudentSettings() {
                   {passwordFeedback}
                 </div>
               )}
-              <div>
-                <label className={labelClass}>Contraseña Actual</label>
-                <div className="relative mt-1.5">
-                  <input
-                    type={showOldPassword ? 'text' : 'password'}
-                    className={`${inputClass} mt-0 pr-12`}
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                  />
+              <div className="rounded-xl border border-cyan-100 bg-cyan-50/55 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                <label className={labelClass}>Escribir el correo</label>
+                <input
+                  type="email"
+                  className={inputClass}
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder="correo@dominio.com"
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowOldPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
-                    aria-label={showOldPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
+                    onClick={requestConfirmation}
+                    disabled={isRequestingConfirmation}
+                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
                   >
-                    {showOldPassword ? (
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3l18 18" />
-                        <path d="M10.58 10.58a2 2 0 012.83 2.83" />
-                        <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
-                        <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
+                    {isRequestingConfirmation ? 'Enviando...' : 'Enviar confirmación'}
                   </button>
+                  {confirmationStatus === 'pending' && (
+                    <span className="text-xs font-semibold text-amber-600 dark:text-amber-300">Pendiente de confirmación por correo</span>
+                  )}
+                  {confirmationStatus === 'confirmed' && (
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-300">Correo confirmado, ya puedes cambiarla</span>
+                  )}
+                  {confirmationStatus === 'expired' && (
+                    <span className="text-xs font-semibold text-rose-600 dark:text-rose-300">Confirmación expirada, solicita otra</span>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className={labelClass}>Nueva Contraseña</label>
-                <div className="relative mt-1.5">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    className={`${inputClass} mt-0 pr-12`}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
-                    aria-label={showNewPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
-                  >
-                    {showNewPassword ? (
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3l18 18" />
-                        <path d="M10.58 10.58a2 2 0 012.83 2.83" />
-                        <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
-                        <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
+
+              <div className={`space-y-4 rounded-xl border p-4 ${confirmationStatus === 'confirmed' ? 'border-cyan-200 bg-white/70 dark:border-slate-700 dark:bg-slate-900/55' : 'border-slate-200 bg-slate-100/60 opacity-70 dark:border-slate-700 dark:bg-slate-900/40'}`}>
+                <div>
+                  <label className={labelClass}>Contraseña</label>
+                  <div className="relative mt-1.5">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      className={`${inputClass} mt-0 pr-12`}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={confirmationStatus !== 'confirmed'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+                      aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showNewPassword ? (
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                          <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                          <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Confirmar contraseña</label>
+                  <div className="relative mt-1.5">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className={`${inputClass} mt-0 pr-12`}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      disabled={confirmationStatus !== 'confirmed'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-500 transition hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
+                      aria-label={showConfirmPassword ? 'Ocultar confirmación' : 'Mostrar confirmación'}
+                    >
+                      {showConfirmPassword ? (
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.58 10.58a2 2 0 012.83 2.83" />
+                          <path d="M9.88 5.09A10.94 10.94 0 0112 5c5.05 0 9.27 3.11 11 7-1.03 2.28-2.84 4.19-5.14 5.29" />
+                          <path d="M6.11 6.11C4.18 7.24 2.71 8.98 2 12c1.73 3.89 5.95 7 11 7 1.22 0 2.4-.18 3.51-.52" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -396,10 +500,10 @@ export default function StudentSettings() {
                 Cancelar
               </button>
               <button
-                disabled={isSavingPassword}
+                disabled={isSavingPassword || confirmationStatus !== 'confirmed'}
                 className="rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
               >
-                {isSavingPassword ? 'Actualizando...' : 'Actualizar Contraseña'}
+                {isSavingPassword ? 'Actualizando...' : 'Cambiar'}
               </button>
             </div>
           </form>

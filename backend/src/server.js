@@ -3,10 +3,12 @@ import app from './app.js';
 import { connectDb } from './config/db.js';
 import { env } from './config/env.js';
 import { startNewsScheduler } from './services/news.service.js';
+import { startPasswordChangeExpirySweep } from './services/passwordChange.service.js';
 
 async function start() {
   await connectDb();
   startNewsScheduler();
+  startPasswordChangeExpirySweep();
   const server = app.listen(env.port, () => {
     console.log(`[backend] listening on http://localhost:${env.port}`);
   });
