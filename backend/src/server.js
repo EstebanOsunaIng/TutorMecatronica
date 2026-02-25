@@ -9,6 +9,12 @@ async function start() {
   if (!env.jwtSecret || env.jwtSecret.length < 24) {
     throw new Error('JWT_SECRET is required and must be at least 24 characters');
   }
+  if (!env.dataEncryptionKey || env.dataEncryptionKey.length < 16) {
+    throw new Error('DATA_ENCRYPTION_KEY is required and must be at least 16 characters');
+  }
+  if (!env.dataHashKey || env.dataHashKey.length < 16) {
+    throw new Error('DATA_HASH_KEY is required and must be at least 16 characters');
+  }
   await connectDb();
   startNewsScheduler();
   startPasswordChangeExpirySweep();

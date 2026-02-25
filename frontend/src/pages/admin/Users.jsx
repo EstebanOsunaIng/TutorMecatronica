@@ -4,6 +4,7 @@ import Card from '../../components/common/Card.jsx';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { adminApi } from '../../api/admin.api.js';
+import { isStrongPassword, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
 const ROLE_LABELS = {
   ADMIN: 'Administrador',
@@ -189,8 +190,8 @@ export default function AdminUsers() {
       return;
     }
 
-    if (createForm.password.trim().length < 6) {
-      setCreateError('La contraseña debe tener al menos 6 caracteres.');
+    if (!isStrongPassword(createForm.password)) {
+      setCreateError(PASSWORD_POLICY_HINT);
       setCreateSuccess('');
       return;
     }
@@ -638,6 +639,7 @@ export default function AdminUsers() {
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
                 />
+                <p className="mt-1 text-[11px] font-normal normal-case text-slate-500 dark:text-slate-400">{PASSWORD_POLICY_HINT}</p>
               </label>
 
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300 sm:col-span-2">

@@ -129,7 +129,7 @@ export async function getDashboardMetrics(req, res) {
   const granularity = req.query.granularity === 'day' ? 'day' : 'week';
 
   const [users, modules] = await Promise.all([
-    User.find({}, 'role isActive badgesCount createdAt lastLoginAt name lastName').lean(),
+    User.find({}, 'role isActive badgesCount createdAt lastLoginAt name lastName'),
     Module.find({}, 'title createdAt').lean()
   ]);
 

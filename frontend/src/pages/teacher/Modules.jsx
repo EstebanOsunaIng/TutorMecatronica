@@ -108,7 +108,9 @@ export default function TeacherModules() {
             <RobotLoader label="Cargando modulos..." scale={0.9} overlay />
           ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {filteredModules.map((m) => (
+          {filteredModules.map((m) => {
+            const canManage = Boolean(m.canManage);
+            return (
             <Card
               key={m._id}
               onClick={() => openPreview(m)}
@@ -135,6 +137,12 @@ export default function TeacherModules() {
                 <span className="absolute right-3 top-3 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-slate-700 ring-1 ring-slate-300 dark:bg-slate-900/70 dark:text-slate-200 dark:ring-white/15">
                   {m.category || 'General'}
                 </span>
+
+                {!canManage && (
+                  <span className="absolute left-3 bottom-3 rounded-full bg-amber-100/95 px-2 py-1 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-300 dark:bg-amber-500/20 dark:text-amber-100 dark:ring-amber-300/35">
+                    Solo lectura
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-1 flex-col gap-3 p-4">
@@ -158,34 +166,49 @@ export default function TeacherModules() {
                   </p>
                 </div>
 
-                <div className="mt-auto grid grid-cols-2 gap-2 border-t border-cyan-100 pt-3 dark:border-white/10">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/teacher/modules/editor?moduleId=${m._id}`);
-                    }}
-                    disabled={busyId === m._id}
-                    className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModuleToDelete(m);
-                    }}
-                    disabled={busyId === m._id}
-                    className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition hover:border-rose-300 hover:text-rose-700 dark:border-rose-500/30 dark:bg-slate-900/60 dark:text-rose-200 dark:hover:border-rose-400"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Eliminar
-                  </button>
+                <div className={`mt-auto grid gap-2 border-t border-cyan-100 pt-3 dark:border-white/10 ${canManage ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {canManage ? (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/teacher/modules/editor?moduleId=${m._id}`);
+                        }}
+                        disabled={busyId === m._id}
+                        className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-brand-400 dark:hover:text-brand-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModuleToDelete(m);
+                        }}
+                        disabled={busyId === m._id}
+                        className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-rose-600 transition hover:border-rose-300 hover:text-rose-700 dark:border-rose-500/30 dark:bg-slate-900/60 dark:text-rose-200 dark:hover:border-rose-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Eliminar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openPreview(m);
+                      }}
+                      className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:border-amber-300 hover:text-amber-800 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:border-amber-400"
+                    >
+                      Ver contenido
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
             </Card>
-          ))}
+            );
+          })}
 
           {!filteredModules.length && (
             <Card className="bg-cyan-50/70 dark:bg-slate-900">

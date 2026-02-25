@@ -23,6 +23,8 @@ export const env = {
   mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/tutormecatronica',
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  dataEncryptionKey: process.env.DATA_ENCRYPTION_KEY || process.env.JWT_SECRET || '',
+  dataHashKey: process.env.DATA_HASH_KEY || process.env.DATA_ENCRYPTION_KEY || process.env.JWT_SECRET || '',
   ai: {
     openaiApiKey: process.env.OPENAI_API_KEY || '',
     openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',

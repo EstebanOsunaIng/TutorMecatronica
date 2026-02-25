@@ -2,17 +2,18 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.model.js';
 import { generateOtp6, sha256 } from '../utils/otp.js';
 import { sendResetCodeEmail } from '../mail/mailer.js';
-import { isValidEmail, isValidPassword, normalizeText } from '../utils/validators.js';
+import { isValidEmail, isValidPassword, PASSWORD_POLICY_MESSAGE } from '../utils/validators.js';
+import { hashLookupValue, normalizeEmailForLookup } from '../utils/fieldCrypto.js';
 
 export async function forgotPassword(req, res) {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: 'Correo requerido.' });
 
-  const normalizedEmail = normalizeText(email).toLowerCase();
+  const normalizedEmail = normalizeEmailForLookup(email);
   if (!isValidEmail(normalizedEmail)) {
     return res.status(400).json({ message: 'Correo invalido.' });
   }
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await User.findOne({ emailHash: hashLookupValue(normalizedEmail) });
 
   const neutral = { message: 'Si el correo existe, enviaremos un codigo.' };
   if (!user) return res.status(200).json(neutral);
@@ -46,12 +47,12 @@ export async function forgotPassword(req, res) {
 export async function resetPassword(req, res) {
   const { email, code, newPassword } = req.body;
 
-  const normalizedEmail = normalizeText(email).toLowerCase();
+  const normalizedEmail = normalizeEmailForLookup(email);
   if (!isValidEmail(normalizedEmail)) return res.status(400).json({ message: 'Correo invalido.' });
   if (!/^\d{6}$/.test(String(code || '').trim())) return res.status(400).json({ message: 'Codigo invalido.' });
-  if (!isValidPassword(newPassword)) return res.status(400).json({ message: 'Contrasena invalida: minimo 6 caracteres.' });
+  if (!isValidPassword(newPassword)) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
 
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await User.findOne({ emailHash: hashLookupValue(normalizedEmail) });
   if (!user) return res.status(400).json({ message: 'Codigo invalido.' });
 
   if (!user.resetCodeHash || !user.resetCodeExpires) {

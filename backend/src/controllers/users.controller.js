@@ -1,26 +1,43 @@
 import { User } from '../models/User.model.js';
 import { hashPassword } from '../utils/hash.js';
 import { createNotification } from '../services/notifications.service.js';
-import { isValidDocument, isValidEmail, isValidName, isValidPassword, isValidPhone, normalizeText } from '../utils/validators.js';
+import {
+  isValidDocument,
+  isValidEmail,
+  isValidName,
+  isValidPassword,
+  isValidPhone,
+  normalizeText,
+  PASSWORD_POLICY_MESSAGE
+} from '../utils/validators.js';
+import { hashLookupValue, normalizeDocumentForLookup, normalizeEmailForLookup } from '../utils/fieldCrypto.js';
 
-function sanitizeUser(user) {
-  const { passwordHash, ...safe } = user.toObject();
+function sanitizeUser(user, role = 'ADMIN') {
+  const { passwordHash, emailHash, documentHash, ...safe } = user.toObject();
+  if (role === 'TEACHER') {
+    delete safe.phone;
+  }
   return safe;
 }
 
 export async function listUsers(req, res) {
   const { q } = req.query;
-  const filter = q
-    ? { $or: [{ name: new RegExp(q, 'i') }, { lastName: new RegExp(q, 'i') }] }
-    : {};
-  const users = await User.find(filter).select('-passwordHash');
-  res.json({ users });
+  const users = await User.find({});
+  const normalizedQ = String(q || '').trim().toLowerCase();
+  const filteredUsers = normalizedQ
+    ? users.filter((u) => {
+      const fullName = `${u.name || ''} ${u.lastName || ''}`.toLowerCase();
+      const safeEmail = String(u.email || '').toLowerCase();
+      return fullName.includes(normalizedQ) || safeEmail.includes(normalizedQ);
+    })
+    : users;
+  res.json({ users: filteredUsers.map((u) => sanitizeUser(u, req.user?.role || 'ADMIN')) });
 }
 
 export async function getMe(req, res) {
-  const user = await User.findById(req.user.id).select('-passwordHash');
+  const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user });
+  res.json({ user: sanitizeUser(user, req.user?.role || 'ADMIN') });
 }
 
 export async function updateMe(req, res) {
@@ -42,8 +59,11 @@ export async function updateMe(req, res) {
     const value = new Date(req.body.onboardingSeenAt);
     if (!Number.isNaN(value.getTime())) updates.onboardingSeenAt = value;
   }
-  const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
-  res.json({ user });
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  Object.assign(user, updates);
+  await user.save();
+  res.json({ user: sanitizeUser(user, req.user?.role || 'ADMIN') });
 }
 
 export async function updateUser(req, res) {
@@ -77,10 +97,10 @@ export async function updateUser(req, res) {
   }
 
   if (typeof payload.email === 'string') {
-    const normalizedEmail = normalizeText(payload.email).toLowerCase();
+    const normalizedEmail = normalizeEmailForLookup(payload.email);
     if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Correo invalido.' });
 
-    const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: id } }).select('_id');
+    const existing = await User.findOne({ emailHash: hashLookupValue(normalizedEmail), _id: { $ne: id } }).select('_id');
     if (existing) return res.status(409).json({ error: 'Email already registered' });
     updates.email = normalizedEmail;
   }
@@ -100,9 +120,16 @@ export async function updateUser(req, res) {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
-  const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-passwordHash');
+  const user = await User.findById(id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user });
+  if (typeof updates.document === 'string') {
+    const docHash = hashLookupValue(normalizeDocumentForLookup(updates.document));
+    const existingByDocument = await User.findOne({ documentHash: docHash, _id: { $ne: id } }).select('_id');
+    if (existingByDocument) return res.status(409).json({ error: 'Document already registered' });
+  }
+  Object.assign(user, updates);
+  await user.save();
+  res.json({ user: sanitizeUser(user, req.user?.role || 'ADMIN') });
 }
 
 export async function createUserByAdmin(req, res) {
@@ -128,20 +155,24 @@ export async function createUserByAdmin(req, res) {
 
   const safeName = normalizeText(name);
   const safeLastName = normalizeText(lastName);
-  const safeDocument = normalizeText(document);
+  const safeDocument = normalizeDocumentForLookup(document);
   const safePhone = normalizeText(phone);
-  const normalizedEmail = normalizeText(email).toLowerCase();
+  const normalizedEmail = normalizeEmailForLookup(email);
 
   if (!isValidName(safeName)) return res.status(400).json({ error: 'Nombre invalido: solo letras y espacios.' });
   if (!isValidName(safeLastName)) return res.status(400).json({ error: 'Apellido invalido: solo letras y espacios.' });
   if (!isValidDocument(safeDocument)) return res.status(400).json({ error: 'Identificacion invalida: debe tener 10 digitos numericos.' });
   if (!isValidPhone(safePhone)) return res.status(400).json({ error: 'Celular invalido: debe tener 10 digitos numericos.' });
   if (!isValidEmail(normalizedEmail)) return res.status(400).json({ error: 'Correo invalido.' });
-  if (!isValidPassword(password)) return res.status(400).json({ error: 'Contrasena invalida: minimo 6 caracteres.' });
+  if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
 
-  const exists = await User.findOne({ email: normalizedEmail });
+  const exists = await User.findOne({ emailHash: hashLookupValue(normalizedEmail) });
   if (exists) {
     return res.status(409).json({ error: 'Email already registered' });
+  }
+  const existsByDocument = await User.findOne({ documentHash: hashLookupValue(safeDocument) }).select('_id');
+  if (existsByDocument) {
+    return res.status(409).json({ error: 'Document already registered' });
   }
 
   const passwordHash = await hashPassword(String(password));
@@ -166,7 +197,7 @@ export async function createUserByAdmin(req, res) {
     message: `Se creó un nuevo usuario con rol ${role === 'STUDENT' ? 'Estudiante' : 'Docente'}.`,
     type: 'USUARIO_CREADO'
   });
-  return res.status(201).json({ user: sanitizeUser(user) });
+  return res.status(201).json({ user: sanitizeUser(user, req.user?.role || 'ADMIN') });
 }
 
 export async function deleteUser(req, res) {

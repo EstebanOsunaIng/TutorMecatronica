@@ -5,6 +5,7 @@ import { authApi } from '../../api/auth.api.js';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { isStrongPassword, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
 export default function Register() {
   const { register } = useAuth();
@@ -263,7 +264,7 @@ export default function Register() {
     else if ((strict || form.email.trim()) && !isValidEmailStrict(form.email)) nextErrors.email = 'Debe incluir @ y un dominio valido.';
 
     if (strict && !(form.password || '').trim()) nextErrors.password = 'Campo obligatorio.';
-    else if ((strict || form.password) && (form.password || '').trim().length < 6) nextErrors.password = 'Minimo 6 caracteres.';
+    else if ((strict || form.password) && !isStrongPassword(form.password)) nextErrors.password = PASSWORD_POLICY_HINT;
 
     if (strict && !(form.confirm || '').trim()) nextErrors.confirm = 'Campo obligatorio.';
     else if ((strict || form.confirm) && form.password !== form.confirm) nextErrors.confirm = 'Las contrasenas no coinciden.';
@@ -561,9 +562,9 @@ export default function Register() {
                   </div>
                 )}
 
-                 <div>
+                  <div>
                    <label htmlFor="password" className={labelClass}>Contraseña</label>
-                   <div className="mt-1.5 relative">
+                    <div className="mt-1.5 relative">
                      <input
                        id="password"
                        type={showPassword ? 'text' : 'password'}
@@ -593,9 +594,10 @@ export default function Register() {
                            <circle cx="12" cy="12" r="3" />
                          </svg>
                        )}
-                     </button>
-                   </div>
-                 </div>
+                      </button>
+                    </div>
+                    <p className={`mt-1 text-[11px] ${isDark ? 'text-sky-100/70' : 'text-[#6d8094]'}`}>{PASSWORD_POLICY_HINT}</p>
+                  </div>
 
                  <div>
                    <label htmlFor="confirm" className={labelClass}>Confirmar contraseña</label>

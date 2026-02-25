@@ -16,12 +16,18 @@ function canManageModule(moduleItem, reqUser) {
 export async function listModules(req, res) {
   let filter = {};
   if (req.user?.role === 'TEACHER') {
-    filter = { createdByTeacherId: req.user.id };
+    filter = {
+      $or: [{ isPublished: true }, { createdByTeacherId: req.user.id }]
+    };
   } else if (req.user?.role === 'STUDENT') {
     filter = { isPublished: true };
   }
   const modules = await Module.find(filter).sort({ createdAt: -1 });
-  res.json({ modules });
+  const modulesWithAccess = modules.map((moduleItem) => ({
+    ...moduleItem.toObject(),
+    canManage: canManageModule(moduleItem, req.user)
+  }));
+  res.json({ modules: modulesWithAccess });
 }
 
 export async function listPublishedModules(_req, res) {

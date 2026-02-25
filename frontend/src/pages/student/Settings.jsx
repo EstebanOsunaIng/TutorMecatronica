@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { authApi } from '../../api/auth.api.js';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
+import { isStrongPassword, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -190,6 +191,10 @@ export default function StudentSettings() {
     }
     if (newPassword !== confirmPassword) {
       setPasswordFeedback('Las contraseñas no coinciden.');
+      return;
+    }
+    if (!isStrongPassword(newPassword)) {
+      setPasswordFeedback(PASSWORD_POLICY_HINT);
       return;
     }
 
@@ -513,6 +518,7 @@ export default function StudentSettings() {
                       )}
                     </button>
                   </div>
+                  <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{PASSWORD_POLICY_HINT}</p>
                 </div>
 
                 <div>

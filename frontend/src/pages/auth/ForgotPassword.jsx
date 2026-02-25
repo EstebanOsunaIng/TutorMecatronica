@@ -4,6 +4,7 @@ import { authApi } from '../../api/auth.api.js';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { isStrongPassword, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
 export default function ForgotPassword() {
   const { theme, toggleTheme } = useTheme();
@@ -37,7 +38,7 @@ export default function ForgotPassword() {
 
   const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
   const codeError = step === 2 && code && !/^\d{6}$/.test(code.trim()) ? 'El codigo debe tener 6 digitos.' : '';
-  const newPasswordError = step === 2 && newPassword && newPassword.trim().length < 6 ? 'Minimo 6 caracteres.' : '';
+  const newPasswordError = step === 2 && newPassword && !isStrongPassword(newPassword) ? PASSWORD_POLICY_HINT : '';
   const authBackground = isDark
     ? isMobileVisual
       ? '/assets/modo-oscuro-C.png'
@@ -245,9 +246,10 @@ export default function ForgotPassword() {
                            <circle cx="12" cy="12" r="3" />
                          </svg>
                        )}
-                     </button>
-                   </div>
-                 </div>
+                      </button>
+                    </div>
+                    <p className={`mt-1 text-[11px] ${isDark ? 'text-sky-100/70' : 'text-[#6d8094]'}`}>{PASSWORD_POLICY_HINT}</p>
+                  </div>
                  <button
                    disabled={Boolean(emailError || codeError || newPasswordError)}
                    className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}

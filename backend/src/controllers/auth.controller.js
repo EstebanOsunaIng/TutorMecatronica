@@ -4,11 +4,20 @@ import { PasswordChangeRequest } from '../models/PasswordChangeRequest.model.js'
 import { RegisterEmailVerification } from '../models/RegisterEmailVerification.model.js';
 import { hashPassword, comparePassword } from '../utils/hash.js';
 import { signToken } from '../utils/tokens.js';
-import { isValidDocument, isValidEmail, isValidName, isValidPassword, isValidPhone, normalizeText } from '../utils/validators.js';
+import {
+  isValidDocument,
+  isValidEmail,
+  isValidName,
+  isValidPassword,
+  isValidPhone,
+  normalizeText,
+  PASSWORD_POLICY_MESSAGE
+} from '../utils/validators.js';
 import { sendPasswordChangeConfirmationEmail, sendRegisterOtpEmail } from '../mail/mailer.js';
 import { expirePendingPasswordChangeRequests } from '../services/passwordChange.service.js';
 import { generateOtp6, hashOtp, sha256 } from '../utils/otp.js';
 import { domainHasMailRecords } from '../utils/emailDns.js';
+import { hashLookupValue, normalizeDocumentForLookup, normalizeEmailForLookup } from '../utils/fieldCrypto.js';
 import crypto from 'crypto';
 
 const OTP_EXPIRES_MS = 15 * 60 * 1000;
@@ -18,7 +27,7 @@ const OTP_MAX_RESEND = 3;
 const OTP_RESEND_WINDOW_MS = 10 * 60 * 1000;
 
 function sanitizeUser(user) {
-  const { passwordHash, ...safe } = user.toObject();
+  const { passwordHash, emailHash, documentHash, ...safe } = user.toObject();
   return safe;
 }
 
@@ -36,16 +45,16 @@ export async function register(req, res) {
 
   const safeName = normalizeText(name);
   const safeLastName = normalizeText(lastName);
-  const safeDocument = normalizeText(document);
+  const safeDocument = normalizeDocumentForLookup(document);
   const safePhone = normalizeText(phone);
-  const safeEmail = normalizeText(email).toLowerCase();
+  const safeEmail = normalizeEmailForLookup(email);
 
   if (!isValidName(safeName)) return res.status(400).json({ error: 'Nombre invalido: solo letras y espacios.' });
   if (!isValidName(safeLastName)) return res.status(400).json({ error: 'Apellido invalido: solo letras y espacios.' });
   if (!isValidDocument(safeDocument)) return res.status(400).json({ error: 'Identificacion invalida: debe tener 10 digitos numericos.' });
   if (!isValidPhone(safePhone)) return res.status(400).json({ error: 'Celular invalido: debe tener 10 digitos numericos.' });
   if (!isValidEmail(safeEmail)) return res.status(400).json({ error: 'Correo invalido.' });
-  if (!isValidPassword(password)) return res.status(400).json({ error: 'Contrasena invalida: minimo 6 caracteres.' });
+  if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
 
   const domain = safeEmail.split('@')[1] || '';
   const hasMailRecords = await domainHasMailRecords(domain);
@@ -53,7 +62,7 @@ export async function register(req, res) {
     return res.status(400).json({ error: 'Dominio no valido o no puede recibir correos.' });
   }
 
-  const existsByEmail = await User.findOne({ email: safeEmail }).select('_id status emailVerified').lean();
+  const existsByEmail = await User.findOne({ emailHash: hashLookupValue(safeEmail) }).select('_id status emailVerified').lean();
   if (existsByEmail) {
     if (existsByEmail.status === 'PENDING_VERIFICATION' || existsByEmail.emailVerified === false) {
       let verification;
@@ -80,7 +89,7 @@ export async function register(req, res) {
     }
     return res.status(409).json({ error: 'El correo ya esta registrado.' });
   }
-  const existsByDocument = await User.findOne({ document: safeDocument }).select('_id').lean();
+  const existsByDocument = await User.findOne({ documentHash: hashLookupValue(safeDocument) }).select('_id').lean();
   if (existsByDocument) return res.status(409).json({ error: 'La identificacion ya esta registrada.' });
 
   if (role === 'TEACHER') {
@@ -137,11 +146,11 @@ export async function register(req, res) {
 
 export async function login(req, res) {
   const { email, password } = req.body;
-  const safeEmail = normalizeText(email).toLowerCase();
+  const safeEmail = normalizeEmailForLookup(email);
   if (!isValidEmail(safeEmail)) return res.status(400).json({ error: 'Correo invalido.' });
-  if (!isValidPassword(password)) return res.status(400).json({ error: 'Contrasena invalida.' });
+  if (!String(password || '').trim()) return res.status(400).json({ error: 'Contrasena requerida.' });
 
-  const user = await User.findOne({ email: safeEmail });
+  const user = await User.findOne({ emailHash: hashLookupValue(safeEmail) });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
   if (isLegacyVerificationUser(user)) {
@@ -175,7 +184,7 @@ export async function login(req, res) {
 export async function changePassword(req, res) {
   const { currentPassword, newPassword } = req.body;
   if (!isValidPassword(newPassword)) {
-    return res.status(400).json({ error: 'Contrasena nueva invalida: minimo 6 caracteres.' });
+    return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
 
   const user = await User.findById(req.user.id);
@@ -380,7 +389,7 @@ export async function confirmPasswordChangeRequest(req, res) {
 }
 
 export async function verifyRegistrationEmail(req, res) {
-  const email = normalizeText(req.query?.email).toLowerCase();
+  const email = normalizeEmailForLookup(req.query?.email);
   if (!isValidEmail(email)) {
     return res.json({
       exists: false,
@@ -405,7 +414,7 @@ export async function verifyRegistrationEmail(req, res) {
     });
   }
 
-  const existing = await User.findOne({ email }).select('_id status emailVerified').lean();
+  const existing = await User.findOne({ emailHash: hashLookupValue(email) }).select('_id status emailVerified').lean();
   if (existing) {
     const isPending = existing.status === 'PENDING_VERIFICATION' || existing.emailVerified === false;
     if (isPending) {
@@ -440,7 +449,7 @@ export async function verifyRegistrationEmail(req, res) {
 }
 
 export async function requestRegisterEmailVerification(req, res) {
-  const email = normalizeText(req.body?.email).toLowerCase();
+  const email = normalizeEmailForLookup(req.body?.email);
   const userId = String(req.body?.userId || '').trim();
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo no valido.' });
 
@@ -448,7 +457,7 @@ export async function requestRegisterEmailVerification(req, res) {
   const hasMailRecords = await domainHasMailRecords(domain);
   if (!hasMailRecords) return res.status(400).json({ error: 'Dominio no valido o no puede recibir correos.' });
 
-  const userFilter = userId ? { _id: userId, email } : { email };
+  const userFilter = userId ? { _id: userId, emailHash: hashLookupValue(email) } : { emailHash: hashLookupValue(email) };
   const user = await User.findOne(userFilter);
   if (!user) return res.status(404).json({ error: 'Usuario pendiente no encontrado.' });
   if (user.status === 'ACTIVE' && user.emailVerified) {
@@ -477,7 +486,7 @@ export async function requestRegisterEmailVerification(req, res) {
 }
 
 export async function getRegisterEmailVerificationStatus(req, res) {
-  const email = normalizeText(req.query?.email).toLowerCase();
+  const email = normalizeEmailForLookup(req.query?.email);
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo no valido.' });
 
   await cleanupOldRegisterEmailVerifications();
@@ -511,7 +520,7 @@ export async function getRegisterEmailVerificationStatus(req, res) {
 }
 
 export async function verifyRegisterEmailCode(req, res) {
-  const email = normalizeText(req.body?.email).toLowerCase();
+  const email = normalizeEmailForLookup(req.body?.email);
   const otp = String(req.body?.otp || '').trim();
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Correo invalido.' });
   if (!/^\d{6}$/.test(otp)) return res.status(400).json({ error: 'Codigo incorrecto.' });
@@ -588,7 +597,7 @@ export async function completePasswordChange(req, res) {
   const { requestId, newPassword, confirmPassword } = req.body;
   if (!requestId) return res.status(400).json({ error: 'Solicitud invalida.' });
   if (!isValidPassword(newPassword)) {
-    return res.status(400).json({ error: 'Contrasena nueva invalida: minimo 6 caracteres.' });
+    return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
   if (String(newPassword) !== String(confirmPassword || '')) {
     return res.status(400).json({ error: 'Las contrasenas no coinciden.' });

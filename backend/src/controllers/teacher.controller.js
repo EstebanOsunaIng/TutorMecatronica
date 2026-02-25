@@ -24,17 +24,21 @@ function isOnlineByLastSeen(lastSeenAt, thresholdMs = 30000) {
 
 export async function listStudents(req, res) {
   const q = String(req.query.q || '').trim();
-  const filter = { role: 'STUDENT' };
-  if (q) {
-    filter.$or = [{ name: new RegExp(q, 'i') }, { lastName: new RegExp(q, 'i') }, { email: new RegExp(q, 'i') }];
-  }
-
-  const students = await User.find(filter)
+  const students = await User.find({ role: 'STUDENT' })
     .sort({ lastLoginAt: -1, createdAt: -1 })
     .select('name lastName email profilePhotoUrl lastLoginAt lastSeenAt badgesCount');
 
+  const normalizedQ = q.toLowerCase();
+  const filteredStudents = normalizedQ
+    ? students.filter((student) => {
+      const fullName = `${student.name || ''} ${student.lastName || ''}`.toLowerCase();
+      const safeEmail = String(student.email || '').toLowerCase();
+      return fullName.includes(normalizedQ) || safeEmail.includes(normalizedQ);
+    })
+    : students;
+
   // Aggregate progress summary per student: avg % across started modules
-  const ids = students.map((s) => s._id);
+  const ids = filteredStudents.map((s) => s._id);
   const summary = await Progress.aggregate([
     { $match: { userId: { $in: ids } } },
     {
@@ -49,7 +53,7 @@ export async function listStudents(req, res) {
 
   const byId = new Map(summary.map((s) => [String(s._id), s]));
 
-  const result = students.map((s) => {
+  const result = filteredStudents.map((s) => {
     const item = byId.get(String(s._id));
     const overall = item?.avgProgress ? Math.round(item.avgProgress) : 0;
     return {
