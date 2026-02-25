@@ -254,7 +254,7 @@ export default function TeacherModules() {
               <button
                 type="button"
                 onClick={() => setPreviewState({ open: false, moduleItem: null, levels: [], loading: false })}
-                className="rounded-full bg-slate-800 p-2 text-slate-300 hover:bg-slate-700 hover:text-white"
+                className="rounded-full border border-sky-300 bg-sky-50 p-2 text-sky-800 transition hover:bg-sky-100 dark:border-sky-400/60 dark:bg-sky-500/25 dark:text-sky-100 dark:hover:bg-sky-500/35"
                 title="Cerrar"
               >
                 <X className="h-4 w-4" />
