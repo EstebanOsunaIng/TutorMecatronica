@@ -22,21 +22,45 @@ const app = express();
 
 app.use(helmet());
 
-const allowedOriginPatterns = [
-  /^http:\/\/localhost:\d+$/,
-  /^http:\/\/127\.0\.0\.1:\d+$/,
-  /^http:\/\/192\.168\.\d+\.\d+:\d+$/
+const DEV_ORIGIN_PATTERNS = [
+  /^https?:\/\/localhost(?::\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
+  /^https?:\/\/192\.168\.\d+\.\d+(?::\d+)?$/,
+  /^https?:\/\/10\.\d+\.\d+\.\d+(?::\d+)?$/,
+  /^https?:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(?::\d+)?$/
 ];
+
+function parseAllowedOrigins(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+const explicitAllowedOrigins = new Set([
+  ...parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
+  ...parseAllowedOrigins(process.env.FRONTEND_PUBLIC_URL)
+]);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (explicitAllowedOrigins.has(origin)) return true;
+
+  const isDevelopment = String(process.env.NODE_ENV || 'development').toLowerCase() !== 'production';
+  if (!isDevelopment) return false;
+
+  return DEV_ORIGIN_PATTERNS.some((re) => re.test(origin));
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      const ok = allowedOriginPatterns.some((re) => re.test(origin));
-      if (ok) return callback(null, true);
+      if (isAllowedOrigin(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true
+    credentials: false,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
   })
 );
 app.use(express.json({ limit: '5mb' }));

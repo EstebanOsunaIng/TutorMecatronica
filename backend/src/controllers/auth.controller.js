@@ -22,6 +22,11 @@ function sanitizeUser(user) {
   return safe;
 }
 
+function isLegacyVerificationUser(user) {
+  if (!user || typeof user.$isDefault !== 'function') return false;
+  return user.$isDefault('status') && user.$isDefault('emailVerified');
+}
+
 export async function register(req, res) {
   const { role, name, lastName, document, email, phone, password, teacherCode } = req.body;
 
@@ -48,7 +53,7 @@ export async function register(req, res) {
     return res.status(400).json({ error: 'Dominio no valido o no puede recibir correos.' });
   }
 
-  const existsByEmail = await User.findOne({ email: safeEmail });
+  const existsByEmail = await User.findOne({ email: safeEmail }).select('_id status emailVerified').lean();
   if (existsByEmail) {
     if (existsByEmail.status === 'PENDING_VERIFICATION' || existsByEmail.emailVerified === false) {
       let verification;
@@ -138,6 +143,11 @@ export async function login(req, res) {
 
   const user = await User.findOne({ email: safeEmail });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+  if (isLegacyVerificationUser(user)) {
+    user.status = 'ACTIVE';
+    user.emailVerified = true;
+  }
 
   if (user.status === 'PENDING_VERIFICATION' || user.emailVerified === false) {
     return res.status(403).json({ error: 'Debes verificar tu correo antes de iniciar sesion.' });
@@ -376,6 +386,8 @@ export async function verifyRegistrationEmail(req, res) {
       exists: false,
       verified: false,
       available: false,
+      pendingVerification: false,
+      userId: null,
       message: 'Correo no valido.'
     });
   }
@@ -387,16 +399,32 @@ export async function verifyRegistrationEmail(req, res) {
       exists: false,
       verified: false,
       available: false,
+      pendingVerification: false,
+      userId: null,
       message: 'Dominio no valido o no puede recibir correos.'
     });
   }
 
-  const existing = await User.findOne({ email }).select('_id').lean();
+  const existing = await User.findOne({ email }).select('_id status emailVerified').lean();
   if (existing) {
+    const isPending = existing.status === 'PENDING_VERIFICATION' || existing.emailVerified === false;
+    if (isPending) {
+      return res.json({
+        exists: true,
+        verified: false,
+        available: true,
+        pendingVerification: true,
+        userId: String(existing._id),
+        message: 'Este correo ya tiene una cuenta pendiente. Reenviaremos un nuevo codigo.'
+      });
+    }
+
     return res.json({
       exists: true,
-      verified: false,
+      verified: Boolean(existing.emailVerified),
       available: false,
+      pendingVerification: false,
+      userId: String(existing._id),
       message: 'El correo ya esta registrado.'
     });
   }
@@ -405,6 +433,8 @@ export async function verifyRegistrationEmail(req, res) {
     exists: true,
     verified: false,
     available: true,
+    pendingVerification: false,
+    userId: null,
     message: 'Correo valido para registro.'
   });
 }

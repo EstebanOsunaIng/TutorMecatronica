@@ -1,8 +1,25 @@
 import dns from 'node:dns/promises';
 
+function parseAllowedDomains() {
+  return String(process.env.INSTITUTIONAL_EMAIL_DOMAINS || '')
+    .split(',')
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isDomainAllowedByConfig(domain, allowedDomains) {
+  if (!allowedDomains.length) return false;
+  return allowedDomains.some((entry) => domain === entry || domain.endsWith(`.${entry}`));
+}
+
 export async function domainHasMailRecords(domain) {
   const target = String(domain || '').trim().toLowerCase();
   if (!target) return false;
+
+  const allowedDomains = parseAllowedDomains();
+  if (isDomainAllowedByConfig(target, allowedDomains)) {
+    return true;
+  }
 
   try {
     const mx = await dns.resolveMx(target);

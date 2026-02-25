@@ -74,6 +74,17 @@ export default function Login() {
       navigate('/');
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
+      if (apiError && String(apiError).toLowerCase().includes('debes verificar tu correo')) {
+        const pendingEmail = String(email || '').trim().toLowerCase();
+        if (pendingEmail) {
+          localStorage.setItem('pendingEmail', pendingEmail);
+        }
+        localStorage.setItem('verificationFlowActive', 'true');
+        toast.info('Verificacion requerida', 'Debes confirmar tu codigo OTP para poder iniciar sesion.');
+        navigate('/verify-email');
+        return;
+      }
+
       if (apiError) {
         setError(apiError);
         toast.error('Inicio de sesión fallido', apiError);

@@ -76,7 +76,7 @@ export default function VerifyEmail() {
   }, []);
 
   const resend = async () => {
-    if (!email || !userId) return;
+    if (!email) return;
     if (nextResendSeconds > 0) {
       setFeedback(`Espera ${nextResendSeconds}s para reenviar.`);
       return;
@@ -84,7 +84,8 @@ export default function VerifyEmail() {
 
     setIsSending(true);
     try {
-      const { data } = await authApi.requestRegisterEmailVerification({ email, userId });
+      const payload = userId ? { email, userId } : { email };
+      const { data } = await authApi.requestRegisterEmailVerification(payload);
       setStatus('PENDING');
       setRemainingSeconds(Number(data?.expiresInMinutes || 15) * 60);
       setNextResendSeconds(Number(data?.cooldownSeconds || 60));
@@ -171,7 +172,7 @@ export default function VerifyEmail() {
               <button
                 type="button"
                 onClick={resend}
-                disabled={isSending || nextResendSeconds > 0 || !userId}
+                disabled={isSending || nextResendSeconds > 0 || !email}
                 className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-700 dark:bg-sky-900/30 dark:text-sky-200 dark:hover:bg-sky-900/45"
               >
                 {nextResendSeconds > 0 ? `Reenviar en ${nextResendSeconds}s` : isSending ? 'Reenviando...' : 'Reenviar codigo'}

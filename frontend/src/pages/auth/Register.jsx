@@ -25,7 +25,13 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [inputHint, setInputHint] = useState({ field: '', message: '', visible: false });
-  const [emailCheck, setEmailCheck] = useState({ status: 'idle', message: '', checkedEmail: '' });
+  const [emailCheck, setEmailCheck] = useState({
+    status: 'idle',
+    message: '',
+    checkedEmail: '',
+    pendingVerification: false,
+    userId: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,11 +79,11 @@ export default function Register() {
   const verifyInstitutionalEmail = async (rawEmail) => {
     const email = String(rawEmail || '').trim().toLowerCase();
     if (!email) {
-      setEmailCheck({ status: 'idle', message: '', checkedEmail: '' });
+      setEmailCheck({ status: 'idle', message: '', checkedEmail: '', pendingVerification: false, userId: '' });
       return false;
     }
     if (!isValidEmailStrict(email)) {
-      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email });
+      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email, pendingVerification: false, userId: '' });
       return false;
     }
 
@@ -85,13 +91,19 @@ export default function Register() {
     try {
       const { data } = await authApi.verifyEmail(email);
       if (data?.available) {
-        setEmailCheck({ status: 'valid', message: data.message || 'Correo valido. Verifica con codigo.', checkedEmail: email });
+        setEmailCheck({
+          status: 'valid',
+          message: data.message || 'Correo valido. Verifica con codigo.',
+          checkedEmail: email,
+          pendingVerification: Boolean(data?.pendingVerification),
+          userId: String(data?.userId || '')
+        });
         return true;
       }
-      setEmailCheck({ status: 'invalid', message: data?.message || 'El correo ingresado no existe.', checkedEmail: email });
+      setEmailCheck({ status: 'invalid', message: data?.message || 'El correo ingresado no existe.', checkedEmail: email, pendingVerification: false, userId: '' });
       return false;
     } catch (_err) {
-      setEmailCheck({ status: 'invalid', message: 'No se pudo verificar el correo.', checkedEmail: email });
+      setEmailCheck({ status: 'invalid', message: 'No se pudo verificar el correo.', checkedEmail: email, pendingVerification: false, userId: '' });
       return false;
     }
   };
@@ -99,11 +111,11 @@ export default function Register() {
   useEffect(() => {
     const email = String(form.email || '').trim().toLowerCase();
     if (!email) {
-      setEmailCheck({ status: 'idle', message: '', checkedEmail: '' });
+      setEmailCheck({ status: 'idle', message: '', checkedEmail: '', pendingVerification: false, userId: '' });
       return;
     }
     if (!isValidEmailStrict(email)) {
-      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email });
+      setEmailCheck({ status: 'invalid', message: 'El correo debe incluir @ y un dominio valido.', checkedEmail: email, pendingVerification: false, userId: '' });
       return;
     }
     if (emailCheck.checkedEmail === email && (emailCheck.status === 'valid' || emailCheck.status === 'invalid')) {
@@ -294,6 +306,14 @@ export default function Register() {
         setError('Debes usar un correo valido.');
         return;
       }
+    }
+
+    if (emailCheck.pendingVerification) {
+      localStorage.setItem('pendingEmail', normalizedEmail);
+      if (emailCheck.userId) {
+        localStorage.setItem('pendingUserId', emailCheck.userId);
+      }
+      localStorage.setItem('verificationFlowActive', 'true');
     }
 
     const nextErrors = validateForm(true);
@@ -511,7 +531,9 @@ export default function Register() {
                           setEmailCheck({
                             status: 'invalid',
                             message: 'El correo debe incluir @ y un dominio valido.',
-                            checkedEmail: String(form.email || '').trim().toLowerCase()
+                            checkedEmail: String(form.email || '').trim().toLowerCase(),
+                            pendingVerification: false,
+                            userId: ''
                           });
                           }
                         }}
