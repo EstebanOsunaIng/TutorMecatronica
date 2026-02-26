@@ -720,7 +720,7 @@ export default function ModuleStudentPreview({
                   <button
                     type="button"
                     onClick={() => setExpandedContext((prev) => !prev)}
-                    className="rounded-md bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                    className="rounded-md bg-sky-500 px-2.5 py-1 text-xs font-semibold text-white ring-1 ring-sky-300/50 transition hover:bg-sky-400 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
                   >
                     {expandedContext ? 'Ver menos' : 'Ver mas'}
                   </button>

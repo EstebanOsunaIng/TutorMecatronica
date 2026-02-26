@@ -334,7 +334,7 @@ export default function Navbar({ onOpenSidebar = () => { } }) {
 
           <button
             onClick={toggleTheme}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-300 bg-sky-50 text-sky-800 transition hover:bg-sky-100 dark:border-sky-400/60 dark:bg-sky-500/25 dark:text-sky-100 dark:hover:bg-sky-500/35"
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             type="button"
           >
