@@ -251,16 +251,21 @@ export default function OnboardingTour({ role = 'STUDENT', open, onFinish, userI
   const navigate = useNavigate();
   const location = useLocation();
   const driverRef = useRef(null);
+  const onFinishRef = useRef(onFinish);
   const [stepIndex, setStepIndex] = useState(0);
 
   const steps = useMemo(() => TOUR_BY_ROLE[role] || TOUR_BY_ROLE.STUDENT, [role]);
   const progressKey = useMemo(() => `onboarding:progress:${userId || 'anon'}:${role}:v1`, [role, userId]);
 
   useEffect(() => {
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
+
+  useEffect(() => {
     if (!open) return;
     if (!runSeed) return;
     localStorage.removeItem(progressKey);
-    setStepIndex(0);
+    setStepIndex((prev) => (prev === 0 ? prev : 0));
   }, [open, progressKey, runSeed]);
 
   useEffect(() => {
@@ -268,9 +273,9 @@ export default function OnboardingTour({ role = 'STUDENT', open, onFinish, userI
     const raw = localStorage.getItem(progressKey);
     const parsed = Number(raw || 0);
     if (Number.isFinite(parsed) && parsed >= 0 && parsed < steps.length) {
-      setStepIndex(parsed);
+      setStepIndex((prev) => (prev === parsed ? prev : parsed));
     } else {
-      setStepIndex(0);
+      setStepIndex((prev) => (prev === 0 ? prev : 0));
     }
   }, [open, progressKey, steps.length]);
 
@@ -298,10 +303,10 @@ export default function OnboardingTour({ role = 'STUDENT', open, onFinish, userI
         const next = stepIndex + 1;
         if (next >= steps.length) {
           localStorage.removeItem(progressKey);
-          onFinish?.();
+          onFinishRef.current?.();
           return;
         }
-        setStepIndex(next);
+        setStepIndex((prev) => (prev === next ? prev : next));
         return;
       }
 
@@ -330,7 +335,7 @@ export default function OnboardingTour({ role = 'STUDENT', open, onFinish, userI
                 instance.destroy();
                 if (isLast) {
                   localStorage.removeItem(progressKey);
-                  onFinish?.();
+                  onFinishRef.current?.();
                   return;
                 }
                 setStepIndex((prev) => prev + 1);
@@ -357,7 +362,7 @@ export default function OnboardingTour({ role = 'STUDENT', open, onFinish, userI
         driverRef.current = null;
       }
     };
-  }, [location.pathname, navigate, onFinish, open, progressKey, stepIndex, steps]);
+  }, [location.pathname, navigate, open, progressKey, stepIndex, steps]);
 
   return null;
 }

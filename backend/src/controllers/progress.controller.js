@@ -2,15 +2,93 @@ import { Progress } from '../models/Progress.model.js';
 import { LessonLevel } from '../models/LessonLevel.model.js';
 import { unlockBadgeForModule } from '../services/gamification.service.js';
 
+function normalizeModuleOrders(levelRows) {
+  const values = (Array.isArray(levelRows) ? levelRows : [])
+    .map((item) => Number(item?.order))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function arraysEqual(a = [], b = []) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function reconcileProgressWithOrders(progress, moduleOrders) {
+  const orders = normalizeModuleOrders(moduleOrders);
+  const validOrderSet = new Set(orders);
+
+  const previousCompleted = Array.isArray(progress.levelsCompleted) ? progress.levelsCompleted : [];
+  const nextCompleted = [...new Set(previousCompleted)]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && validOrderSet.has(value))
+    .sort((a, b) => a - b);
+
+  if (!arraysEqual(previousCompleted, nextCompleted)) {
+    progress.levelsCompleted = nextCompleted;
+  }
+
+  if (!orders.length) {
+    progress.currentLevelOrder = 1;
+    progress.moduleProgressPercent = 0;
+    progress.completedAt = null;
+    return;
+  }
+
+  const completedSet = new Set(nextCompleted);
+  const firstPendingOrder = orders.find((order) => !completedSet.has(order));
+  const nextCurrentOrder = firstPendingOrder || orders[orders.length - 1];
+  const nextPercent = Math.round((nextCompleted.length / orders.length) * 100);
+
+  progress.currentLevelOrder = nextCurrentOrder;
+  progress.moduleProgressPercent = nextPercent;
+
+  if (nextPercent < 100) {
+    progress.completedAt = null;
+  }
+}
+
+async function getModuleOrderRows(moduleId) {
+  return LessonLevel.find({ moduleId }).sort({ order: 1 }).select('order').lean();
+}
+
 export async function getMyProgress(req, res) {
-  const progress = await Progress.find({ userId: req.user.id });
-  res.json({ progress });
+  const progressRows = await Progress.find({ userId: req.user.id });
+
+  for (const row of progressRows) {
+    const moduleOrderRows = await getModuleOrderRows(row.moduleId);
+    const beforeCurrent = Number(row.currentLevelOrder || 1);
+    const beforePercent = Number(row.moduleProgressPercent || 0);
+    const beforeCompleted = Array.isArray(row.levelsCompleted) ? [...row.levelsCompleted] : [];
+
+    reconcileProgressWithOrders(row, moduleOrderRows);
+
+    const completedChanged = !arraysEqual(beforeCompleted, row.levelsCompleted || []);
+    if (
+      completedChanged ||
+      beforeCurrent !== Number(row.currentLevelOrder || 1) ||
+      beforePercent !== Number(row.moduleProgressPercent || 0)
+    ) {
+      await row.save();
+    }
+  }
+
+  res.json({ progress: progressRows });
 }
 
 export async function completeLevel(req, res) {
   const { moduleId, levelOrder } = req.body;
-  const totalLevels = await LessonLevel.countDocuments({ moduleId });
-  if (!totalLevels) return res.status(400).json({ error: 'Module has no levels' });
+  const moduleOrderRows = await getModuleOrderRows(moduleId);
+  const moduleOrders = normalizeModuleOrders(moduleOrderRows);
+  if (!moduleOrders.length) return res.status(400).json({ error: 'Module has no levels' });
+
+  const numericLevelOrder = Number(levelOrder);
+  if (!Number.isFinite(numericLevelOrder) || !moduleOrders.includes(numericLevelOrder)) {
+    return res.status(400).json({ error: 'Nivel invalido para este modulo.' });
+  }
 
   let progress = await Progress.findOne({ userId: req.user.id, moduleId });
   if (!progress) {
@@ -29,14 +107,15 @@ export async function completeLevel(req, res) {
     }
   }
 
-  if (!progress.levelsCompleted.includes(levelOrder)) {
-    progress.levelsCompleted.push(levelOrder);
+  const previousPercent = Number(progress.moduleProgressPercent || 0);
+
+  if (!progress.levelsCompleted.includes(numericLevelOrder)) {
+    progress.levelsCompleted.push(numericLevelOrder);
   }
-  progress.currentLevelOrder = Math.min(levelOrder + 1, totalLevels);
-  progress.moduleProgressPercent = Math.round((progress.levelsCompleted.length / totalLevels) * 100);
+  reconcileProgressWithOrders(progress, moduleOrderRows);
 
   let badge = null;
-  if (progress.moduleProgressPercent === 100 && !progress.completedAt) {
+  if (progress.moduleProgressPercent === 100 && previousPercent < 100) {
     progress.completedAt = now;
     const unlocked = await unlockBadgeForModule({ userId: req.user.id, moduleId });
     badge = unlocked.unlocked ? unlocked.badgeId : null;

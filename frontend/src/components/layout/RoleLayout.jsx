@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu, MessageCircle, X } from 'lucide-react';
 import Navbar from './Navbar.jsx';
@@ -89,7 +89,7 @@ export default function RoleLayout() {
 
   const { onOpenMobile } = sidebarHandlers;
 
-  const completeOnboarding = async () => {
+  const completeOnboarding = useCallback(async () => {
     setIsOnboardingOpen(false);
     if (onboardingMode === 'manual' && user?.onboardingCompleted) {
       setOnboardingMode('auto');
@@ -112,7 +112,7 @@ export default function RoleLayout() {
     } finally {
       setOnboardingMode('auto');
     }
-  };
+  }, [onboardingMode, setUser, user]);
 
   return (
 
