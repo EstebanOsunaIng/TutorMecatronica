@@ -1,4 +1,15 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function forgotPasswordKeyGenerator(req) {
+  const ipKey = ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown');
+  const email = normalizeEmail(req.body?.email);
+  if (!email) return ipKey;
+  return `${ipKey}:${email}`;
+}
 
 const jsonHandler = (message) => ({ message });
 
@@ -20,10 +31,11 @@ export const registerLimiter = rateLimit({
 
 export const forgotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 6,
+  keyGenerator: forgotPasswordKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
-  message: jsonHandler('Demasiadas solicitudes para recuperar contrasena. Intenta mas tarde.')
+  message: jsonHandler('Demasiadas solicitudes para recuperar contrasena para este correo. Intenta mas tarde.')
 });
 
 export const resetLimiter = rateLimit({

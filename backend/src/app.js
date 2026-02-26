@@ -20,6 +20,11 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+const isProduction = String(process.env.NODE_ENV || 'development').toLowerCase() === 'production';
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
 app.use(helmet());
 
 const DEV_ORIGIN_PATTERNS = [
@@ -47,7 +52,7 @@ function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (explicitAllowedOrigins.has(origin)) return true;
 
-  const isDevelopment = String(process.env.NODE_ENV || 'development').toLowerCase() !== 'production';
+  const isDevelopment = !isProduction;
   if (!isDevelopment) return false;
 
   return DEV_ORIGIN_PATTERNS.some((re) => re.test(origin));
