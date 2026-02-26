@@ -178,6 +178,31 @@ VITE_API_URL=http://localhost:3001
 
 Si se omite, se usan rutas relativas con proxy de Vite.
 
+## Despliegue en Railway
+
+Recomendado: desplegar `backend` y `frontend` como servicios separados.
+
+Backend (variables minimas):
+
+- `MONGO_URI`
+- `JWT_SECRET` (24+ caracteres)
+- `CORS_ORIGINS=https://<tu-frontend>.up.railway.app`
+
+Frontend (variables minimas):
+
+- `VITE_API_URL=https://<tu-backend>.up.railway.app`
+
+Comandos:
+
+- Backend start: `npm run start`
+- Frontend start: `npm run start`
+
+Chequeos rapidos post deploy:
+
+1. `GET https://<backend>/health` responde `{ "ok": true }`.
+2. Login desde frontend funciona sin errores CORS.
+3. Llamadas autenticadas (`/api/users/me`) responden correctamente.
+
 ## Scripts disponibles
 
 ### Raiz

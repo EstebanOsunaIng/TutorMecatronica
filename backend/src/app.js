@@ -38,6 +38,7 @@ function parseAllowedOrigins(value) {
 }
 
 const explicitAllowedOrigins = new Set([
+  ...parseAllowedOrigins(process.env.CORS_ORIGINS),
   ...parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
   ...parseAllowedOrigins(process.env.FRONTEND_PUBLIC_URL)
 ]);
