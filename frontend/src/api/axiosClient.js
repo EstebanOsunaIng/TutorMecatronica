@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+let unauthorizedHandler = null;
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null;
+}
+
 function normalizeBaseUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -18,5 +24,17 @@ axiosClient.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const hadAuthHeader = Boolean(error?.config?.headers?.Authorization);
+    if (status === 401 && hadAuthHeader && unauthorizedHandler) {
+      unauthorizedHandler(error);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default axiosClient;
