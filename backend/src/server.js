@@ -4,6 +4,7 @@ import { connectDb } from './config/db.js';
 import { env } from './config/env.js';
 import { startNewsScheduler } from './services/news.service.js';
 import { startPasswordChangeExpirySweep } from './services/passwordChange.service.js';
+import { verifyMailTransport } from './mail/mailer.js';
 
 async function start() {
   if (!env.jwtSecret || env.jwtSecret.length < 24) {
@@ -16,6 +17,7 @@ async function start() {
     throw new Error('DATA_HASH_KEY is required and must be at least 16 characters');
   }
   await connectDb();
+  await verifyMailTransport();
   startNewsScheduler();
   startPasswordChangeExpirySweep();
   const server = app.listen(env.port, () => {

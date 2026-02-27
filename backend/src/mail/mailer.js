@@ -1,30 +1,197 @@
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
+import { env } from '../config/env.js';
+
+let transporter = null;
+let verifyPromise = null;
+let sendgridInitialized = false;
+
+function isSendgridProvider() {
+  return env.mail.provider === 'sendgrid';
+}
+
+function getSmtpConfig() {
+  const port = env.mail.port || 587;
+  const secure = env.mail.secure !== null ? env.mail.secure : port === 465;
+  return {
+    service: env.mail.service,
+    host: env.mail.host,
+    port,
+    secure,
+    user: env.mail.user,
+    pass: env.mail.pass,
+    from: env.mail.from,
+    tlsRejectUnauthorized: env.mail.tlsRejectUnauthorized
+  };
+}
+
+function sanitizeSmtpError(error) {
+  return {
+    code: error?.code || 'UNKNOWN',
+    command: error?.command || null,
+    responseCode: error?.responseCode || null,
+    response: error?.response || null,
+    message: error?.message || 'SMTP error'
+  };
+}
+
+function sanitizeSendgridError(error) {
+  return {
+    code: error?.code || error?.response?.statusCode || 'UNKNOWN',
+    statusCode: error?.response?.statusCode || null,
+    message: error?.message || 'SendGrid error',
+    responseBody: error?.response?.body || null
+  };
+}
+
+function ensureSendgridClient() {
+  if (sendgridInitialized) return;
+  if (!env.mail.sendgridApiKey) {
+    throw new Error('SENDGRID_API_KEY is required when MAIL_PROVIDER=sendgrid.');
+  }
+  if (!String(env.mail.sendgridApiKey).startsWith('SG.')) {
+    throw new Error('SENDGRID_API_KEY format is invalid. Expected key that starts with "SG.".');
+  }
+  sgMail.setApiKey(env.mail.sendgridApiKey);
+  sendgridInitialized = true;
+}
 
 export function createTransporter() {
+  if (isSendgridProvider()) return null;
+  if (transporter) return transporter;
+
+  const smtp = getSmtpConfig();
+  const hasCredentials = Boolean(smtp.user && smtp.pass);
+  const hasProvider = Boolean(smtp.service || smtp.host);
+
+  if (!hasCredentials || !hasProvider) {
+    throw new Error('SMTP config missing: set MAIL_HOST/MAIL_SERVICE, MAIL_PORT, MAIL_USER and MAIL_PASS.');
+  }
+
   const transport = {
-    port: Number(process.env.MAIL_PORT),
-    secure: process.env.MAIL_SECURE === 'true',
+    port: smtp.port,
+    secure: smtp.secure,
     tls: {
-      rejectUnauthorized: process.env.MAIL_TLS_REJECT_UNAUTHORIZED !== 'false'
+      rejectUnauthorized: smtp.tlsRejectUnauthorized
     },
     auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS
+      user: smtp.user,
+      pass: smtp.pass
     }
   };
 
-  if (process.env.MAIL_SERVICE) {
-    transport.service = process.env.MAIL_SERVICE;
+  if (smtp.service) {
+    transport.service = smtp.service;
   } else {
-    transport.host = process.env.MAIL_HOST;
+    transport.host = smtp.host;
   }
 
-  return nodemailer.createTransport(transport);
+  transporter = nodemailer.createTransport(transport);
+  return transporter;
 }
 
-export async function sendResetCodeEmail({ to, code }) {
-  const transporter = createTransporter();
+export async function verifyMailTransport({ force = false } = {}) {
+  if (verifyPromise && !force) return verifyPromise;
 
+  verifyPromise = (async () => {
+    if (isSendgridProvider()) {
+      try {
+        ensureSendgridClient();
+        console.info('[mail] SendGrid ready', {
+          provider: env.mail.provider,
+          from: env.mail.from
+        });
+        return { ok: true };
+      } catch (error) {
+        const details = sanitizeSendgridError(error);
+        console.error('[mail] SendGrid verify failed', {
+          provider: env.mail.provider,
+          ...details
+        });
+        return { ok: false, error: details };
+      }
+    }
+
+    const smtp = getSmtpConfig();
+    try {
+      const tx = createTransporter();
+      await tx.verify();
+      console.info('[mail] SMTP ready', {
+        host: smtp.host || smtp.service,
+        port: smtp.port,
+        secure: smtp.secure,
+        user: smtp.user
+      });
+      return { ok: true };
+    } catch (error) {
+      const details = sanitizeSmtpError(error);
+      console.error('[mail] SMTP verify failed', {
+        host: smtp.host || smtp.service,
+        port: smtp.port,
+        secure: smtp.secure,
+        user: smtp.user,
+        ...details
+      });
+      return { ok: false, error: details };
+    }
+  })();
+
+  return verifyPromise;
+}
+
+async function sendMailChecked(mailOptions) {
+  const verification = await verifyMailTransport();
+  if (!verification.ok) {
+    const error = new Error(verification.error?.message || 'SMTP verify failed');
+    error.code = verification.error?.code || 'SMTP_VERIFY_FAILED';
+    error.response = verification.error?.response || null;
+    throw error;
+  }
+
+  if (isSendgridProvider()) {
+    ensureSendgridClient();
+    try {
+      await sgMail.send({
+        to: mailOptions.to,
+        from: mailOptions.from,
+        subject: mailOptions.subject,
+        text: mailOptions.text,
+        html: mailOptions.html,
+        replyTo: process.env.MAIL_REPLY_TO || undefined
+      });
+      return { delivered: true };
+    } catch (error) {
+      const details = sanitizeSendgridError(error);
+      console.error('[mail] sendgrid send failed', {
+        to: mailOptions?.to,
+        subject: mailOptions?.subject,
+        provider: env.mail.provider,
+        ...details
+      });
+      throw error;
+    }
+  }
+
+  const tx = createTransporter();
+
+  try {
+    return await tx.sendMail(mailOptions);
+  } catch (error) {
+    const smtp = getSmtpConfig();
+    const details = sanitizeSmtpError(error);
+    console.error('[mail] send failed', {
+      to: mailOptions?.to,
+      subject: mailOptions?.subject,
+      host: smtp.host || smtp.service,
+      port: smtp.port,
+      user: smtp.user,
+      ...details
+    });
+    throw error;
+  }
+}
+
+export async function sendResetCodeEmail({ to, code, resetUrl = '' }) {
   const codeDigits = String(code || '')
     .split('')
     .map(
@@ -36,11 +203,17 @@ export async function sendResetCodeEmail({ to, code }) {
     )
     .join('');
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  const safeResetUrl = String(resetUrl || '').trim();
+  const resetTextLine = safeResetUrl ? `\nTambien puedes abrir: ${safeResetUrl}\n` : '\n';
+  const resetHtmlCta = safeResetUrl
+    ? `<p style="margin:0 0 18px 0;"><a href="${safeResetUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#ffffff;text-decoration:none;font-weight:700;">Ir a restablecer contrasena</a></p>`
+    : '';
+
+  await sendMailChecked({
+    from: env.mail.from,
     to,
     subject: 'Codigo de recuperacion',
-    text: `TuVir - Codigo de recuperacion\n\nRecibimos una solicitud para cambiar tu contrasena.\nCodigo: ${code}\nVence en 10 minutos.\n\nSi no solicitaste este cambio, ignora este correo.`,
+    text: `TuVir - Codigo de recuperacion\n\nRecibimos una solicitud para cambiar tu contrasena.\nCodigo: ${code}\nVence en 10 minutos.${resetTextLine}\nSi no solicitaste este cambio, ignora este correo.`,
     html: `
       <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
@@ -86,6 +259,7 @@ export async function sendResetCodeEmail({ to, code }) {
                       <p style="margin:0;font-size:13px;color:#334155;"><span style="font-weight:700;color:#0f172a;">Seguridad:</span> Nunca compartas este codigo. El equipo de TuVir no te lo pedira por chat ni por telefono.</p>
                     </div>
 
+                    ${resetHtmlCta}
                     <p style="margin:0 0 18px 0;font-size:13px;color:#64748b;">Si no solicitaste este cambio, puedes ignorar este correo sin realizar ninguna accion.</p>
                         </td>
                       </tr>
@@ -109,9 +283,8 @@ export async function sendResetCodeEmail({ to, code }) {
 }
 
 export async function sendPasswordChangeConfirmationEmail({ to, confirmUrl }) {
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  await sendMailChecked({
+    from: env.mail.from,
     to,
     subject: 'Confirmación de cambio de contraseña',
     text: `Se solicitó un cambio de contraseña para tu cuenta.
@@ -148,9 +321,8 @@ Si no fuiste tú, ignora este mensaje.`,
 }
 
 export async function sendPasswordChangeExpiredAlertEmail({ to }) {
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  await sendMailChecked({
+    from: env.mail.from,
     to,
     subject: 'Intentaron cambiar tu contraseña',
     text: 'Se intentó cambiar la contraseña de tu cuenta pero no se confirmó dentro del tiempo de seguridad. Si no fuiste tú, revisa tu cuenta.',
@@ -178,7 +350,6 @@ export async function sendPasswordChangeExpiredAlertEmail({ to }) {
 }
 
 export async function sendRegisterOtpEmail({ to, otp, expiresMinutes = 15 }) {
-  const transporter = createTransporter();
   const codeDigits = String(otp || '')
     .split('')
     .map(
@@ -190,8 +361,8 @@ export async function sendRegisterOtpEmail({ to, otp, expiresMinutes = 15 }) {
     )
     .join('');
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  await sendMailChecked({
+    from: env.mail.from,
     to,
     subject: 'Verificacion de correo',
     text: `Estas intentando crear una cuenta.\nCodigo OTP: ${otp}\nValido por ${expiresMinutes} minutos.\n\nSi no fuiste tu, ignora este mensaje.`,
@@ -224,5 +395,15 @@ export async function sendRegisterOtpEmail({ to, otp, expiresMinutes = 15 }) {
         </table>
       </div>
     `
+  });
+}
+
+export async function sendDiagnosticEmail({ to, subject, text }) {
+  await sendMailChecked({
+    from: env.mail.from,
+    to,
+    subject,
+    text,
+    html: `<p>${String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`
   });
 }

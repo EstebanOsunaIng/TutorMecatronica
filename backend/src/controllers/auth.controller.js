@@ -203,6 +203,9 @@ function backendPublicUrl(req) {
 }
 
 function frontendPublicUrl(req) {
+  if (process.env.APP_URL) {
+    return String(process.env.APP_URL).replace(/\/$/, '');
+  }
   if (process.env.FRONTEND_PUBLIC_URL) {
     return String(process.env.FRONTEND_PUBLIC_URL).replace(/\/$/, '');
   }
@@ -292,7 +295,13 @@ async function issueEmailVerificationOtp({ user, email, ip, userAgent, force = f
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  await sendRegisterOtpEmail({ to: email, otp, expiresMinutes: 15 });
+  try {
+    await sendRegisterOtpEmail({ to: email, otp, expiresMinutes: 15 });
+  } catch (_error) {
+    const error = new Error('No se pudo enviar el correo. Intenta mas tarde.');
+    error.status = 500;
+    throw error;
+  }
   return verification;
 }
 
