@@ -2,16 +2,53 @@ import crypto from 'node:crypto';
 
 const ENCRYPTED_PREFIX = 'enc:v1:';
 
+function normalizeSecret(value) {
+  return String(value || '').trim();
+}
+
+function uniqueNonEmpty(values) {
+  return [...new Set(values.map(normalizeSecret).filter(Boolean))];
+}
+
+function getEncryptionSecretCandidates() {
+  return uniqueNonEmpty([
+    process.env.DATA_ENCRYPTION_KEY,
+    process.env.DATA_ENCRYPTION_KEY_LEGACY,
+    process.env.JWT_SECRET
+  ]);
+}
+
+function getHashSecretCandidates() {
+  return uniqueNonEmpty([
+    process.env.DATA_HASH_KEY,
+    process.env.DATA_HASH_KEY_LEGACY,
+    process.env.DATA_ENCRYPTION_KEY,
+    process.env.JWT_SECRET
+  ]);
+}
+
 function getEncryptionKey() {
-  const source = String(process.env.DATA_ENCRYPTION_KEY || process.env.JWT_SECRET || '').trim();
+  const [source] = getEncryptionSecretCandidates();
   if (!source) throw new Error('DATA_ENCRYPTION_KEY is required (or JWT_SECRET as fallback).');
   return crypto.createHash('sha256').update(source).digest();
 }
 
+function getEncryptionKeys() {
+  const candidates = getEncryptionSecretCandidates();
+  if (!candidates.length) throw new Error('DATA_ENCRYPTION_KEY is required (or JWT_SECRET as fallback).');
+  return candidates.map((source) => crypto.createHash('sha256').update(source).digest());
+}
+
 function getHashKey() {
-  const source = String(process.env.DATA_HASH_KEY || process.env.DATA_ENCRYPTION_KEY || process.env.JWT_SECRET || '').trim();
+  const [source] = getHashSecretCandidates();
   if (!source) throw new Error('DATA_HASH_KEY is required (or DATA_ENCRYPTION_KEY/JWT_SECRET as fallback).');
   return crypto.createHash('sha256').update(`lookup:${source}`).digest();
+}
+
+function getHashKeys() {
+  const candidates = getHashSecretCandidates();
+  if (!candidates.length) throw new Error('DATA_HASH_KEY is required (or DATA_ENCRYPTION_KEY/JWT_SECRET as fallback).');
+  return candidates.map((source) => crypto.createHash('sha256').update(`lookup:${source}`).digest());
 }
 
 export function normalizeEmailForLookup(value) {
@@ -26,6 +63,20 @@ export function hashLookupValue(value) {
   const normalized = String(value || '').trim();
   if (!normalized) return '';
   return crypto.createHmac('sha256', getHashKey()).update(normalized).digest('hex');
+}
+
+export function hashLookupCandidates(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return [];
+  const hashes = getHashKeys().map((key) => crypto.createHmac('sha256', key).update(normalized).digest('hex'));
+  return [...new Set(hashes)];
+}
+
+export function hashLookupFilter(field, value) {
+  const hashes = hashLookupCandidates(value);
+  if (!hashes.length) return { [field]: '__invalid__' };
+  if (hashes.length === 1) return { [field]: hashes[0] };
+  return { [field]: { $in: hashes } };
 }
 
 export function isEncryptedValue(value) {
@@ -53,8 +104,20 @@ export function decryptFieldValue(value) {
   const [ivB64, tagB64, dataB64] = payload.split(':');
   if (!ivB64 || !tagB64 || !dataB64) return '';
 
-  const decipher = crypto.createDecipheriv('aes-256-gcm', getEncryptionKey(), Buffer.from(ivB64, 'base64'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
-  const decrypted = Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]);
-  return decrypted.toString('utf8');
+  const iv = Buffer.from(ivB64, 'base64');
+  const tag = Buffer.from(tagB64, 'base64');
+  const encrypted = Buffer.from(dataB64, 'base64');
+
+  for (const key of getEncryptionKeys()) {
+    try {
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+      decipher.setAuthTag(tag);
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+      return decrypted.toString('utf8');
+    } catch {
+      // try next key candidate
+    }
+  }
+
+  return '';
 }
