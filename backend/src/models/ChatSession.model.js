@@ -13,6 +13,9 @@ const chatSessionSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     title: { type: String, required: true },
+    summary: { type: String, default: '' },
+    teachingMode: { type: String, enum: ['guided', 'free'], default: 'guided' },
+    awaitingConfirmation: { type: Boolean, default: false },
     messages: { type: [chatMessageSchema], default: [] },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }

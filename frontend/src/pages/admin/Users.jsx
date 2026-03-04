@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { usersApi } from '../../api/users.api.js';
 import { adminApi } from '../../api/admin.api.js';
+import { isStrongPassword, PASSWORD_POLICY_HINT } from '../../utils/passwordPolicy.js';
 
 const ROLE_LABELS = {
   ADMIN: 'Administrador',
@@ -188,8 +190,8 @@ export default function AdminUsers() {
       return;
     }
 
-    if (createForm.password.trim().length < 6) {
-      setCreateError('La contraseña debe tener al menos 6 caracteres.');
+    if (!isStrongPassword(createForm.password)) {
+      setCreateError(PASSWORD_POLICY_HINT);
       setCreateSuccess('');
       return;
     }
@@ -229,7 +231,7 @@ export default function AdminUsers() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-300">Panel de Usuarios</p>
-            <h2 className="text-2xl font-bold tracking-tight">Gestion de perfiles</h2>
+            <h2 className="text-[1.875rem] font-bold tracking-tight">Gestion de perfiles</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Edita datos personales, roles y estado de cada usuario.</p>
           </div>
 
@@ -253,7 +255,7 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/70">
+        <div data-tour="admin-users-toolbar" className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/70">
           <button
             type="button"
             onClick={() => {
@@ -293,6 +295,7 @@ export default function AdminUsers() {
 
         {error && <p className="mt-4 rounded-lg bg-red-100 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/20 dark:text-red-100">{error}</p>}
         {success && <p className="mt-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">{success}</p>}
+        {loading && <RobotLoader label="Cargando usuarios..." scale={0.9} overlay />}
 
         <div className="mt-4 overflow-x-auto rounded-2xl border border-cyan-100 dark:border-slate-700">
           <table className="min-w-[720px] w-full table-fixed text-left text-sm">
@@ -313,13 +316,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-300">
-                    Cargando usuarios...
-                  </td>
-                </tr>
-              ) : (
+              {!loading ? (
                 users.map((u) => (
                   <tr key={u._id} className="border-t border-cyan-100 bg-white/60 dark:border-slate-700 dark:bg-slate-900/50">
                     <td className="px-4 py-3">
@@ -377,7 +374,7 @@ export default function AdminUsers() {
                     </td>
                   </tr>
                 ))
-              )}
+              ) : null}
 
               {!loading && !users.length && (
                 <tr>
@@ -642,6 +639,7 @@ export default function AdminUsers() {
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
                 />
+                <p className="mt-1 text-[11px] font-normal normal-case text-slate-500 dark:text-slate-400">{PASSWORD_POLICY_HINT}</p>
               </label>
 
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300 sm:col-span-2">

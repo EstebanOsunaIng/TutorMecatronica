@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
   BookOpen,
+  FileText,
   Edit3,
   Home,
   LogOut,
@@ -24,6 +25,7 @@ const roleItems = {
     { to: '/teacher/dashboard', label: 'Inicio', icon: Home },
     { to: '/teacher/students', label: 'Estudiantes', icon: Users },
     { to: '/teacher/news', label: 'Noticias', icon: Newspaper },
+    { to: '/teacher/knowledge', label: 'Base IA', icon: FileText },
     { to: '/teacher/modules', label: 'Edicion de modulos', icon: Edit3 },
     { to: '/teacher/settings', label: 'Ajustes', icon: Settings }
   ],
@@ -31,9 +33,26 @@ const roleItems = {
     { to: '/admin/dashboard', label: 'Inicio', icon: Home },
     { to: '/admin/users', label: 'Registro de usuarios', icon: Users },
     { to: '/admin/modules', label: 'Gestion de modulos', icon: Edit3 },
+    { to: '/admin/news', label: 'Noticias', icon: Newspaper },
+    { to: '/admin/knowledge', label: 'Base IA', icon: FileText },
     { to: '/admin/stats', label: 'Estadisticas', icon: BarChart3 },
     { to: '/admin/settings', label: 'Ajustes', icon: Settings }
   ]
+};
+
+const tourByPath = {
+  '/student/dashboard': 'student-nav-dashboard',
+  '/student/courses': 'student-nav-courses',
+  '/student/news': 'student-nav-news',
+  '/student/settings': 'student-nav-settings',
+  '/teacher/dashboard': 'teacher-nav-dashboard',
+  '/teacher/students': 'teacher-nav-students',
+  '/teacher/modules': 'teacher-nav-modules',
+  '/teacher/knowledge': 'teacher-nav-knowledge',
+  '/admin/dashboard': 'admin-nav-dashboard',
+  '/admin/users': 'admin-nav-users',
+  '/admin/modules': 'admin-nav-modules',
+  '/admin/stats': 'admin-nav-stats'
 };
 
 export default function Sidebar({
@@ -60,7 +79,7 @@ export default function Sidebar({
         aria-hidden={!isMobileOpen}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-cyan-100 bg-gradient-to-b from-sky-50/95 via-cyan-50/70 to-slate-50 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] dark:border-slate-800 dark:bg-slate-950/95 dark:bg-none ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-[color:var(--light-divider)] bg-gradient-to-b from-sky-50/95 via-cyan-50/70 to-slate-50 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] dark:border-slate-800 dark:bg-slate-950/95 dark:bg-none ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
           isCollapsed ? 'md:w-20 md:px-3' : 'md:w-64 md:px-6'
@@ -69,7 +88,7 @@ export default function Sidebar({
         <div className="mb-8 flex items-center justify-start">
           <button
             onClick={onCloseMobile}
-            className="ml-1 flex items-center justify-center rounded-lg border border-cyan-100 bg-white/85 p-2 text-slate-700 shadow-sm transition hover:bg-cyan-50 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"
+            className="ml-1 flex items-center justify-center rounded-lg border border-[color:var(--light-divider)] bg-white/85 p-2 text-slate-700 shadow-sm transition hover:bg-cyan-50 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800 md:hidden"
             aria-label="Cerrar menu"
             type="button"
           >
@@ -84,6 +103,7 @@ export default function Sidebar({
               <NavLink
                 key={item.to}
                 to={item.to}
+                data-tour={tourByPath[item.to] || undefined}
                 onClick={onCloseMobile}
                 title={showLabels ? undefined : item.label}
                 className={({ isActive }) =>

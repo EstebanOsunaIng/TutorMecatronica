@@ -1,25 +1,81 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu, MessageCircle, X } from 'lucide-react';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import ChatDock from '../chatbot/ChatDock.jsx';
+import { presenceApi } from '../../api/presence.api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { usersApi } from '../../api/users.api.js';
+import OnboardingTour from '../onboarding/OnboardingTour.jsx';
 
 const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
 
 export default function RoleLayout() {
+  const { user, setUser } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
   });
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [onboardingRunSeed, setOnboardingRunSeed] = useState(0);
+  const [onboardingMode, setOnboardingMode] = useState('auto');
 
   const handleToggleSidebar = () => setIsCollapsed((prev) => !prev);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!user) return;
+    setOnboardingMode('auto');
+    setIsOnboardingOpen(user.onboardingCompleted === false);
+  }, [user]);
+
+  useEffect(() => {
+    const handler = () => {
+      setOnboardingMode('manual');
+      setOnboardingRunSeed((prev) => prev + 1);
+      setIsOnboardingOpen(true);
+    };
+
+    window.addEventListener('tuvir:onboarding:restart', handler);
+    return () => window.removeEventListener('tuvir:onboarding:restart', handler);
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return undefined;
+
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        await presenceApi.ping();
+      } catch {
+        // ignore
+      }
+    };
+
+    ping();
+    const id = window.setInterval(() => {
+      if (!cancelled) ping();
+    }, 15000);
+
+    const onBeforeUnload = () => {
+      // best-effort
+      ping();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, []);
 
   const sidebarHandlers = useMemo(
     () => ({
@@ -33,13 +89,45 @@ export default function RoleLayout() {
 
   const { onOpenMobile } = sidebarHandlers;
 
+  const completeOnboarding = useCallback(async () => {
+    setIsOnboardingOpen(false);
+    if (onboardingMode === 'manual' && user?.onboardingCompleted) {
+      setOnboardingMode('auto');
+      return;
+    }
+    try {
+      const payload = {
+        onboardingCompleted: true,
+        onboardingVersion: 1,
+        onboardingSeenAt: new Date().toISOString()
+      };
+      const res = await usersApi.updateMe(payload);
+      const nextUser = res?.data?.user || (user ? { ...user, ...payload } : null);
+      if (nextUser) {
+        localStorage.setItem('user', JSON.stringify(nextUser));
+        setUser(nextUser);
+      }
+    } catch {
+      // ignore persistence error; tutorial already closed in UI
+    } finally {
+      setOnboardingMode('auto');
+    }
+  }, [onboardingMode, setUser, user]);
+
   return (
 
     <div className="flex min-h-screen bg-gradient-to-br from-sky-50/90 via-cyan-50/70 to-slate-50 text-slate-900 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
+      <OnboardingTour
+        role={user?.role || 'STUDENT'}
+        open={isOnboardingOpen}
+        onFinish={completeOnboarding}
+        userId={user?._id || ''}
+        runSeed={onboardingRunSeed}
+      />
       <div className="fixed left-0 top-0 z-50 hidden md:flex md:h-[72px] md:w-20 md:items-center md:justify-center">
         <button
           onClick={handleToggleSidebar}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-100 bg-white/85 text-slate-700 shadow-sm transition hover:bg-cyan-50/80 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[color:var(--light-divider)] bg-white/85 text-slate-700 shadow-sm transition hover:bg-cyan-50/80 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-800"
           aria-label="Colapsar o expandir menu"
           type="button"
         >
@@ -53,7 +141,7 @@ export default function RoleLayout() {
           <main className="min-w-0 flex-1 bg-sky-50/45 p-6 dark:bg-transparent">
             <Outlet />
           </main>
-          <div className="hidden w-[360px] border-l border-cyan-100/80 bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:border-slate-800 dark:bg-transparent">
+          <div className="hidden w-[360px] border-l border-[color:var(--light-divider)] bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:border-slate-800 dark:bg-transparent">
             <ChatDock />
           </div>
         </div>

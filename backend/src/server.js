@@ -2,11 +2,35 @@ import 'dotenv/config';
 import app from './app.js';
 import { connectDb } from './config/db.js';
 import { env } from './config/env.js';
+import { startNewsScheduler } from './services/news.service.js';
+import { startPasswordChangeExpirySweep } from './services/passwordChange.service.js';
+import { verifyMailTransport } from './mail/mailer.js';
 
 async function start() {
+  if (!env.jwtSecret || env.jwtSecret.length < 24) {
+    throw new Error('JWT_SECRET is required and must be at least 24 characters');
+  }
+  if (!env.dataEncryptionKey || env.dataEncryptionKey.length < 16) {
+    throw new Error('DATA_ENCRYPTION_KEY is required and must be at least 16 characters');
+  }
+  if (!env.dataHashKey || env.dataHashKey.length < 16) {
+    throw new Error('DATA_HASH_KEY is required and must be at least 16 characters');
+  }
   await connectDb();
-  app.listen(env.port, () => {
+  await verifyMailTransport();
+  startNewsScheduler();
+  startPasswordChangeExpirySweep();
+  const server = app.listen(env.port, () => {
     console.log(`[backend] listening on http://localhost:${env.port}`);
+  });
+
+  server.on('error', (err) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`[backend] port ${env.port} already in use`);
+    } else {
+      console.error('[backend] server error', err);
+    }
+    process.exit(1);
   });
 }
 

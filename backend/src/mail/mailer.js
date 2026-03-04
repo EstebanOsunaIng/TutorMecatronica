@@ -1,47 +1,409 @@
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
+import { env } from '../config/env.js';
+
+let transporter = null;
+let verifyPromise = null;
+let sendgridInitialized = false;
+
+function isSendgridProvider() {
+  return env.mail.provider === 'sendgrid';
+}
+
+function getSmtpConfig() {
+  const port = env.mail.port || 587;
+  const secure = env.mail.secure !== null ? env.mail.secure : port === 465;
+  return {
+    service: env.mail.service,
+    host: env.mail.host,
+    port,
+    secure,
+    user: env.mail.user,
+    pass: env.mail.pass,
+    from: env.mail.from,
+    tlsRejectUnauthorized: env.mail.tlsRejectUnauthorized
+  };
+}
+
+function sanitizeSmtpError(error) {
+  return {
+    code: error?.code || 'UNKNOWN',
+    command: error?.command || null,
+    responseCode: error?.responseCode || null,
+    response: error?.response || null,
+    message: error?.message || 'SMTP error'
+  };
+}
+
+function sanitizeSendgridError(error) {
+  return {
+    code: error?.code || error?.response?.statusCode || 'UNKNOWN',
+    statusCode: error?.response?.statusCode || null,
+    message: error?.message || 'SendGrid error',
+    responseBody: error?.response?.body || null
+  };
+}
+
+function ensureSendgridClient() {
+  if (sendgridInitialized) return;
+  if (!env.mail.sendgridApiKey) {
+    throw new Error('SENDGRID_API_KEY is required when MAIL_PROVIDER=sendgrid.');
+  }
+  if (!String(env.mail.sendgridApiKey).startsWith('SG.')) {
+    throw new Error('SENDGRID_API_KEY format is invalid. Expected key that starts with "SG.".');
+  }
+  sgMail.setApiKey(env.mail.sendgridApiKey);
+  sendgridInitialized = true;
+}
 
 export function createTransporter() {
+  if (isSendgridProvider()) return null;
+  if (transporter) return transporter;
+
+  const smtp = getSmtpConfig();
+  const hasCredentials = Boolean(smtp.user && smtp.pass);
+  const hasProvider = Boolean(smtp.service || smtp.host);
+
+  if (!hasCredentials || !hasProvider) {
+    throw new Error('SMTP config missing: set MAIL_HOST/MAIL_SERVICE, MAIL_PORT, MAIL_USER and MAIL_PASS.');
+  }
+
   const transport = {
-    port: Number(process.env.MAIL_PORT),
-    secure: process.env.MAIL_SECURE === 'true',
+    port: smtp.port,
+    secure: smtp.secure,
     tls: {
-      rejectUnauthorized: process.env.MAIL_TLS_REJECT_UNAUTHORIZED !== 'false'
+      rejectUnauthorized: smtp.tlsRejectUnauthorized
     },
     auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS
+      user: smtp.user,
+      pass: smtp.pass
     }
   };
 
-  if (process.env.MAIL_SERVICE) {
-    transport.service = process.env.MAIL_SERVICE;
+  if (smtp.service) {
+    transport.service = smtp.service;
   } else {
-    transport.host = process.env.MAIL_HOST;
+    transport.host = smtp.host;
   }
 
-  return nodemailer.createTransport(transport);
+  transporter = nodemailer.createTransport(transport);
+  return transporter;
 }
 
-export async function sendResetCodeEmail({ to, code }) {
-  const transporter = createTransporter();
+export async function verifyMailTransport({ force = false } = {}) {
+  if (verifyPromise && !force) return verifyPromise;
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM,
+  verifyPromise = (async () => {
+    if (isSendgridProvider()) {
+      try {
+        ensureSendgridClient();
+        console.info('[mail] SendGrid ready', {
+          provider: env.mail.provider,
+          from: env.mail.from
+        });
+        return { ok: true };
+      } catch (error) {
+        const details = sanitizeSendgridError(error);
+        console.error('[mail] SendGrid verify failed', {
+          provider: env.mail.provider,
+          ...details
+        });
+        return { ok: false, error: details };
+      }
+    }
+
+    const smtp = getSmtpConfig();
+    try {
+      const tx = createTransporter();
+      await tx.verify();
+      console.info('[mail] SMTP ready', {
+        host: smtp.host || smtp.service,
+        port: smtp.port,
+        secure: smtp.secure,
+        user: smtp.user
+      });
+      return { ok: true };
+    } catch (error) {
+      const details = sanitizeSmtpError(error);
+      console.error('[mail] SMTP verify failed', {
+        host: smtp.host || smtp.service,
+        port: smtp.port,
+        secure: smtp.secure,
+        user: smtp.user,
+        ...details
+      });
+      return { ok: false, error: details };
+    }
+  })();
+
+  return verifyPromise;
+}
+
+async function sendMailChecked(mailOptions) {
+  const verification = await verifyMailTransport();
+  if (!verification.ok) {
+    const error = new Error(verification.error?.message || 'SMTP verify failed');
+    error.code = verification.error?.code || 'SMTP_VERIFY_FAILED';
+    error.response = verification.error?.response || null;
+    throw error;
+  }
+
+  if (isSendgridProvider()) {
+    ensureSendgridClient();
+    try {
+      await sgMail.send({
+        to: mailOptions.to,
+        from: mailOptions.from,
+        subject: mailOptions.subject,
+        text: mailOptions.text,
+        html: mailOptions.html,
+        replyTo: process.env.MAIL_REPLY_TO || undefined
+      });
+      return { delivered: true };
+    } catch (error) {
+      const details = sanitizeSendgridError(error);
+      console.error('[mail] sendgrid send failed', {
+        to: mailOptions?.to,
+        subject: mailOptions?.subject,
+        provider: env.mail.provider,
+        ...details
+      });
+      throw error;
+    }
+  }
+
+  const tx = createTransporter();
+
+  try {
+    return await tx.sendMail(mailOptions);
+  } catch (error) {
+    const smtp = getSmtpConfig();
+    const details = sanitizeSmtpError(error);
+    console.error('[mail] send failed', {
+      to: mailOptions?.to,
+      subject: mailOptions?.subject,
+      host: smtp.host || smtp.service,
+      port: smtp.port,
+      user: smtp.user,
+      ...details
+    });
+    throw error;
+  }
+}
+
+export async function sendResetCodeEmail({ to, code, resetUrl = '' }) {
+  const codeDigits = String(code || '')
+    .split('')
+    .map(
+      (digit) => `
+        <td style="padding:0 4px;">
+          <div style="width:44px;height:54px;line-height:54px;text-align:center;border-radius:12px;background:#ffffff;border:1px solid #bfdbfe;font-size:28px;font-weight:800;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,0.08);">${digit}</div>
+        </td>
+      `
+    )
+    .join('');
+
+  const safeResetUrl = String(resetUrl || '').trim();
+  const resetTextLine = safeResetUrl ? `\nTambien puedes abrir: ${safeResetUrl}\n` : '\n';
+  const resetHtmlCta = safeResetUrl
+    ? `<p style="margin:0 0 18px 0;"><a href="${safeResetUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#ffffff;text-decoration:none;font-weight:700;">Ir a restablecer contrasena</a></p>`
+    : '';
+
+  await sendMailChecked({
+    from: env.mail.from,
     to,
     subject: 'Codigo de recuperacion',
+    text: `TuVir - Codigo de recuperacion\n\nRecibimos una solicitud para cambiar tu contrasena.\nCodigo: ${code}\nVence en 10 minutos.${resetTextLine}\nSi no solicitaste este cambio, ignora este correo.`,
     html: `
-      <div style="background:#f6f7fb;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#111;">
-        <div style="max-width:620px;margin:0 auto;background:#ffffff;border-radius:14px;padding:28px 28px 24px;box-shadow:0 8px 24px rgba(16,24,40,0.08);">
-          <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#6b7280;font-weight:700;">Tutor Mecatronica</div>
-          <h1 style="margin:14px 0 10px;font-size:28px;line-height:1.2;color:#0f172a;">Tu codigo de seguridad</h1>
-          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Recibimos una solicitud para cambiar tu contraseña. Usa el siguiente codigo para continuar con el proceso.</p>
-          <div style="margin:20px 0 18px;padding:18px 20px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;text-align:center;">
-            <div style="font-size:34px;letter-spacing:6px;font-weight:700;color:#111827;">${code}</div>
-          </div>
-          <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Este codigo expira en 10 minutos.</p>
-          <p style="margin:0;font-size:13px;color:#64748b;">Si no solicitaste este cambio, puedes ignorar este correo.</p>
-        </div>
+      <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border:1px solid #dbe6f5;border-radius:24px;box-shadow:0 20px 45px rgba(15,23,42,0.1);overflow:hidden;">
+                <tr>
+                  <td style="padding:0;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0b2f59 0%,#0ea5e9 100%);">
+                      <tr>
+                        <td style="padding:24px 28px 20px 28px;">
+                          <div style="font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#dbeafe;font-weight:700;margin-bottom:12px;">TuVir | Tutor Mecatronica</div>
+                          <h1 style="margin:0 0 8px 0;font-size:30px;line-height:1.2;color:#ffffff;">Codigo de recuperacion</h1>
+                          <p style="margin:0;font-size:15px;line-height:1.6;color:#e0f2fe;max-width:500px;">Usa este codigo para restablecer tu contrasena. Por seguridad, solo estara activo durante 10 minutos.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:20px 22px 10px 22px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border:1px solid #e2ecfa;border-radius:18px;box-shadow:0 10px 24px rgba(15,23,42,0.06);">
+                      <tr>
+                        <td style="padding:20px 18px 14px 18px;">
+                    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.6;color:#334155;">Recibimos una solicitud para cambiar la contrasena de tu cuenta <span style="font-weight:700;color:#0f172a;">${to}</span>.</p>
+                    <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#334155;">Ingresa el siguiente codigo en la pantalla de recuperacion:</p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#eff6ff 0%,#f8fbff 100%);border:1px solid #dbeafe;border-radius:16px;padding:18px 8px;margin:0 0 14px 0;">
+                      <tr>
+                        <td align="center">
+                          <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
+                            <tr>
+                              ${codeDigits}
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="margin:0 0 14px 0;padding:12px 14px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;">
+                      <p style="margin:0 0 8px 0;font-size:13px;color:#334155;"><span style="font-weight:700;color:#0f172a;">Vigencia:</span> 10 minutos.</p>
+                      <p style="margin:0;font-size:13px;color:#334155;"><span style="font-weight:700;color:#0f172a;">Seguridad:</span> Nunca compartas este codigo. El equipo de TuVir no te lo pedira por chat ni por telefono.</p>
+                    </div>
+
+                    ${resetHtmlCta}
+                    <p style="margin:0 0 18px 0;font-size:13px;color:#64748b;">Si no solicitaste este cambio, puedes ignorar este correo sin realizar ninguna accion.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:14px 8px 0 8px;text-align:center;">
+                    <p style="margin:0;font-size:12px;line-height:1.5;color:#64748b;">Este mensaje fue enviado automaticamente por TuVir.</p>
+                    <p style="margin:4px 0 0 0;font-size:12px;line-height:1.5;color:#64748b;">Universitaria de Colombia - Plataforma de aprendizaje en mecatronica</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </div>
     `
+  });
+}
+
+export async function sendPasswordChangeConfirmationEmail({ to, confirmUrl }) {
+  await sendMailChecked({
+    from: env.mail.from,
+    to,
+    subject: 'Confirmación de cambio de contraseña',
+    text: `Se solicitó un cambio de contraseña para tu cuenta.
+Confirma aquí: ${confirmUrl}
+Este enlace vence en 5 minutos.
+Si no fuiste tú, ignora este mensaje.`,
+    html: `
+      <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
+          <tr><td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border:1px solid #dbe6f5;border-radius:24px;box-shadow:0 20px 45px rgba(15,23,42,0.1);overflow:hidden;">
+              <tr><td style="padding:0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0b2f59 0%,#0ea5e9 100%);">
+                  <tr><td style="padding:24px 28px 20px 28px;">
+                    <div style="font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#dbeafe;font-weight:700;margin-bottom:12px;">TuVir | Tutor Mecatronica</div>
+                    <h1 style="margin:0 0 8px 0;font-size:30px;line-height:1.2;color:#ffffff;">Confirmación de cambio</h1>
+                    <p style="margin:0;font-size:15px;line-height:1.6;color:#e0f2fe;max-width:500px;">Se solicitó un cambio de contraseña para tu cuenta.</p>
+                  </td></tr>
+                </table>
+              </td></tr>
+              <tr><td style="padding:22px;">
+                <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155;">Pulsa el botón para confirmar el cambio. El enlace vence en 5 minutos.</p>
+                <p style="margin:0 0 18px 0;">
+                  <a href="${confirmUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0ea5e9;color:#ffffff;text-decoration:none;font-weight:700;">Confirmar cambio</a>
+                </p>
+                <p style="margin:0;font-size:13px;color:#64748b;">Si no fuiste tú, ignora este mensaje.</p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+    `
+  });
+}
+
+export async function sendPasswordChangeExpiredAlertEmail({ to }) {
+  await sendMailChecked({
+    from: env.mail.from,
+    to,
+    subject: 'Intentaron cambiar tu contraseña',
+    text: 'Se intentó cambiar la contraseña de tu cuenta pero no se confirmó dentro del tiempo de seguridad. Si no fuiste tú, revisa tu cuenta.',
+    html: `
+      <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
+          <tr><td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border:1px solid #dbe6f5;border-radius:24px;box-shadow:0 20px 45px rgba(15,23,42,0.1);overflow:hidden;">
+              <tr><td style="padding:0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0b2f59 0%,#0ea5e9 100%);">
+                  <tr><td style="padding:24px 28px 20px 28px;">
+                    <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;">Alerta de seguridad</h1>
+                  </td></tr>
+                </table>
+              </td></tr>
+              <tr><td style="padding:22px;">
+                <p style="margin:0;font-size:15px;line-height:1.6;color:#334155;">Se intentó cambiar la contraseña de tu cuenta pero no se confirmó dentro del tiempo de seguridad. Si no fuiste tú, revisa tu cuenta.</p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+    `
+  });
+}
+
+export async function sendRegisterOtpEmail({ to, otp, expiresMinutes = 15 }) {
+  const codeDigits = String(otp || '')
+    .split('')
+    .map(
+      (digit) => `
+        <td style="padding:0 4px;">
+          <div style="width:44px;height:54px;line-height:54px;text-align:center;border-radius:12px;background:#ffffff;border:1px solid #bfdbfe;font-size:28px;font-weight:800;color:#0f172a;box-shadow:0 6px 20px rgba(15,23,42,0.08);">${digit}</div>
+        </td>
+      `
+    )
+    .join('');
+
+  await sendMailChecked({
+    from: env.mail.from,
+    to,
+    subject: 'Verificacion de correo',
+    text: `Estas intentando crear una cuenta.\nCodigo OTP: ${otp}\nValido por ${expiresMinutes} minutos.\n\nSi no fuiste tu, ignora este mensaje.`,
+    html: `
+      <div style="margin:0;padding:0;background:#eef3fb;font-family:'Segoe UI',Arial,Helvetica,sans-serif;color:#0f172a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3fb;padding:24px 12px;">
+          <tr><td align="center">
+            <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border:1px solid #dbe6f5;border-radius:24px;box-shadow:0 20px 45px rgba(15,23,42,0.1);overflow:hidden;">
+              <tr><td style="padding:0;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#0b2f59 0%,#0ea5e9 100%);">
+                  <tr><td style="padding:24px 28px 20px 28px;">
+                    <div style="font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:#dbeafe;font-weight:700;margin-bottom:12px;">TuVir | Tutor Mecatronica</div>
+                    <h1 style="margin:0 0 8px 0;font-size:30px;line-height:1.2;color:#ffffff;">Verificacion de correo</h1>
+                    <p style="margin:0;font-size:15px;line-height:1.6;color:#e0f2fe;max-width:500px;">Estas intentando crear una cuenta. Ingresa este codigo para confirmar tu correo.</p>
+                  </td></tr>
+                </table>
+              </td></tr>
+              <tr><td style="padding:24px;">
+                <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155;">Usa este codigo para verificar <strong>${to}</strong>.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(180deg,#eff6ff 0%,#f8fbff 100%);border:1px solid #dbeafe;border-radius:16px;padding:18px 8px;margin:0 0 14px 0;">
+                  <tr><td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;"><tr>${codeDigits}</tr></table>
+                  </td></tr>
+                </table>
+                <p style="margin:0 0 10px 0;font-size:13px;color:#334155;"><strong>Vigencia:</strong> ${expiresMinutes} minutos.</p>
+                <p style="margin:0;font-size:13px;color:#64748b;">Si no solicitaste este mensaje, ignora este correo.</p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </div>
+    `
+  });
+}
+
+export async function sendDiagnosticEmail({ to, subject, text }) {
+  await sendMailChecked({
+    from: env.mail.from,
+    to,
+    subject,
+    text,
+    html: `<p>${String(text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`
   });
 }

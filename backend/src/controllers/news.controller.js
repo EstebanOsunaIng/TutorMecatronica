@@ -1,5 +1,5 @@
 import { News } from '../models/News.model.js';
-import { ensureDailyNews } from '../services/news.service.js';
+import { ensureNewsFresh } from '../services/news.service.js';
 
 const categoryMap = {
   mecatronica: 'Mecatrónica',
@@ -20,24 +20,33 @@ function normalizeCategory(value) {
 }
 
 export async function listNews(req, res) {
-  await ensureDailyNews();
+  try {
+    await ensureNewsFresh({ trigger: 'list-news' });
+  } catch (err) {
+    console.error('[news] auto-refresh failed in listNews', err?.message || err);
+  }
+
   const { category } = req.query;
   const normalized = normalizeCategory(category);
   const mappedCategory = categoryMap[normalized] || category;
   const filter = mappedCategory ? { category: mappedCategory } : {};
-  const news = await News.find(filter).sort({ date: -1 });
+  const rows = await News.find(filter).sort({ date: -1, createdAt: -1 }).limit(30);
+
+  const seen = new Set();
+  const news = [];
+  for (const item of rows) {
+    const key = (item.url && String(item.url).trim()) || String(item.title || '').trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    news.push(item);
+    if (news.length >= 10) break;
+  }
+
   res.json({ news });
 }
 
 export async function refreshNews(req, res) {
   const force = String(req.query?.force || '') === '1';
-  if (force) {
-    await News.deleteMany({});
-  } else {
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    await News.deleteMany({ date: { $gte: start } });
-  }
-  await ensureDailyNews();
+  await ensureNewsFresh({ force, trigger: force ? 'manual-force' : 'manual-refresh' });
   res.json({ ok: true });
 }

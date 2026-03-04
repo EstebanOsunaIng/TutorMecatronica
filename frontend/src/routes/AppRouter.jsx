@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 import Login from '../pages/auth/Login.jsx';
 import Register from '../pages/auth/Register.jsx';
+import VerifyEmail from '../pages/auth/VerifyEmail.jsx';
 import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
 
 import RoleLayout from '../components/layout/RoleLayout.jsx';
@@ -18,9 +19,11 @@ import StudentSettings from '../pages/student/Settings.jsx';
 
 import TeacherDashboard from '../pages/teacher/Dashboard.jsx';
 import TeacherStudents from '../pages/teacher/Students.jsx';
+import TeacherModules from '../pages/teacher/Modules.jsx';
 import TeacherModuleEditor from '../pages/teacher/ModuleEditor.jsx';
 import TeacherNews from '../pages/teacher/News.jsx';
 import TeacherSettings from '../pages/teacher/Settings.jsx';
+import TeacherKnowledge from '../pages/teacher/Knowledge.jsx';
 
 import AdminDashboard from '../pages/admin/Dashboard.jsx';
 import AdminUsers from '../pages/admin/Users.jsx';
@@ -28,11 +31,15 @@ import AdminModules from '../pages/admin/Modules.jsx';
 import AdminStats from '../pages/admin/Stats.jsx';
 import AdminSettings from '../pages/admin/Settings.jsx';
 import AdminNews from '../pages/admin/News.jsx';
+import AdminKnowledge from '../pages/admin/Knowledge.jsx';
 
 export default function AppRouter() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
 
   const defaultRoute = () => {
+    if (!authReady) {
+      return <div className="p-6 text-center text-sm text-slate-500 dark:text-slate-300">Cargando sesion...</div>;
+    }
     if (!user) return <Navigate to="/login" replace />;
     if (user.role === 'STUDENT') return <Navigate to="/student/dashboard" replace />;
     if (user.role === 'TEACHER') return <Navigate to="/teacher/dashboard" replace />;
@@ -44,6 +51,7 @@ export default function AppRouter() {
       <Route path="/" element={defaultRoute()} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -78,7 +86,9 @@ export default function AppRouter() {
         <Route path="dashboard" element={<TeacherDashboard />} />
         <Route path="students" element={<TeacherStudents />} />
         <Route path="news" element={<TeacherNews />} />
-        <Route path="modules" element={<TeacherModuleEditor />} />
+        <Route path="knowledge" element={<TeacherKnowledge />} />
+        <Route path="modules" element={<TeacherModules />} />
+        <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="settings" element={<TeacherSettings />} />
         <Route path="settings/security" element={<TeacherSettings />} />
       </Route>
@@ -98,6 +108,7 @@ export default function AppRouter() {
         <Route path="modules" element={<AdminModules />} />
         <Route path="modules/editor" element={<TeacherModuleEditor />} />
         <Route path="news" element={<AdminNews />} />
+        <Route path="knowledge" element={<AdminKnowledge />} />
         <Route path="stats" element={<AdminStats />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="settings/security" element={<AdminSettings />} />

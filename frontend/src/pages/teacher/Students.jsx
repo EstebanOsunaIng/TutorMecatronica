@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../../components/common/Card.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import RobotLoader from '../../components/common/RobotLoader.jsx';
 import { teacherApi } from '../../api/teacher.api.js';
 
 function clamp(n, min, max) {
@@ -20,10 +21,12 @@ function ProgressBar({ value }) {
   const v = clamp(Number(value) || 0, 0, 100);
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-        <div className="h-full rounded-full bg-brand-500" style={{ width: `${v}%` }} />
+      <div className="w-24">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+          <div className="h-full rounded-full bg-brand-500" style={{ width: `${v}%` }} />
+        </div>
+        <div className="mt-1 w-full text-center text-xs font-bold text-brand-700 dark:text-brand-200">{v}%</div>
       </div>
-      <div className="w-full text-center text-xs font-bold text-brand-700 dark:text-brand-200">{v}%</div>
     </div>
   );
 }
@@ -55,6 +58,8 @@ export default function TeacherStudents() {
   const [error, setError] = useState('');
   const [students, setStudents] = useState([]);
 
+  const [exporting, setExporting] = useState(false);
+
   const [openId, setOpenId] = useState('');
   const [detailLoadingId, setDetailLoadingId] = useState('');
   const [detailById, setDetailById] = useState({});
@@ -75,6 +80,13 @@ export default function TeacherStudents() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      load();
+    }, 25000);
+    return () => window.clearInterval(id);
   }, []);
 
   const rows = useMemo(() => students || [], [students]);
@@ -99,45 +111,73 @@ export default function TeacherStudents() {
     }
   };
 
+  const exportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await teacherApi.exportStudentsCsv();
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `reporte-estudiantes-${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <Card data-tour="teacher-students-overview" className="relative space-y-4 border-cyan-100/80 bg-white/90 dark:border-slate-700 dark:bg-slate-900/50">
+      {loading && <RobotLoader label="Cargando auditoría..." scale={0.9} overlay />}
+
+      <Card className="space-y-4 border-cyan-100/80 bg-gradient-to-br from-sky-50/85 via-cyan-50/65 to-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:bg-none">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Auditoría de Progreso</h2>
+          <h2 className="text-[1.875rem] font-extrabold tracking-tight text-slate-900 dark:text-white">Auditoría de Progreso</h2>
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             Reporte institucional, detallado
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+
+        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') load();
+            }}
             placeholder="Buscar estudiante"
-            className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:w-60"
+            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:min-w-[520px] md:max-w-[680px]"
           />
-          <button
-            onClick={load}
-            className="w-full rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-white hover:bg-brand-600 sm:w-auto"
-          >
-            Buscar
-          </button>
-          <button
-            disabled
-            className="hidden rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-bold text-slate-700 opacity-60 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200 md:inline-flex"
-            title="Pendiente"
-          >
-            Exportar Excel
-          </button>
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
+            <button
+              onClick={load}
+              className="w-full rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-white hover:bg-brand-600 md:w-auto"
+            >
+              Buscar
+            </button>
+            <button
+              onClick={exportCsv}
+              disabled={exporting}
+              className="w-full rounded-xl border border-slate-200 bg-white/70 px-5 py-2.5 text-sm font-extrabold text-slate-800 transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-slate-800 md:w-auto"
+            >
+              {exporting ? 'Exportando...' : 'Exportar CSV'}
+            </button>
+          </div>
         </div>
-      </div>
+      </Card>
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <div className="min-w-0">
-            <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+            <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-bold uppercase tracking-[0.08em] text-slate-900 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100">
               <div>Estudiante</div>
               <div>Programa</div>
-              <div>Proceso</div>
+              <div className="text-center">Proceso</div>
               <div>Insignias</div>
               <div className="text-right">Detalle</div>
             </div>
@@ -166,17 +206,23 @@ export default function TeacherStudents() {
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/15 text-sm font-extrabold text-brand-700 dark:bg-brand-500/20 dark:text-brand-200">
                               {s.initials || 'ES'}
                             </div>
-                            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-950" />
+                            <span
+                              className={
+                                'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 dark:border-slate-950 ' +
+                                (s.isOnline ? 'border-white bg-emerald-500' : 'border-white bg-red-500')
+                              }
+                              title={s.isOnline ? 'Activo' : 'Inactivo'}
+                            />
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate font-extrabold text-slate-900 dark:text-white">
+                            <div className="truncate font-semibold text-slate-900 dark:text-white">
                               {s.name} {s.lastName}
                             </div>
                             <div className="truncate text-xs text-slate-600 dark:text-slate-400">{s.email}</div>
                           </div>
                         </div>
 
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
                           Ingeniería Mecatrónica
                           <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Último acceso: {formatDate(s.lastLoginAt)}</div>
                         </div>
@@ -268,6 +314,6 @@ export default function TeacherStudents() {
           </div>
         </div>
       </Card>
-    </div>
+    </Card>
   );
 }

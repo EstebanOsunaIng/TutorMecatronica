@@ -129,13 +129,15 @@ export async function getDashboardMetrics(req, res) {
   const granularity = req.query.granularity === 'day' ? 'day' : 'week';
 
   const [users, modules] = await Promise.all([
-    User.find({}, 'role isActive badgesCount createdAt lastLoginAt name lastName').lean(),
+    User.find({}, 'role isActive badgesCount createdAt lastLoginAt name lastName'),
     Module.find({}, 'title createdAt').lean()
   ]);
 
   const students = users.filter((u) => u.role === 'STUDENT');
   const totalStudents = students.length;
   const activeStudents = students.filter((u) => u.isActive).length;
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.isActive).length;
   const certifications = students.reduce((sum, u) => sum + (u.badgesCount || 0), 0);
 
   const studentIds = students.map((u) => u._id);
@@ -146,13 +148,21 @@ export async function getDashboardMetrics(req, res) {
     ).lean()
     : [];
 
-  const progressWithTime = progressRows.filter((p) => Number(p.timeSpentSeconds) > 0);
-  const averageTimeMinutes = progressWithTime.length
-    ? Math.round(
-      progressWithTime.reduce((sum, p) => sum + Number(p.timeSpentSeconds || 0), 0) /
-          progressWithTime.length /
-          60
-    )
+  const completionDurationsSeconds = progressRows
+    .map((p) => {
+      const tracked = Number(p.timeSpentSeconds || 0);
+      if (tracked > 0) return tracked;
+
+      if (!p.startedAt || !p.completedAt) return 0;
+      const started = new Date(p.startedAt).getTime();
+      const completed = new Date(p.completedAt).getTime();
+      if (!Number.isFinite(started) || !Number.isFinite(completed) || completed <= started) return 0;
+      return Math.round((completed - started) / 1000);
+    })
+    .filter((seconds) => seconds > 0);
+
+  const averageTimeMinutes = completionDurationsSeconds.length
+    ? Math.max(1, Math.round(completionDurationsSeconds.reduce((sum, value) => sum + value, 0) / completionDurationsSeconds.length / 60))
     : 0;
 
   const registrations = buildRegistrationSeries({
@@ -253,6 +263,8 @@ export async function getDashboardMetrics(req, res) {
 
   res.json({
     overview: {
+      totalUsers,
+      activeUsers,
       activeStudents,
       averageTimeMinutes,
       certifications,
