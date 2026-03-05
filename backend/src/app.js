@@ -1,3 +1,5 @@
+//ZKP95DCBSLSLN6V91M95P2A4
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -15,6 +17,7 @@ import notificationsRoutes from './routes/notifications.routes.js';
 import teacherRoutes from './routes/teacher.routes.js';
 import presenceRoutes from './routes/presence.routes.js';
 import knowledgeRoutes from './routes/knowledge.routes.js';
+import debugRoutes from './routes/debug.routes.js';
 
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -45,6 +48,7 @@ function parseAllowedOrigins(value) {
 const explicitAllowedOrigins = new Set([
   ...parseAllowedOrigins(process.env.CORS_ORIGINS),
   ...parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
+  ...parseAllowedOrigins(process.env.APP_URL),
   ...parseAllowedOrigins(process.env.FRONTEND_PUBLIC_URL)
 ]);
 
@@ -86,6 +90,7 @@ app.use('/api/notificaciones', notificationsRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/debug', debugRoutes);
 
 app.use(errorHandler);
 

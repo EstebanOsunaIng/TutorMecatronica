@@ -20,7 +20,7 @@ function startOfDay(d) {
 
 function startOfWeekMonday(d) {
   const day = d.getDay();
-  const diff = (day + 6) % 7; // Monday=0
+  const diff = (day + 6) % 7;
   const base = startOfDay(d);
   base.setDate(base.getDate() - diff);
   return base;
@@ -78,12 +78,12 @@ function bucketKey(range, d) {
   return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export default function ActivityChart({ progressRows, range = 'week', isDark }) {
+export default function ActivityChart({ progressRows = [], range = 'week', isDark = false }) {
   const data = useMemo(() => {
     const buckets = buildBuckets(range);
     const counts = new Map(buckets.map((b) => [b.key, 0]));
 
-    for (const row of progressRows || []) {
+    for (const row of progressRows) {
       const d = safeDate(row?.updatedAt || row?.completedAt || row?.startedAt);
       if (!d) continue;
       const key = bucketKey(range, d);
