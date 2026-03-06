@@ -17,6 +17,7 @@ export default function ForgotPassword() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
   const [isMobileVisual, setIsMobileVisual] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= 1080 || window.matchMedia('(orientation: portrait)').matches;
@@ -35,6 +36,14 @@ export default function ForgotPassword() {
       window.removeEventListener('orientationchange', handleViewport);
     };
   }, []);
+
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return undefined;
+    const timer = window.setInterval(() => {
+      setResendCooldownSeconds((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldownSeconds]);
 
   const emailError = email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim().toLowerCase()) ? 'Correo invalido.' : '';
   const codeError = step === 2 && code && !/^\d{6}$/.test(code.trim()) ? 'El codigo debe tener 6 digitos.' : '';
@@ -58,6 +67,12 @@ export default function ForgotPassword() {
   const requestCode = async (e) => {
     e.preventDefault();
     setError('');
+    if (resendCooldownSeconds > 0) {
+      const msg = `Espera ${resendCooldownSeconds}s para solicitar otro codigo.`;
+      setError(msg);
+      toast.info('Espera un momento', msg);
+      return;
+    }
     if (emailError) {
       setError(emailError);
       toast.warning('Correo inválido', emailError);
@@ -66,12 +81,16 @@ export default function ForgotPassword() {
     try {
       setSubmitting(true);
       await authApi.forgot({ email });
+      setResendCooldownSeconds(60);
       setStep(2);
       toast.info('Código enviado', 'Revisa tu correo para continuar con la recuperación.');
     } catch (err) {
       const apiError = err?.response?.data?.error || err?.response?.data?.message;
       setError(apiError || 'No se pudo enviar el codigo. Verifica el correo e intentalo de nuevo.');
       toast.error('No se pudo enviar el código', apiError || 'Inténtalo nuevamente.');
+      if (String(apiError || '').toLowerCase().includes('espera un minuto')) {
+        setResendCooldownSeconds(60);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -189,13 +208,18 @@ export default function ForgotPassword() {
                     </div>
                   </div>
                   <button
-                   disabled={Boolean(emailError)}
-                   className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
-                 >
-                  Enviar código
-                </button>
-              </form>
-            )}
+                   disabled={Boolean(emailError) || submitting || resendCooldownSeconds > 0}
+                    className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
+                  >
+                   {resendCooldownSeconds > 0 ? `Reenviar en ${resendCooldownSeconds}s` : 'Enviar código'}
+                 </button>
+                 {resendCooldownSeconds > 0 && (
+                   <p className={`text-center text-xs ${isDark ? 'text-sky-100/70' : 'text-[#6d8094]'}`}>
+                     Ya solicitaste un codigo. Espera {resendCooldownSeconds}s para reenviar.
+                   </p>
+                 )}
+               </form>
+             )}
 
             {step === 2 && (
               <form onSubmit={reset} className="space-y-3">
