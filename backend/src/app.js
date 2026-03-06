@@ -47,14 +47,19 @@ function parseAllowedOrigins(value) {
 
 const explicitAllowedOrigins = new Set([
   ...parseAllowedOrigins(process.env.CORS_ORIGINS),
-  ...parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS),
-  ...parseAllowedOrigins(process.env.APP_URL),
-  ...parseAllowedOrigins(process.env.FRONTEND_PUBLIC_URL)
+  ...parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS)
 ]);
+
+const explicitAllowedOriginSuffixes = parseAllowedOriginSuffixes(process.env.CORS_ALLOWED_ORIGIN_SUFFIXES);
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (explicitAllowedOrigins.has(origin)) return true;
+
+  const host = originHost(origin);
+  if (host && explicitAllowedOriginSuffixes.some((suffix) => host.endsWith(suffix))) {
+    return true;
+  }
 
   const isDevelopment = !isProduction;
   if (!isDevelopment) return false;
