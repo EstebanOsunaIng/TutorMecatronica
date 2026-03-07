@@ -53,6 +53,9 @@ function ensureSendgridClient() {
     throw new Error('SENDGRID_API_KEY format is invalid. Expected key that starts with "SG.".');
   }
   sgMail.setApiKey(env.mail.sendgridApiKey);
+  if (env.mail.sendgridDataResidency && typeof sgMail.setDataResidency === 'function') {
+    sgMail.setDataResidency(env.mail.sendgridDataResidency);
+  }
   sendgridInitialized = true;
 }
 
