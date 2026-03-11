@@ -10,16 +10,14 @@ const dotenvResult = dotenv.config({ path: dotenvPath });
 
 const mailPass = process.env.MAIL_PASS || process.env.MAILPASS || '';
 const appUrl = process.env.APP_URL || process.env.FRONTEND_PUBLIC_URL || '';
-const sendgridApiKey = process.env.SENDGRID_API_KEY || '';
-const sendgridDataResidency = String(process.env.SENDGRID_DATA_RESIDENCY || '').trim().toLowerCase();
-const mailProvider = String(process.env.MAIL_PROVIDER || (sendgridApiKey ? 'sendgrid' : 'smtp')).toLowerCase();
+const resendApiKey = process.env.RESEND_API_KEY || '';
+const mailProvider = String(process.env.MAIL_PROVIDER || (resendApiKey ? 'resend' : 'smtp')).toLowerCase();
 
 const envDiagnostics = {
   source: dotenvResult.error ? 'process.env' : `.env (${dotenvPath}) + process.env`,
   keyPresence: {
     MAIL_PROVIDER: Boolean(mailProvider),
-    SENDGRID_API_KEY: Boolean(sendgridApiKey),
-    SENDGRID_DATA_RESIDENCY: Boolean(sendgridDataResidency),
+    RESEND_API_KEY: Boolean(resendApiKey),
     MAIL_HOST: Boolean(process.env.MAIL_HOST),
     MAIL_PORT: Boolean(process.env.MAIL_PORT),
     MAIL_USER: Boolean(process.env.MAIL_USER),
@@ -67,8 +65,7 @@ export const env = {
   },
   mail: {
     provider: mailProvider,
-    sendgridApiKey,
-    sendgridDataResidency,
+    resendApiKey,
     service: process.env.MAIL_SERVICE || '',
     host: process.env.MAIL_HOST || '',
     port: Number(process.env.MAIL_PORT || 0),
