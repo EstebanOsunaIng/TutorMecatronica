@@ -7,7 +7,10 @@ export function setUnauthorizedHandler(handler) {
 }
 
 function normalizeBaseUrl(value) {
-  const raw = String(value || '').trim();
+  let raw = String(value || '').trim();
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    raw = raw.slice(1, -1).trim();
+  }
   if (!raw) return '';
   return raw.endsWith('/') ? raw.slice(0, -1) : raw;
 }

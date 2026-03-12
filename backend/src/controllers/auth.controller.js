@@ -199,15 +199,29 @@ export async function changePassword(req, res) {
 }
 
 function backendPublicUrl(req) {
-  return process.env.BACKEND_PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+  const raw = String(process.env.BACKEND_PUBLIC_URL || '').trim();
+  const cleaned =
+    (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
+      ? raw.slice(1, -1).trim()
+      : raw;
+  return cleaned || `${req.protocol}://${req.get('host')}`;
 }
 
 function frontendPublicUrl(req) {
+  const normalizeUrl = (value) => {
+    const raw = String(value || '').trim();
+    const cleaned =
+      (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
+        ? raw.slice(1, -1).trim()
+        : raw;
+    return cleaned.replace(/\/$/, '');
+  };
+
   if (process.env.APP_URL) {
-    return String(process.env.APP_URL).replace(/\/$/, '');
+    return normalizeUrl(process.env.APP_URL);
   }
   if (process.env.FRONTEND_PUBLIC_URL) {
-    return String(process.env.FRONTEND_PUBLIC_URL).replace(/\/$/, '');
+    return normalizeUrl(process.env.FRONTEND_PUBLIC_URL);
   }
   return '';
 }

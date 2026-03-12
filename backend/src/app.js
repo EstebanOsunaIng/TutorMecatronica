@@ -41,8 +41,37 @@ const DEV_ORIGIN_PATTERNS = [
 function parseAllowedOrigins(value) {
   return String(value || '')
     .split(',')
-    .map((item) => item.trim())
+    .map((item) => String(item || '').trim())
+    .map((item) => {
+      if ((item.startsWith('"') && item.endsWith('"')) || (item.startsWith("'") && item.endsWith("'"))) {
+        return item.slice(1, -1).trim();
+      }
+      return item;
+    })
+    .map((item) => (item.endsWith('/') ? item.slice(0, -1) : item))
     .filter(Boolean);
+}
+
+function parseAllowedOriginSuffixes(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => String(item || '').trim().toLowerCase())
+    .map((item) => {
+      if ((item.startsWith('"') && item.endsWith('"')) || (item.startsWith("'") && item.endsWith("'"))) {
+        return item.slice(1, -1).trim().toLowerCase();
+      }
+      return item;
+    })
+    .map((item) => item.replace(/^\./, ''))
+    .filter(Boolean);
+}
+
+function originHost(origin) {
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
 }
 
 const explicitAllowedOrigins = new Set([
