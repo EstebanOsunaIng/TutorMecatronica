@@ -16,6 +16,55 @@ body {
   background: #edf7fb;
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (min-width: 1200px) and (max-width: 1600px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+.app-main-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 118, 185, 0.22) transparent;
+}
+
+.app-main-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.app-main-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-main-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 118, 185, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.app-main-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 118, 185, 0.34);
+}
+
+.dark .app-main-scroll {
+  scrollbar-color: rgba(56, 189, 248, 0.3) transparent;
+}
+
+.dark .app-main-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(56, 189, 248, 0.22);
+}
+
+.dark .app-main-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(56, 189, 248, 0.42);
+}
+
 .robot-loader {
   display: flex;
   flex-direction: column;
@@ -243,20 +292,20 @@ body {
 }
 
 
-:root:not(.dark) main [class*='bg-slate-950'],
-:root:not(.dark) main [class*='bg-slate-900'] {
+:root:not(.dark) main [class~='bg-slate-950'],
+:root:not(.dark) main [class~='bg-slate-900'] {
   background-color: rgba(255, 255, 255, 0.9) !important;
 }
 
-:root:not(.dark) main [class*='border-slate-800'],
-:root:not(.dark) main [class*='border-slate-700'],
-:root:not(.dark) main [class*='border-slate-600'] {
+:root:not(.dark) main [class~='border-slate-800'],
+:root:not(.dark) main [class~='border-slate-700'],
+:root:not(.dark) main [class~='border-slate-600'] {
   border-color: rgba(178, 219, 235, 0.95) !important;
 }
 
-:root:not(.dark) main [class*='text-slate-100'],
-:root:not(.dark) main [class*='text-slate-200'],
-:root:not(.dark) main [class*='text-slate-300'] {
+:root:not(.dark) main [class~='text-slate-100'],
+:root:not(.dark) main [class~='text-slate-200'],
+:root:not(.dark) main [class~='text-slate-300'] {
   color: #0f2a4b !important;
 }
 

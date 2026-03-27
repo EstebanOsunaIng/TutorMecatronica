@@ -116,7 +116,7 @@ export default function RoleLayout() {
 
   return (
 
-    <div className="flex min-h-screen bg-gradient-to-br from-sky-50/90 via-cyan-50/70 to-slate-50 text-slate-900 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-sky-50/90 via-cyan-50/70 to-slate-50 text-slate-900 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
       <OnboardingTour
         role={user?.role || 'STUDENT'}
         open={isOnboardingOpen}
@@ -135,13 +135,13 @@ export default function RoleLayout() {
         </button>
       </div>
       <Sidebar {...sidebarHandlers} />
-      <div className="flex flex-1 flex-col pt-[72px]">
+      <div className="flex min-h-0 flex-1 flex-col pt-[72px]">
         <Navbar onOpenSidebar={onOpenMobile} />
-        <div className="flex flex-1 items-start">
-          <main className="min-w-0 flex-1 bg-sky-50/45 p-6 dark:bg-transparent">
+        <div className="flex min-h-0 flex-1 items-stretch overflow-hidden">
+          <main className="app-main-scroll min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-sky-50/45 p-4 xl:p-6 dark:bg-transparent">
             <Outlet />
           </main>
-          <div className="hidden w-[360px] border-l border-[color:var(--light-divider)] bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:border-slate-800 dark:bg-transparent">
+          <div className="hidden h-full border-l border-[color:var(--light-divider)] bg-sky-50/55 lg:block lg:w-[300px] lg:flex-shrink-0 xl:w-[330px] 2xl:w-[360px] dark:border-slate-800 dark:bg-transparent">
             <ChatDock />
           </div>
         </div>

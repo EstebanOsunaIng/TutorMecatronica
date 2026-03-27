@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import RobotLoader from '../../components/common/RobotLoader.jsx';
@@ -52,8 +53,23 @@ function BadgeDots({ count = 0 }) {
   );
 }
 
+const EMPTY_FILTERS = {
+  q: '',
+  lastLoginFrom: '',
+  lastLoginTo: '',
+  progressMin: '',
+  progressMax: '',
+  badges: [],
+  sortBy: 'lastLoginAt',
+  sortOrder: 'desc'
+};
+
+const BADGE_FILTER_OPTIONS = [0, 1, 2, 3, 4, 5];
+
 export default function TeacherStudents() {
-  const [q, setQ] = useState('');
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
+  const [activeColumnMenu, setActiveColumnMenu] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [students, setStudents] = useState([]);
@@ -65,14 +81,31 @@ export default function TeacherStudents() {
   const [detailById, setDetailById] = useState({});
   const [detailErrorById, setDetailErrorById] = useState({});
 
-  const load = async () => {
+  const buildParams = (activeFilters) => {
+    const params = {};
+    if (activeFilters.q.trim()) params.q = activeFilters.q.trim();
+    if (activeFilters.lastLoginFrom) params.lastLoginFrom = activeFilters.lastLoginFrom;
+    if (activeFilters.lastLoginTo) params.lastLoginTo = activeFilters.lastLoginTo;
+    if (activeFilters.progressMin !== '') params.progressMin = activeFilters.progressMin;
+    if (activeFilters.progressMax !== '') params.progressMax = activeFilters.progressMax;
+    if (activeFilters.badges.length) params.badges = activeFilters.badges.join(',');
+    if (activeFilters.sortBy) {
+      params.sortBy = activeFilters.sortBy;
+      params.sortOrder = activeFilters.sortOrder;
+    }
+    return params;
+  };
+
+  const load = async (overrideFilters) => {
+    const activeFilters = overrideFilters || appliedFilters;
     setLoading(true);
     setError('');
     try {
-      const res = await teacherApi.listStudents(q);
+      const res = await teacherApi.listStudents(buildParams(activeFilters));
       setStudents(res.data.students || []);
+      setAppliedFilters({ ...activeFilters });
     } catch (e) {
-      setError('No se pudo cargar el listado de estudiantes.');
+      setError(e?.response?.data?.error || 'No se pudo cargar el listado de estudiantes.');
     } finally {
       setLoading(false);
     }
@@ -84,12 +117,100 @@ export default function TeacherStudents() {
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      load();
+      load(appliedFilters);
     }, 25000);
     return () => window.clearInterval(id);
+  }, [appliedFilters]);
+
+  useEffect(() => {
+    const handleCloseMenus = () => setActiveColumnMenu('');
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') setActiveColumnMenu('');
+    };
+    document.addEventListener('mousedown', handleCloseMenus);
+    document.addEventListener('touchstart', handleCloseMenus);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleCloseMenus);
+      document.removeEventListener('touchstart', handleCloseMenus);
+      document.removeEventListener('keydown', handleEsc);
+    };
   }, []);
 
   const rows = useMemo(() => students || [], [students]);
+
+  const applyFilters = async (nextFilters = filters) => {
+    await load(nextFilters);
+    setActiveColumnMenu('');
+  };
+
+  const clearAllFilters = async () => {
+    setFilters(EMPTY_FILTERS);
+    await applyFilters(EMPTY_FILTERS);
+  };
+
+  const toggleBadgeSelection = (badgeValue) => {
+    setFilters((prev) => {
+      const key = String(badgeValue);
+      const alreadySelected = prev.badges.includes(key);
+      return {
+        ...prev,
+        badges: alreadySelected ? prev.badges.filter((value) => value !== key) : [...prev.badges, key]
+      };
+    });
+  };
+
+  const setColumnSort = async (sortBy, sortOrder) => {
+    const nextFilters = { ...filters, sortBy, sortOrder };
+    setFilters(nextFilters);
+    await applyFilters(nextFilters);
+  };
+
+  const clearColumnFilter = async (column) => {
+    const nextFilters = { ...filters };
+
+    if (column === 'student') {
+      nextFilters.q = '';
+      if (nextFilters.sortBy === 'student') {
+        nextFilters.sortBy = 'lastLoginAt';
+        nextFilters.sortOrder = 'desc';
+      }
+    }
+    if (column === 'lastLogin') {
+      nextFilters.lastLoginFrom = '';
+      nextFilters.lastLoginTo = '';
+      if (nextFilters.sortBy === 'lastLoginAt') {
+        nextFilters.sortBy = 'lastLoginAt';
+        nextFilters.sortOrder = 'desc';
+      }
+    }
+    if (column === 'progress') {
+      nextFilters.progressMin = '';
+      nextFilters.progressMax = '';
+      if (nextFilters.sortBy === 'progress') {
+        nextFilters.sortBy = 'lastLoginAt';
+        nextFilters.sortOrder = 'desc';
+      }
+    }
+    if (column === 'badges') {
+      nextFilters.badges = [];
+      if (nextFilters.sortBy === 'badgesCount') {
+        nextFilters.sortBy = 'lastLoginAt';
+        nextFilters.sortOrder = 'desc';
+      }
+    }
+
+    setFilters(nextFilters);
+    await applyFilters(nextFilters);
+  };
+
+  const isColumnActive = (column) => {
+    if (column === 'student') return Boolean(filters.q.trim() || filters.sortBy === 'student');
+    if (column === 'lastLogin') return Boolean(filters.lastLoginFrom || filters.lastLoginTo || filters.sortBy === 'lastLoginAt');
+    if (column === 'progress') return Boolean(filters.progressMin !== '' || filters.progressMax !== '' || filters.sortBy === 'progress');
+    if (column === 'badges') return Boolean(filters.badges.length || filters.sortBy === 'badgesCount');
+    return false;
+  };
 
   const toggleAnalyze = async (studentId) => {
     if (openId === studentId) {
@@ -115,7 +236,7 @@ export default function TeacherStudents() {
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await teacherApi.exportStudentsCsv();
+      const res = await teacherApi.exportStudentsCsv(buildParams(appliedFilters));
       const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'text/csv;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -143,22 +264,28 @@ export default function TeacherStudents() {
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex w-full flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={filters.q}
+            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') load();
+              if (e.key === 'Enter') applyFilters();
             }}
             placeholder="Buscar estudiante"
-            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:min-w-[520px] md:max-w-[680px]"
+            className="w-full rounded-xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-slate-800 dark:bg-slate-950/60 dark:text-white md:min-w-[420px] md:max-w-[620px]"
           />
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end">
             <button
-              onClick={load}
+              onClick={() => applyFilters()}
               className="w-full rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-white hover:bg-brand-600 md:w-auto"
             >
               Buscar
+            </button>
+            <button
+              onClick={clearAllFilters}
+              className="w-full rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 md:w-auto"
+            >
+              Limpiar filtros
             </button>
             <button
               onClick={exportCsv}
@@ -171,14 +298,291 @@ export default function TeacherStudents() {
         </div>
       </Card>
 
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
+      <Card className="overflow-visible p-0">
+        <div className="overflow-x-auto overflow-y-visible">
           <div className="min-w-0">
-            <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-bold uppercase tracking-[0.08em] text-slate-900 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100">
-              <div>Estudiante</div>
-              <div>Programa</div>
-              <div className="text-center">Proceso</div>
-              <div>Insignias</div>
+            <div className="relative z-20 grid grid-cols-[minmax(180px,2fr)_minmax(135px,1.2fr)_minmax(105px,0.9fr)_minmax(95px,0.75fr)_80px] gap-0 border-b border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-bold uppercase tracking-[0.08em] text-slate-900 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100">
+              <div>
+                <div className="relative inline-flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <span>Estudiante</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveColumnMenu((prev) => (prev === 'student' ? '' : 'student'));
+                    }}
+                    className={`rounded-md p-0.5 transition ${isColumnActive('student') ? 'bg-brand-500/20 text-brand-700 dark:text-brand-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+
+                  {activeColumnMenu === 'student' && (
+                    <div className="absolute left-0 top-full z-[80] mt-1 w-72 rounded-xl border border-slate-200 bg-white p-3 text-left normal-case opacity-100 shadow-2xl backdrop-blur-0 dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('student', 'asc')}
+                        className="w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de menor a mayor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('student', 'desc')}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de mayor a menor
+                      </button>
+
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Buscar estudiante</label>
+                        <div className="relative mt-1">
+                          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            value={filters.q}
+                            onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
+                            placeholder="Nombre o correo"
+                            className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-7 pr-2 text-xs outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyFilters()}
+                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => clearColumnFilter('student')}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
+                        >
+                          Borrar filtro
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="relative inline-flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <span>Programa</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveColumnMenu((prev) => (prev === 'lastLogin' ? '' : 'lastLogin'));
+                    }}
+                    className={`rounded-md p-0.5 transition ${isColumnActive('lastLogin') ? 'bg-brand-500/20 text-brand-700 dark:text-brand-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+
+                  {activeColumnMenu === 'lastLogin' && (
+                    <div className="absolute left-0 top-full z-[80] mt-1 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left normal-case opacity-100 shadow-2xl backdrop-blur-0 dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('lastLoginAt', 'asc')}
+                        className="w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de menor a mayor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('lastLoginAt', 'desc')}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de mayor a menor
+                      </button>
+
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Ultimo acceso desde</label>
+                        <input
+                          type="date"
+                          value={filters.lastLoginFrom}
+                          onChange={(e) => setFilters((prev) => ({ ...prev, lastLoginFrom: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
+                        />
+                        <label className="mt-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Ultimo acceso hasta</label>
+                        <input
+                          type="date"
+                          value={filters.lastLoginTo}
+                          onChange={(e) => setFilters((prev) => ({ ...prev, lastLoginTo: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
+                        />
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyFilters()}
+                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => clearColumnFilter('lastLogin')}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
+                        >
+                          Borrar filtro
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="relative inline-flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <span>Proceso</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveColumnMenu((prev) => (prev === 'progress' ? '' : 'progress'));
+                    }}
+                    className={`rounded-md p-0.5 transition ${isColumnActive('progress') ? 'bg-brand-500/20 text-brand-700 dark:text-brand-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+
+                  {activeColumnMenu === 'progress' && (
+                    <div className="absolute left-0 top-full z-[80] mt-1 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left normal-case opacity-100 shadow-2xl backdrop-blur-0 dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('progress', 'asc')}
+                        className="w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de menor a mayor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('progress', 'desc')}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de mayor a menor
+                      </button>
+
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Progreso minimo</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={filters.progressMin}
+                          onChange={(e) => setFilters((prev) => ({ ...prev, progressMin: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
+                        />
+                        <label className="mt-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Progreso maximo</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={filters.progressMax}
+                          onChange={(e) => setFilters((prev) => ({ ...prev, progressMax: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-brand-400 dark:border-slate-600 dark:bg-slate-800"
+                        />
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyFilters()}
+                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => clearColumnFilter('progress')}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
+                        >
+                          Borrar filtro
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <div className="relative inline-flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <span>Insignias</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveColumnMenu((prev) => (prev === 'badges' ? '' : 'badges'));
+                    }}
+                    className={`rounded-md p-0.5 transition ${isColumnActive('badges') ? 'bg-brand-500/20 text-brand-700 dark:text-brand-100' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+
+                  {activeColumnMenu === 'badges' && (
+                    <div className="absolute left-0 top-full z-[80] mt-1 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left normal-case opacity-100 shadow-2xl backdrop-blur-0 dark:border-slate-700 dark:bg-slate-900">
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('badgesCount', 'asc')}
+                        className="w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de menor a mayor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setColumnSort('badgesCount', 'desc')}
+                        className="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+                      >
+                        Ordenar de mayor a menor
+                      </button>
+
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">Filtrar insignias</p>
+                        <div className="mt-1 space-y-1">
+                          {BADGE_FILTER_OPTIONS.map((badgeValue) => {
+                            const key = String(badgeValue);
+                            const checked = filters.badges.includes(key);
+                            return (
+                              <label key={key} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleBadgeSelection(badgeValue)}
+                                  className="h-3.5 w-3.5 rounded border-slate-300"
+                                />
+                                <span>{badgeValue}</span>
+                                {checked && <Check className="ml-auto h-3.5 w-3.5 text-emerald-600" />}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyFilters()}
+                          className="rounded-lg bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white"
+                        >
+                          Aplicar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => clearColumnFilter('badges')}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-200"
+                        >
+                          Borrar filtro
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="text-right">Detalle</div>
             </div>
 
@@ -200,7 +604,7 @@ export default function TeacherStudents() {
 
                   return (
                     <div key={s._id}>
-                      <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1.3fr)_minmax(120px,1fr)_minmax(110px,0.8fr)_90px] items-center px-3 py-2.5">
+                      <div className="grid grid-cols-[minmax(180px,2fr)_minmax(135px,1.2fr)_minmax(105px,0.9fr)_minmax(95px,0.75fr)_80px] items-center px-3 py-2.5">
                         <div className="flex items-center gap-3">
                           <div className="relative">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500/15 text-sm font-extrabold text-brand-700 dark:bg-brand-500/20 dark:text-brand-200">

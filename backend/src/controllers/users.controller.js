@@ -20,17 +20,163 @@ function sanitizeUser(user, role = 'ADMIN') {
   return safe;
 }
 
+function normalizeSearchValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function parseBooleanQuery(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (['true', '1', 'yes'].includes(normalized)) return true;
+  if (['false', '0', 'no'].includes(normalized)) return false;
+  return undefined;
+}
+
+function parseDateQuery(value, endOfDay = false) {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+  if (endOfDay) parsed.setHours(23, 59, 59, 999);
+  else parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
 export async function listUsers(req, res) {
-  const { q } = req.query;
-  const users = await User.find({});
-  const normalizedQ = String(q || '').trim().toLowerCase();
-  const filteredUsers = normalizedQ
-    ? users.filter((u) => {
-      const fullName = `${u.name || ''} ${u.lastName || ''}`.toLowerCase();
-      const safeEmail = String(u.email || '').toLowerCase();
-      return fullName.includes(normalizedQ) || safeEmail.includes(normalizedQ);
-    })
-    : users;
+  const {
+    q,
+    name,
+    lastName,
+    email,
+    document,
+    role,
+    roles,
+    isActive,
+    isActiveList,
+    lastLoginFrom,
+    lastLoginTo,
+    createdFrom,
+    createdTo,
+    sortBy,
+    sortOrder
+  } = req.query;
+
+  const query = {};
+
+  const parsedRoles = typeof roles === 'string'
+    ? roles
+      .split(',')
+      .map((value) => value.trim().toUpperCase())
+      .filter((value) => ['STUDENT', 'TEACHER', 'ADMIN'].includes(value))
+    : [];
+
+  if (parsedRoles.length) {
+    query.role = { $in: parsedRoles };
+  } else if (typeof role === 'string' && ['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
+    query.role = role;
+  }
+
+  const parsedIsActiveList = typeof isActiveList === 'string'
+    ? isActiveList
+      .split(',')
+      .map((value) => parseBooleanQuery(value))
+      .filter((value) => typeof value === 'boolean')
+    : [];
+  const uniqueIsActive = [...new Set(parsedIsActiveList)];
+
+  if (uniqueIsActive.length === 1) {
+    query.isActive = uniqueIsActive[0];
+  }
+
+  const isActiveFilter = parseBooleanQuery(isActive);
+  if (typeof isActiveFilter === 'boolean' && uniqueIsActive.length === 0) {
+    query.isActive = isActiveFilter;
+  }
+
+  const normalizedEmail = typeof email === 'string' ? normalizeEmailForLookup(email) : '';
+  if (normalizedEmail) {
+    query.emailHash = hashLookupValue(normalizedEmail);
+  }
+
+  const normalizedDocument = typeof document === 'string' ? normalizeDocumentForLookup(document) : '';
+  if (normalizedDocument) {
+    query.documentHash = hashLookupValue(normalizedDocument);
+  }
+
+  const parsedLastLoginFrom = parseDateQuery(lastLoginFrom, false);
+  const parsedLastLoginTo = parseDateQuery(lastLoginTo, true);
+  if (lastLoginFrom && !parsedLastLoginFrom) {
+    return res.status(400).json({ error: 'Fecha inicial de ultimo acceso invalida.' });
+  }
+  if (lastLoginTo && !parsedLastLoginTo) {
+    return res.status(400).json({ error: 'Fecha final de ultimo acceso invalida.' });
+  }
+  if (parsedLastLoginFrom || parsedLastLoginTo) {
+    query.lastLoginAt = {};
+    if (parsedLastLoginFrom) query.lastLoginAt.$gte = parsedLastLoginFrom;
+    if (parsedLastLoginTo) query.lastLoginAt.$lte = parsedLastLoginTo;
+  }
+
+  const parsedCreatedFrom = parseDateQuery(createdFrom, false);
+  const parsedCreatedTo = parseDateQuery(createdTo, true);
+  if (createdFrom && !parsedCreatedFrom) {
+    return res.status(400).json({ error: 'Fecha inicial de registro invalida.' });
+  }
+  if (createdTo && !parsedCreatedTo) {
+    return res.status(400).json({ error: 'Fecha final de registro invalida.' });
+  }
+  if (parsedCreatedFrom || parsedCreatedTo) {
+    query.createdAt = {};
+    if (parsedCreatedFrom) query.createdAt.$gte = parsedCreatedFrom;
+    if (parsedCreatedTo) query.createdAt.$lte = parsedCreatedTo;
+  }
+
+  const normalizedSortOrder = String(sortOrder || '').toLowerCase() === 'desc' ? -1 : 1;
+  const sortableFields = {
+    role: 'role',
+    isActive: 'isActive',
+    lastLoginAt: 'lastLoginAt',
+    createdAt: 'createdAt'
+  };
+  const mongoSortField = sortableFields[String(sortBy || '').trim()];
+  const mongoSort = mongoSortField
+    ? { [mongoSortField]: normalizedSortOrder, _id: -1 }
+    : { createdAt: -1, _id: -1 };
+
+  const users = await User.find(query).sort(mongoSort);
+  const normalizedQ = normalizeSearchValue(q);
+  const normalizedName = normalizeSearchValue(name);
+  const normalizedLastName = normalizeSearchValue(lastName);
+
+  const filteredUsers = users.filter((u) => {
+    const safeName = normalizeSearchValue(u.name);
+    const safeLastName = normalizeSearchValue(u.lastName);
+    const safeEmail = normalizeSearchValue(u.email);
+    const safeDocument = normalizeSearchValue(u.document);
+
+    if (normalizedName && !safeName.includes(normalizedName)) return false;
+    if (normalizedLastName && !safeLastName.includes(normalizedLastName)) return false;
+
+    if (normalizedQ) {
+      const fullName = `${safeName} ${safeLastName}`.trim();
+      if (!fullName.includes(normalizedQ) && !safeEmail.includes(normalizedQ) && !safeDocument.includes(normalizedQ)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (String(sortBy || '').trim() === 'user') {
+    filteredUsers.sort((a, b) => {
+      const aValue = `${normalizeSearchValue(a.name)} ${normalizeSearchValue(a.lastName)}`.trim();
+      const bValue = `${normalizeSearchValue(b.name)} ${normalizeSearchValue(b.lastName)}`.trim();
+      if (aValue === bValue) return 0;
+      return normalizedSortOrder === 1 ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
+    });
+  }
+
   res.json({ users: filteredUsers.map((u) => sanitizeUser(u, req.user?.role || 'ADMIN')) });
 }
 

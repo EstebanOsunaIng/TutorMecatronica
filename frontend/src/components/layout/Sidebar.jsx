@@ -82,7 +82,7 @@ export default function Sidebar({
         className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-[color:var(--light-divider)] bg-gradient-to-b from-sky-50/95 via-cyan-50/70 to-slate-50 py-6 transition-all duration-300 md:sticky md:top-0 md:h-screen md:translate-x-0 md:pb-6 md:pt-[92px] dark:border-slate-800 dark:bg-slate-950/95 dark:bg-none ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
-          isCollapsed ? 'md:w-20 md:px-3' : 'md:w-64 md:px-6'
+          isCollapsed ? 'md:w-[4.5rem] md:px-2 xl:w-20 xl:px-3' : 'md:w-60 md:px-5 xl:w-64 xl:px-6'
         } w-72 px-5`}
       >
         <div className="mb-8 flex items-center justify-start">

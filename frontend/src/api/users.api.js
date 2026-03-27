@@ -1,7 +1,12 @@
 import axiosClient from './axiosClient.js';
 
 export const usersApi = {
-  list: (q) => axiosClient.get('/users', { params: { q } }),
+  list: (params = {}) => {
+    if (typeof params === 'string') {
+      return axiosClient.get('/users', { params: { q: params } });
+    }
+    return axiosClient.get('/users', { params });
+  },
   create: (payload) => axiosClient.post('/users', payload),
   update: (id, payload) => axiosClient.put(`/users/${id}`, payload),
   remove: (id) => axiosClient.delete(`/users/${id}`),
