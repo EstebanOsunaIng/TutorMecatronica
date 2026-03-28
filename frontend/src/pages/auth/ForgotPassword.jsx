@@ -15,6 +15,7 @@ export default function ForgotPassword() {
   const [newPassword, setNewPassword] = useState('');
   const [step, setStep] = useState(1);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
@@ -67,6 +68,13 @@ export default function ForgotPassword() {
   const requestCode = async (e) => {
     e.preventDefault();
     setError('');
+    if (!privacyAccepted) {
+      const message =
+        'Debes aceptar la Politica de privacidad de datos para continuar.';
+      setError(message);
+      toast.warning('Autorizacion requerida', message);
+      return;
+    }
     if (resendCooldownSeconds > 0) {
       const msg = `Espera ${resendCooldownSeconds}s para solicitar otro codigo.`;
       setError(msg);
@@ -208,14 +216,30 @@ export default function ForgotPassword() {
                     </div>
                   </div>
                   <button
-                   disabled={Boolean(emailError) || submitting || resendCooldownSeconds > 0}
-                    className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
+                   disabled={Boolean(emailError) || submitting || resendCooldownSeconds > 0 || !privacyAccepted}
+                    className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
                   >
-                   {resendCooldownSeconds > 0 ? `Reenviar en ${resendCooldownSeconds}s` : 'Enviar código'}
-                 </button>
-                 {resendCooldownSeconds > 0 && (
-                   <p className={`text-center text-xs ${isDark ? 'text-sky-100/70' : 'text-[#6d8094]'}`}>
-                     Ya solicitaste un codigo. Espera {resendCooldownSeconds}s para reenviar.
+                    {resendCooldownSeconds > 0 ? `Reenviar en ${resendCooldownSeconds}s` : 'Enviar código'}
+                  </button>
+                  <label className={`mt-2 flex items-start gap-2 text-[11px] leading-relaxed ${isDark ? 'text-slate-200' : 'text-[#334961]'}`}>
+                    <input
+                      type="checkbox"
+                      checked={privacyAccepted}
+                      onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#F2CB05]"
+                      required
+                    />
+                    <span>
+                      He leído y acepto la Política de privacidad de datos y Autorizo de manera libre.
+                      {' '}
+                      <Link to="/privacy-policy" className={`font-bold underline ${isDark ? 'text-[#F2CB05]' : 'text-[#07038C]'}`}>
+                        Ver Política de Privacidad
+                      </Link>
+                    </span>
+                  </label>
+                  {resendCooldownSeconds > 0 && (
+                    <p className={`text-center text-xs ${isDark ? 'text-sky-100/70' : 'text-[#6d8094]'}`}>
+                      Ya solicitaste un codigo. Espera {resendCooldownSeconds}s para reenviar.
                    </p>
                  )}
                </form>
