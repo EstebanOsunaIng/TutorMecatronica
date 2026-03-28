@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { Menu, MessageCircle, X } from 'lucide-react';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
@@ -137,10 +137,22 @@ export default function RoleLayout() {
       <Sidebar {...sidebarHandlers} />
       <div className="flex flex-1 flex-col pt-[72px]">
         <Navbar onOpenSidebar={onOpenMobile} />
-        <div className="flex flex-1 items-start">
-          <main className="min-w-0 flex-1 bg-sky-50/45 p-6 dark:bg-transparent">
-            <Outlet />
-          </main>
+        <div className="flex flex-1 items-stretch">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <main className="min-w-0 flex-1 bg-sky-50/45 p-6 dark:bg-transparent">
+              <Outlet />
+            </main>
+            <footer className="border-t border-[color:var(--light-divider)] bg-[#07038C] px-4 py-2.5 text-xs text-white/90 dark:border-slate-800 dark:bg-[#072540]">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <p className="leading-relaxed">© 2026 Tutor Virtual de Universitaria de Colombia. Todos los derechos reservados.</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-white/85">
+                  <Link to="/privacy-policy" className="transition hover:text-[#F2CB05]">Política de Privacidad</Link>
+                  <Link to="/privacy-policy" className="transition hover:text-[#F2CB05]">Términos de Uso</Link>
+                  <Link to="/privacy-policy" className="transition hover:text-[#F2CB05]">Cookies</Link>
+                </div>
+              </div>
+            </footer>
+          </div>
           <div className="hidden w-[360px] border-l border-[color:var(--light-divider)] bg-sky-50/55 lg:sticky lg:top-[72px] lg:block lg:h-[calc(100vh-72px)] lg:flex-shrink-0 dark:border-slate-800 dark:bg-transparent">
             <ChatDock />
           </div>

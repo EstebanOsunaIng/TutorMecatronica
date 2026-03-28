@@ -35,6 +35,7 @@ export default function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isMobileVisual, setIsMobileVisual] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -294,6 +295,14 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!privacyAccepted) {
+      const message =
+        'Debes aceptar la Politica de privacidad de datos para continuar con el registro.';
+      setError(message);
+      toast.warning('Autorizacion requerida', message);
+      return;
+    }
 
     const normalizedEmail = String(form.email || '').trim().toLowerCase();
     if (emailCheck.status === 'checking') {
@@ -641,12 +650,30 @@ export default function Register() {
                 disabled={
                   submitting ||
                   emailCheck.status !== 'valid' ||
-                  String(form.email || '').trim().toLowerCase() !== emailCheck.checkedEmail
+                  String(form.email || '').trim().toLowerCase() !== emailCheck.checkedEmail ||
+                  !privacyAccepted
                 }
                 className={`mt-1 flex w-full justify-center rounded-xl px-4 py-2.5 text-[0.95rem] font-extrabold uppercase tracking-[0.12em] text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${isDark ? 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500' : 'bg-gradient-to-r from-[#1599e0] to-[#25aeea] hover:from-[#138ece] hover:to-[#209fd6] focus-visible:outline-[#1599e0]'}`}
               >
                 Crear mi cuenta
               </button>
+
+              <label className={`mt-2 flex items-start gap-2 text-[11px] leading-relaxed ${isDark ? 'text-slate-200' : 'text-[#334961]'}`}>
+                <input
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#F2CB05]"
+                  required
+                />
+                <span>
+                  He leído y acepto la Política de privacidad de datos y Autorizo de manera libre.
+                  {' '}
+                  <Link to="/privacy-policy" className={`font-bold underline ${isDark ? 'text-[#F2CB05]' : 'text-[#07038C]'}`}>
+                    Ver Política de Privacidad
+                  </Link>
+                </span>
+              </label>
             </form>
 
             <div className={`mt-4 border-t pt-4 ${isDark ? 'border-sky-900/50' : 'border-[#cad3dc]'}`}>

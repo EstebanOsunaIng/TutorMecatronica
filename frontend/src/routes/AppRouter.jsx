@@ -8,6 +8,7 @@ import Login from '../pages/auth/Login.jsx';
 import Register from '../pages/auth/Register.jsx';
 import VerifyEmail from '../pages/auth/VerifyEmail.jsx';
 import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
+import PrivacyPolicy from '../pages/legal/PrivacyPolicy.jsx';
 
 import RoleLayout from '../components/layout/RoleLayout.jsx';
 
@@ -54,6 +55,7 @@ export default function AppRouter() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/forgot" element={<ForgotPassword />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       <Route
         path="/student/*"
